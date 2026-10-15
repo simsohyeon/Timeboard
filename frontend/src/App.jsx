@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, fmtDate, configured } from './api';
 import { START_H, END_H, isActiveOn } from './lib/constants';
-import { BASE_FONT, loadDisplay, saveDisplay } from './lib/display';
+import { BASE_FONT, loadDisplay } from './lib/display';
 import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
@@ -21,7 +21,18 @@ export default function App() {
   const [settings, setSettings] = useState(null);
   const [modal, setModal] = useState(null); // 예약 등록/수정 폼 초기값
   const [dbErr, setDbErr] = useState('');
-  const [display, setDisplay] = useState(loadDisplay);
+  const [display, setDisplay] = useState(loadDisplay); // 적용 중인 값 (설정에서 미리보기 포함, 저장은 설정 화면이 함)
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const changeTab = t => {
+    if (t !== tab && settingsDirty && !window.confirm('저장하지 않은 설정 변경이 있어요. 저장하지 않고 이동할까요?')) return;
+    setTab(t);
+  };
+  useEffect(() => {
+    if (!settingsDirty) return;
+    const warn = e => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [settingsDirty]);
   const [calOpen, setCalOpen] = useState(false); // 모바일 펼침 달력
 
   const loadStaff = () => api.staff().then(s => { setStaff(s); setDbErr(''); })
@@ -32,7 +43,6 @@ export default function App() {
 
   // 표시 설정 적용: 글자 크기(zoom + 높이 보정), 다크 모드
   useEffect(() => {
-    saveDisplay(display);
     const scale = display.fontPx / BASE_FONT;
     document.body.style.zoom = scale;
     document.documentElement.style.setProperty('--scale', scale);
@@ -74,7 +84,10 @@ export default function App() {
 
   // 예약·결제 공통 날짜 헤더 + 모바일 펼침 달력 (.cal-drop은 데스크톱에서 CSS로 숨김)
   const dateHead = (<>
-    <DateHeader date={date} count={list.length} onMove={moveDay}
+    <DateHeader date={date} onMove={moveDay}
+      {...(tab === 'pay'
+        ? { count: list.filter(r => r.done).length, countLabel: '완료' }
+        : { count: list.length })}
       calOpen={calOpen} onDateClick={() => setCalOpen(o => !o)} />
     {calOpen && (
       <div className="cal-drop">
@@ -86,7 +99,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar tab={tab} onTab={setTab} />
+      <TopBar tab={tab} onTab={changeTab} />
       <div className="body">
         {tab !== 'settings' && (
           <aside className="sidebar">
@@ -110,6 +123,7 @@ export default function App() {
           </>)}
           {tab === 'settings' && (
             <SettingsPage staff={staff} menus={menus} settings={settings}
+              onDirtyChange={setSettingsDirty}
               display={display} onDisplay={setDisplay}
               onStaffChanged={() => { loadStaff(); reload(); }}
               onMenusChanged={loadMenus}

@@ -16,7 +16,9 @@ const rows = ({ data, error }) => {
 
 const need = () => { if (!supabase) throw new Error('Supabase 미설정 (frontend/.env)'); };
 
-const RESV_COLS = 'id,staffId:staff_id,date,startMin:start_min,durationMin:duration_min,title,subtitle,price';
+const RESV_BASE = 'id,staffId:staff_id,date,startMin:start_min,durationMin:duration_min,title,subtitle,price';
+const RESV_COLS = RESV_BASE + ',done';
+const NO_DONE_MSG = '완료 표시용 칸(reservation.done)이 없어요 — supabase/setup.sql 최신 버전을 실행하세요';
 const STAFF_COLS = 'id,name,dotColor:dot_color,sortOrder:sort_order,joinedOn:joined_on,leftOn:left_on,'
   + 'commissionPct:commission_pct,workDays:work_days,workOpenMin:work_open_min,workCloseMin:work_close_min,phone,memo';
 const MENU_COLS = 'id,name,durations,prices,sortOrder:sort_order';
@@ -81,10 +83,21 @@ export const api = {
   },
 
   // ───── 예약 ─────
-  reservations: async date =>
-    supabase
-      ? rows(await supabase.from('reservation').select(RESV_COLS).eq('date', date).order('start_min'))
-      : [],
+  reservations: async date => {
+    if (!supabase) return [];
+    const q = cols => supabase.from('reservation').select(cols).eq('date', date).order('start_min');
+    const res = await q(RESV_COLS);
+    // setup.sql 을 아직 안 돌려 done 칸이 없으면, 완료 표시 없이라도 보드는 보이게
+    if (res.error?.code === '42703') return rows(await q(RESV_BASE)).map(r => ({ ...r, done: false }));
+    return rows(res);
+  },
+
+  setReservationDone: async (id, done) => {
+    need();
+    const res = await supabase.from('reservation').update({ done }).eq('id', id).select('id');
+    if (res.error?.code === '42703' || res.error?.code === 'PGRST204') throw new Error(NO_DONE_MSG);
+    return rows(res);
+  },
 
   reservationDates: async () =>
     supabase
@@ -93,12 +106,12 @@ export const api = {
 
   createReservation: async r => {
     need();
-    return rows(await supabase.from('reservation').insert(toRow(r)).select(RESV_COLS));
+    return rows(await supabase.from('reservation').insert(toRow(r)).select('id'));
   },
 
   updateReservation: async (id, r) => {
     need();
-    return rows(await supabase.from('reservation').update(toRow(r)).eq('id', id).select(RESV_COLS));
+    return rows(await supabase.from('reservation').update(toRow(r)).eq('id', id).select('id'));
   },
 
   deleteReservation: async id => {

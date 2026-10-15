@@ -1,109 +1,134 @@
 import { useState } from 'react';
 import { api, fmtDate } from '../api';
 import { START_H, END_H, minLabel, worksOn } from '../lib/constants'; // startH/endH prop 기본값
-import { Modal, Button, Field, Select } from './ui';
+import { Modal, Button, Field, FieldGroup, Select } from './ui';
+
+// 설정 > 메뉴·가격에서 켜 둔 (메뉴, 시간) 조합 하나하나가 버튼 하나
+const optionsOf = menus => menus.flatMap(m =>
+  m.durations.map((dur, i) => ({ key: `${m.name}|${dur}`, menu: m.name, dur, price: m.prices?.[i] ?? 0 })));
 
 export default function ReservationModal({ init, staff, menus, date, startH = START_H, endH = END_H, hidePrice = false, onClose, onSaved }) {
-  // 메뉴+시간으로 가격 조회 (durations와 prices는 같은 순서)
-  const priceOf = (menuName, dur) => {
-    const m = menus.find(x => x.name === menuName);
-    if (!m) return 0;
-    const i = m.durations.indexOf(Number(dur));
-    return m.prices?.[i] ?? 0;
-  };
+  const options = optionsOf(menus);
+  // 수정이면 기존 subtitle("아로마 60분")에서 메뉴를 찾고, 새 예약이면 첫 번째 버튼
+  const initMenu = menus.find(m => (init.subtitle || '').startsWith(m.name))?.name;
+  const initOpt = init.id
+    ? options.find(o => o.menu === initMenu && o.dur === init.durationMin)
+    : options[0];
 
-  // 수정 모드면 기존 subtitle에서 메뉴 복원
-  const initMenu = menus.find(m => (init.subtitle || '').startsWith(m.name))?.name || menus[0]?.name || '';
+  // 예전 예약인데 지금 메뉴판에 없는 조합이면, 원래 값을 버튼 하나로 남겨 둔다
+  const legacy = init.id && !initOpt
+    ? { label: init.subtitle || `${init.durationMin}분`, dur: init.durationMin, price: init.price || 0 }
+    : null;
+
   const [form, setForm] = useState({
-    menu: initMenu,
-    dur: init.durationMin || 60,
     ...init,
-    // 저장된 금액이 없으면(새 예약·과거 0원 예약) 메뉴 가격으로 자동
-    price: init.price || priceOf(initMenu, init.durationMin || 60),
+    pick: initOpt?.key ?? (legacy ? 'legacy' : null),
+    dur: initOpt?.dur ?? init.durationMin ?? 60,
+    // 저장된 금액이 없으면(새 예약·과거 0원 예약) 메뉴 가격으로
+    price: init.price || initOpt?.price || 0,
   });
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  const baseDurs = menus.find(m => m.name === form.menu)?.durations;
-  const menuDurs = baseDurs?.length ? baseDurs : [60, 90, 120];
-  // 기존 예약의 시간이 메뉴 옵션에 없으면 그 값도 보여준다
-  const durOptions = menuDurs.includes(Number(form.dur)) ? menuDurs : [Number(form.dur), ...menuDurs];
+  const pick = o => setForm(f => ({ ...f, pick: o.key, dur: o.dur, price: o.price }));
+  const pickLegacy = () => setForm(f => ({ ...f, pick: 'legacy', dur: legacy.dur, price: legacy.price }));
+  const picked = options.find(o => o.key === form.pick);
   const endMin = Number(form.startMin) + Number(form.dur);
 
-  const pickMenu = name => {
-    const ds = menus.find(m => m.name === name)?.durations || [60, 90, 120];
-    setForm(f => {
-      const dur = ds.includes(Number(f.dur)) ? f.dur : ds[0];
-      return { ...f, menu: name, dur, price: priceOf(name, dur) };
-    });
-  };
-  const pickDur = dur => setForm(f => ({ ...f, dur, price: priceOf(f.menu, dur) }));
+  const payload = () => ({
+    staffId: Number(form.staffId),
+    date: fmtDate(date),
+    startMin: Number(form.startMin),
+    durationMin: Number(form.dur),
+    title: form.title?.trim() || '고객 등록 필요',
+    subtitle: picked ? `${picked.menu} ${picked.dur}분` : (legacy?.label ?? `${form.dur}분`),
+    price: Number(form.price) || 0,
+  });
 
-  const submit = async e => {
+  const act = async fn => {
+    setBusy(true);
+    try { await fn(); onSaved(); }
+    catch (e) { setErr(e.message || String(e)); setBusy(false); }
+  };
+  // 완료된 예약은 '완료 취소' 말고는 아무것도 바꿀 수 없다
+  const locked = !!form.done;
+  const submit = e => {
     e.preventDefault();
-    setBusy(true);
-    try {
-      const payload = {
-        staffId: Number(form.staffId),
-        date: fmtDate(date),
-        startMin: Number(form.startMin),
-        durationMin: Number(form.dur),
-        title: form.title?.trim() || '고객 등록 필요',
-        subtitle: form.menu ? `${form.menu} ${form.dur}분` : `${form.dur}분`,
-        price: Number(form.price) || 0,
-      };
-      if (form.id) await api.updateReservation(form.id, payload);
-      else await api.createReservation(payload);
-      onSaved();
-    } catch (e2) { setErr(e2.message || String(e2)); setBusy(false); }
+    if (locked) return;
+    if (!form.pick) return setErr('메뉴를 골라 주세요');
+    act(() => (form.id ? api.updateReservation(form.id, payload()) : api.createReservation(payload())));
   };
-
-  const del = async () => {
-    setBusy(true);
-    try { await api.deleteReservation(form.id); onSaved(); }
-    catch (e2) { setErr(e2.message || String(e2)); setBusy(false); }
-  };
+  // 완료 처리: 고친 내용이 있으면 같이 저장하고 완료 표시 / 완료 취소: 상태만 되돌림
+  const toggleDone = () => act(async () => {
+    if (locked) return api.setReservationDone(form.id, false);
+    await api.updateReservation(form.id, payload());
+    await api.setReservationDone(form.id, true);
+  });
 
   const slots = [];
   for (let m = startH * 60; m < endH * 60; m += 10) slots.push(m);
 
   return (
-    <Modal title={form.id ? '예약 수정' : '예약 등록'} onClose={onClose}>
+    <Modal title={form.id ? (form.done ? '예약 (완료됨)' : '예약 수정') : '예약 등록'} onClose={onClose}>
       <form onSubmit={submit}>
+        {locked && <p className="m-locked">완료된 예약이라 수정할 수 없어요. 고치려면 먼저 완료 취소하세요.</p>}
+        <fieldset className="m-lock" disabled={locked}>
         <div className="m-row">
           <Field label="담당자">
             <Select value={form.staffId} onChange={v => set('staffId', v)}
               options={staff.map(s => ({ value: s.id, label: s.name + (worksOn(s, date.getDay()) ? '' : ' (휴무)') }))} />
           </Field>
-          <Field label="메뉴">
-            <Select value={form.menu} onChange={pickMenu}
-              options={menus.map(m => ({ value: m.name, label: m.name }))} />
-          </Field>
-          <Field label="시간">
-            <Select value={form.dur} onChange={pickDur}
-              options={durOptions.map(d => ({ value: d, label: `${d}분` }))} />
-          </Field>
-        </div>
-        <div className="m-row">
           <Field label="시작">
             <Select value={form.startMin} onChange={v => set('startMin', v)}
               options={slots.map(m => ({ value: m, label: minLabel(m) }))} />
           </Field>
-          <span className="m-end">
-            ~ {minLabel(endMin)} 종료
-            {!hidePrice && Number(form.price) > 0 && ` · ${Number(form.price).toLocaleString()}원`}
-          </span>
         </div>
+
+        <FieldGroup label="메뉴" className="m-full">
+          {options.length === 0 && !legacy
+            ? <p className="m-empty">설정 → 메뉴·가격에서 메뉴를 먼저 추가하세요</p>
+            : (
+              <div className="menu-pick" role="radiogroup" aria-label="메뉴와 시간">
+                {legacy && (
+                  <button type="button" role="radio" aria-checked={form.pick === 'legacy'}
+                    className={'menu-opt' + (form.pick === 'legacy' ? ' on' : '')} onClick={pickLegacy}>
+                    <b>{legacy.label}</b><small>지금 메뉴판에 없음</small>
+                  </button>
+                )}
+                {options.map(o => (
+                  <button key={o.key} type="button" role="radio" aria-checked={o.key === form.pick}
+                    className={'menu-opt' + (o.key === form.pick ? ' on' : '')} onClick={() => pick(o)}>
+                    <b>{o.menu} {o.dur}분</b>
+                    {/* 가격이 없어도 같은 높이가 되도록 빈 줄 자리를 남긴다 */}
+                    {!hidePrice && (o.price > 0
+                      ? <small>{o.price.toLocaleString()}원</small>
+                      : <small className="blank" aria-hidden="true">0원</small>)}
+                  </button>
+                ))}
+              </div>
+            )}
+        </FieldGroup>
+
+        <p className="m-end">
+          {minLabel(Number(form.startMin))} ~ {minLabel(endMin)}
+          {!hidePrice && Number(form.price) > 0 && ` · ${Number(form.price).toLocaleString()}원`}
+        </p>
+
         <Field label="고객명/메모" className="m-full">
           <input value={form.title || ''} onChange={e => set('title', e.target.value)}
             placeholder="비우면 '고객 등록 필요'" maxLength={30} />
         </Field>
+        </fieldset>
         {err && <p className="m-err">{err}</p>}
+        {form.id && (
+          <Button className={'done-btn' + (form.done ? ' is-done' : '')} onClick={toggleDone} disabled={busy}>
+            {form.done ? '완료 취소' : '✓ 완료 처리'}
+          </Button>
+        )}
         <div className="m-actions">
-          {form.id && <Button variant="danger" onClick={del} disabled={busy}>삭제</Button>}
-          <Button onClick={onClose} disabled={busy}>취소</Button>
-          <Button variant="primary" type="submit" disabled={busy}>저장</Button>
+          {form.id && <Button variant="danger" onClick={() => act(() => api.deleteReservation(form.id))} disabled={busy || locked}>삭제</Button>}
+          <Button onClick={onClose} disabled={busy}>{locked ? '닫기' : '취소'}</Button>
+          <Button variant="primary" type="submit" disabled={busy || locked}>저장</Button>
         </div>
       </form>
     </Modal>

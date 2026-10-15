@@ -52,6 +52,7 @@ where not exists (select 1 from public.menu);
 -- 메뉴 가격(durations와 같은 순서) / 예약 금액(예약 시점 스냅샷)
 alter table public.menu add column if not exists prices int[] not null default '{}';
 alter table public.reservation add column if not exists price int not null default 0;
+alter table public.reservation add column if not exists done boolean not null default false;  -- 시술 완료 표시
 
 -- 가게 설정 (단일 행): 업무시간
 create table if not exists public.settings (

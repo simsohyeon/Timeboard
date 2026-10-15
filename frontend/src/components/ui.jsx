@@ -178,15 +178,52 @@ export function useDragSort(items, onDrop) {
   return { ordered, dragId: drag?.id ?? null, handleProps };
 }
 
-// 자동 저장 상태 표시: { kind: 'idle' | 'saving' | 'saved' | 'error', msg }
-export function SaveStatus({ status, idleText = '변경은 바로 저장돼요' }) {
+// 저장 상태 표시: { kind: 'idle' | 'dirty' | 'saving' | 'saved' | 'error', msg }
+export function SaveStatus({ status }) {
   if (status.kind === 'error') return <span className="save-status err">{status.msg}</span>;
-  const text = { saving: '저장 중', saved: '저장됨' }[status.kind] ?? idleText;
-  return <span className="save-status"><i className={status.kind === 'saving' ? 'saving' : ''} />{text}</span>;
+  const text = { dirty: '저장하지 않은 변경이 있어요', saving: '저장 중', saved: '저장됨' }[status.kind];
+  if (!text) return <span className="save-status" />;
+  return <span className={'save-status ' + status.kind}><i />{text}</span>;
+}
+
+// 편집 초안 — source(서버 값)가 바뀌면(저장 후 다시 불러오면) 초안도 새로 시작한다
+export function useDraft(source) {
+  const [base, setBase] = useState(source);
+  const [draft, setDraft] = useState(source);
+  if (source !== base) { setBase(source); setDraft(source); }
+  const dirty = JSON.stringify(draft) !== JSON.stringify(base);
+  return { draft, setDraft, dirty, reset: () => setDraft(base) };
+}
+
+// 저장 실행 + 상태(저장 중/저장됨/오류) 관리
+export function useSaver() {
+  const [status, setStatus] = useState({ kind: 'idle' });
+  const save = async (fn, after) => {
+    setStatus({ kind: 'saving' });
+    try { await fn(); setStatus({ kind: 'saved' }); after?.(); }
+    catch (e) { setStatus({ kind: 'error', msg: e.message || String(e) }); }
+  };
+  const fail = msg => setStatus({ kind: 'error', msg });
+  return { status, setStatus, save, fail };
+}
+
+// 화면 아래에 붙는 [취소] [저장] 바 — 바뀐 게 없으면 둘 다 비활성
+export function FormBar({ dirty, status, onCancel, onSave }) {
+  const saving = status.kind === 'saving';
+  const shown = dirty && status.kind !== 'error' && !saving ? { kind: 'dirty' } : status;
+  return (
+    <div className="form-bar">
+      <SaveStatus status={shown} />
+      <div className="form-bar-btns">
+        <Button onClick={onCancel} disabled={!dirty || saving}>취소</Button>
+        <Button variant="primary" onClick={onSave} disabled={!dirty || saving}>{saving ? '저장 중…' : '저장'}</Button>
+      </div>
+    </div>
+  );
 }
 
 // 커스텀 드롭다운 — 네이티브 select 대신 사용, 펼침 목록까지 같은 디자인
-export function Select({ value, onChange, options }) {
+export function Select({ value, onChange, options, disabled = false }) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(-1);
   const ref = useRef(null);
@@ -226,7 +263,7 @@ export function Select({ value, onChange, options }) {
 
   return (
     <div className={'select' + (open ? ' open' : '')} ref={ref}>
-      <button type="button" className="select-trigger" onClick={() => setOpen(o => !o)}
+      <button type="button" className="select-trigger" onClick={() => setOpen(o => !o)} disabled={disabled}
         onKeyDown={onKey} aria-haspopup="listbox" aria-expanded={open}>
         <span className="select-label">{label}</span>
         <Chevron size={12} />
