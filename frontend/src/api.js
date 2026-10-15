@@ -37,6 +37,31 @@ export const api = {
       ? [...new Set(rows(await supabase.from('reservation').select('date')).map(r => r.date))]
       : [],
 
+  menus: async () =>
+    supabase
+      ? rows(await supabase.from('menu')
+          .select('id,name,durations,sortOrder:sort_order')
+          .order('sort_order'))
+      : [],
+
+  createMenu: async m => {
+    need();
+    return rows(await supabase.from('menu')
+      .insert({ name: m.name, durations: m.durations, sort_order: m.sortOrder ?? 0 }).select());
+  },
+
+  updateMenu: async (id, m) => {
+    need();
+    return rows(await supabase.from('menu')
+      .update({ name: m.name, durations: m.durations }).eq('id', id).select());
+  },
+
+  deleteMenu: async id => {
+    need();
+    const { error } = await supabase.from('menu').delete().eq('id', id);
+    if (error) throw error;
+  },
+
   createReservation: async r => {
     need();
     return rows(await supabase.from('reservation').insert(toRow(r)).select(RESV_COLS));

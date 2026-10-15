@@ -5,11 +5,8 @@ import './App.css';
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const START_H = 6, END_H = 22, HOUR_PX = 66;
 
-// 메뉴: 선택하면 소요 시간이 자동으로 잡힌다
-const MENUS = [
-  { name: '타이', durations: [60, 90, 120] },
-  { name: '아로마', durations: [60, 90, 120] },
-];
+// 메뉴 관리에서 고를 수 있는 시간(분) 옵션
+const DUR_OPTIONS = [30, 60, 90, 120, 150, 180];
 
 const hourLabel = h => (h < 12 ? `오전 ${h}:00` : h === 12 ? `오후 12:00` : `오후 ${h - 12}:00`);
 const minLabel = m => {
@@ -102,9 +99,9 @@ function MiniCalendar({ selected, onSelect, eventDates }) {
   );
 }
 
-function ReservationModal({ init, staff, date, onClose, onSaved }) {
+function ReservationModal({ init, staff, menus, date, onClose, onSaved }) {
   // 수정 모드면 기존 subtitle에서 메뉴 복원
-  const initMenu = MENUS.find(m => (init.subtitle || '').startsWith(m.name))?.name || MENUS[0].name;
+  const initMenu = menus.find(m => (init.subtitle || '').startsWith(m.name))?.name || menus[0]?.name || '';
   const [form, setForm] = useState({
     menu: initMenu,
     dur: init.durationMin || 60,
@@ -114,8 +111,16 @@ function ReservationModal({ init, staff, date, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const menuDurs = MENUS.find(m => m.name === form.menu)?.durations || [60, 90, 120];
+  const baseDurs = menus.find(m => m.name === form.menu)?.durations;
+  const menuDurs = baseDurs?.length ? baseDurs : [60, 90, 120];
+  // 기존 예약의 시간이 메뉴 옵션에 없으면 그 값도 보여준다
+  const durOptions = menuDurs.includes(Number(form.dur)) ? menuDurs : [Number(form.dur), ...menuDurs];
   const endMin = form.startMin + Number(form.dur);
+
+  const pickMenu = name => {
+    const ds = menus.find(m => m.name === name)?.durations || [60, 90, 120];
+    setForm(f => ({ ...f, menu: name, dur: ds.includes(Number(f.dur)) ? f.dur : ds[0] }));
+  };
 
   const submit = async e => {
     e.preventDefault();
@@ -127,7 +132,7 @@ function ReservationModal({ init, staff, date, onClose, onSaved }) {
         startMin: Number(form.startMin),
         durationMin: Number(form.dur),
         title: form.title?.trim() || '고객 등록 필요',
-        subtitle: `${form.menu} ${form.dur}분`,
+        subtitle: form.menu ? `${form.menu} ${form.dur}분` : `${form.dur}분`,
       };
       if (form.id) await api.updateReservation(form.id, payload);
       else await api.createReservation(payload);
@@ -156,13 +161,13 @@ function ReservationModal({ init, staff, date, onClose, onSaved }) {
             </select>
           </label>
           <label>메뉴
-            <select value={form.menu} onChange={e => set('menu', e.target.value)}>
-              {MENUS.map(m => <option key={m.name}>{m.name}</option>)}
+            <select value={form.menu} onChange={e => pickMenu(e.target.value)}>
+              {menus.map(m => <option key={m.id}>{m.name}</option>)}
             </select>
           </label>
           <label>시간
             <select value={form.dur} onChange={e => set('dur', e.target.value)}>
-              {menuDurs.map(d => <option key={d} value={d}>{d}분</option>)}
+              {durOptions.map(d => <option key={d} value={d}>{d}분</option>)}
             </select>
           </label>
         </div>
@@ -185,6 +190,52 @@ function ReservationModal({ init, staff, date, onClose, onSaved }) {
           <button type="submit" className="m-primary" disabled={busy}>저장</button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function MenuModal({ menus, onClose, onChanged }) {
+  const [err, setErr] = useState('');
+  const run = fn => fn().then(() => { setErr(''); onChanged(); }).catch(e => setErr(e.message || String(e)));
+
+  return (
+    <div className="modal-wrap">
+      <div className="scrim" onClick={onClose} />
+      <div className="modal">
+        <h2>메뉴 관리</h2>
+        {menus.map(m => (
+          <div className="menu-row" key={m.id}>
+            <input defaultValue={m.name} maxLength={10} aria-label="메뉴 이름"
+              onBlur={e => {
+                const v = e.target.value.trim();
+                if (v && v !== m.name) run(() => api.updateMenu(m.id, { ...m, name: v }));
+              }} />
+            <div className="dur-chips">
+              {DUR_OPTIONS.map(d => (
+                <button key={d} type="button"
+                  className={'chip-dur' + (m.durations.includes(d) ? ' on' : '')}
+                  onClick={() => {
+                    const ds = m.durations.includes(d)
+                      ? m.durations.filter(x => x !== d)
+                      : [...m.durations, d].sort((a, b) => a - b);
+                    if (!ds.length) return setErr('시간은 최소 1개 필요해요');
+                    run(() => api.updateMenu(m.id, { ...m, durations: ds }));
+                  }}>{d}</button>
+              ))}
+            </div>
+            <button type="button" className="m-danger small"
+              onClick={() => run(() => api.deleteMenu(m.id))}>삭제</button>
+          </div>
+        ))}
+        <button type="button" className="menu-add"
+          onClick={() => run(() => api.createMenu({ name: `메뉴 ${menus.length + 1}`, durations: [60, 90, 120], sortOrder: menus.length }))}>
+          + 메뉴 추가
+        </button>
+        {err && <p className="m-err">{err}</p>}
+        <div className="m-actions">
+          <button type="button" className="m-primary" onClick={onClose}>완료</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -252,9 +303,13 @@ export default function App() {
   const [list, setList] = useState([]);
   const [eventDates, setEventDates] = useState(new Set());
   const [modal, setModal] = useState(null); // 예약 등록/수정 폼 초기값
+  const [menus, setMenus] = useState([]);
+  const [menuOpen, setMenuOpen] = useState(false);
 
+  const loadMenus = () => api.menus().then(setMenus).catch(() => setMenus([]));
   useEffect(() => {
     api.staff().then(setStaff).catch(() => setStaff([]));
+    loadMenus();
   }, []);
 
   const reload = () => {
@@ -287,6 +342,7 @@ export default function App() {
               <button className="chip link-resv"><i className="n-ico">N</i> 링크예약</button>
               <button className="chip">담당자 전체 <i className="caret">▾</i></button>
               <button className="chip">일 <i className="caret">▾</i></button>
+              <button className="chip" onClick={() => setMenuOpen(true)}>메뉴</button>
               <button className="mh-gear" aria-label="설정">
                 <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8.5" cy="8.5" r="2.6"/><path d="M8.5 1.8v2m0 9.4v2M1.8 8.5h2m9.4 0h2M3.8 3.8l1.4 1.4m6.6 6.6 1.4 1.4m0-9.4-1.4 1.4M5.2 11.8l-1.4 1.4"/></svg>
               </button>
@@ -300,9 +356,12 @@ export default function App() {
       <button className="fab" aria-label="예약 추가"
         onClick={() => openCreate(staff[0]?.id, 12 * 60)}>+</button>
       {modal && (
-        <ReservationModal init={modal} staff={staff} date={date}
+        <ReservationModal init={modal} staff={staff} menus={menus} date={date}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); reload(); }} />
+      )}
+      {menuOpen && (
+        <MenuModal menus={menus} onClose={() => setMenuOpen(false)} onChanged={loadMenus} />
       )}
     </div>
   );

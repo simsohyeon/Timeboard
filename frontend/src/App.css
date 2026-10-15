@@ -154,6 +154,22 @@
 .m-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
 .m-danger { color: var(--red); border-color: #f5b5b5; flex: 0 0 auto; padding: 11px 16px; }
 
+/* 메뉴 관리 */
+.menu-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.menu-row > input { width: 96px; flex: none; }
+.dur-chips { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
+.chip-dur {
+  font: inherit; font-size: 12px; padding: 5px 8px; cursor: pointer;
+  border: 1px solid var(--line-strong); border-radius: 6px; background: #fff; color: var(--muted);
+}
+.chip-dur.on { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); font-weight: 600; }
+.m-danger.small { padding: 7px 10px; font-size: 12px; }
+.menu-add {
+  width: 100%; font: inherit; font-size: 13px; padding: 10px; margin: 4px 0 10px;
+  border: 1px dashed var(--line-strong); border-radius: 8px; background: #fff;
+  color: var(--blue); cursor: pointer;
+}
+
 /* ───── 플로팅 ───── */
 .fab {
   position: fixed; right: 22px; bottom: 22px; width: 44px; height: 44px; border-radius: 50%;
