@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, fmtDate } from '../api';
 import { START_H, END_H, minLabel } from '../lib/constants';
-import { Modal, Button, Field } from './ui';
+import { Modal, Button, Field, Select } from './ui';
 
 export default function ReservationModal({ init, staff, menus, date, onClose, onSaved }) {
   // 수정 모드면 기존 subtitle에서 메뉴 복원
@@ -58,26 +58,22 @@ export default function ReservationModal({ init, staff, menus, date, onClose, on
       <form onSubmit={submit}>
         <div className="m-row">
           <Field label="담당자">
-            <select value={form.staffId} onChange={e => set('staffId', e.target.value)}>
-              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <Select value={form.staffId} onChange={v => set('staffId', v)}
+              options={staff.map(s => ({ value: s.id, label: s.name }))} />
           </Field>
           <Field label="메뉴">
-            <select value={form.menu} onChange={e => pickMenu(e.target.value)}>
-              {menus.map(m => <option key={m.id}>{m.name}</option>)}
-            </select>
+            <Select value={form.menu} onChange={pickMenu}
+              options={menus.map(m => ({ value: m.name, label: m.name }))} />
           </Field>
           <Field label="시간">
-            <select value={form.dur} onChange={e => set('dur', e.target.value)}>
-              {durOptions.map(d => <option key={d} value={d}>{d}분</option>)}
-            </select>
+            <Select value={form.dur} onChange={v => set('dur', v)}
+              options={durOptions.map(d => ({ value: d, label: `${d}분` }))} />
           </Field>
         </div>
         <div className="m-row">
           <Field label="시작">
-            <select value={form.startMin} onChange={e => set('startMin', e.target.value)}>
-              {slots.map(m => <option key={m} value={m}>{minLabel(m)}</option>)}
-            </select>
+            <Select value={form.startMin} onChange={v => set('startMin', v)}
+              options={slots.map(m => ({ value: m, label: minLabel(m) }))} />
           </Field>
           <span className="m-end">~ {minLabel(endMin)} 종료</span>
         </div>

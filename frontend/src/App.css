@@ -38,12 +38,26 @@
   font: inherit; font-size: 14px; color: var(--fg); width: 100%;
   background: var(--line); border: none; border-radius: 10px; padding: 10px 12px;
 }
-/* 기본 화살표 제거 후 공용 쉐브론으로 통일 */
-.field select {
-  appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 32px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238b95a1' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 11px center;
+/* 커스텀 드롭다운 (ui.jsx Select) */
+.select { position: relative; width: 100%; }
+.select-trigger {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font: inherit; font-size: 14px; color: var(--fg); text-align: left;
+  background: var(--line); border: none; border-radius: 10px; padding: 10px 12px; cursor: pointer;
 }
+.select-trigger svg { color: var(--muted); flex: none; transition: transform .15s; }
+.select.open .select-trigger svg { transform: rotate(180deg); }
+.select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-list {
+  position: absolute; top: calc(100% + 6px); left: 0; min-width: 100%; z-index: 60;
+  background: #fff; border-radius: 12px; box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
+  padding: 6px; margin: 0; list-style: none; max-height: 240px; overflow: auto;
+}
+.select-list li {
+  padding: 9px 12px; border-radius: 8px; font-size: 14px; cursor: pointer; white-space: nowrap;
+}
+.select-list li.hi { background: var(--line); }
+.select-list li.on { color: var(--blue); font-weight: 700; }
 .field select:focus-visible, .field input:focus-visible,
 button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
