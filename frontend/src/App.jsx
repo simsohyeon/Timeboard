@@ -104,7 +104,6 @@ export default function App() {
   const dateStr = fmtDate(date);
   const activeStaff = staff.filter(s => isActiveOn(s, dateStr));
   const payStaff = staff.filter(s => isActiveOn(s, dateStr) || list.some(r => r.staffId === s.id));
-  const modalStaff = modal ? staff.filter(s => isActiveOn(s, dateStr) || s.id === modal.staffId) : [];
 
   const moveDay = n => setDate(d => { const x = new Date(d); x.setDate(x.getDate() + n); return x; });
   // preferDur: 이 시간(분) 메뉴를 먼저 골라 둔다 (지금 탭 워크인 도우미)
@@ -174,10 +173,15 @@ export default function App() {
           onClick={() => openCreate(activeStaff[0]?.id, 12 * 60)}>+</button>
       )}
       {modal && (
-        <ReservationModal init={modal} staff={modalStaff} list={list} leaves={leaves} menus={menus} date={date}
+        <ReservationModal init={modal} staff={staff} list={list} leaves={leaves} menus={menus} date={date}
           startH={startH} endH={endH} hidePrice={display.hidePrice}
           onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); reload(); }} />
+          onSaved={d => {
+            setModal(null);
+            // 다른 날로 저장했으면 보드를 그 날로 옮긴다 (날짜가 바뀌면 자동으로 다시 불러옴)
+            if (d && d !== dateStr) { const [y, m, dd] = d.split('-').map(Number); setDate(new Date(y, m - 1, dd)); }
+            else reload();
+          }} />
       )}
     </div>
   );
