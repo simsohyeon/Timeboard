@@ -135,6 +135,21 @@
 }
 .select-list li.hi { background: var(--line); }
 .select-list li.on { color: var(--blue); font-weight: 700; }
+.select-label.placeholder { color: var(--muted); }
+
+/* 날짜 고르기 (DatePicker) — 트리거는 .select 와 같은 모양, 펼치면 미니 달력 */
+.datepick.open .select-trigger svg { transform: none; }
+.datepick-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; width: 280px; max-width: calc(100vw - 16px);
+  background: var(--surface); border-radius: 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .16); padding: 4px 4px 8px;
+}
+.datepick-pop.right { left: auto; right: 0; }
+.datepick-pop .minical { padding: 8px 6px 4px; }
+.datepick-clear {
+  display: block; width: calc(100% - 16px); margin: 2px auto 0; padding: 9px; border: none; border-radius: 10px;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--red); background: var(--red-soft); cursor: pointer;
+}
+.field-spacer { flex: 1; }  /* m-row 안에서 한 칸만 쓸 때 나머지 자리 */
 .field select:focus-visible, .field input:focus-visible,
 button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
@@ -215,7 +230,14 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   display: flex; align-items: center; padding: 5px 6px; border-radius: 6px;
 }
 .mh-arrow:hover { background: var(--line); color: var(--sub); }
-.mh-date { font-size: 15px; font-weight: 700; white-space: nowrap; }
+.mh-date {
+  font: inherit; font-size: 15px; font-weight: 700; color: var(--fg); white-space: nowrap;
+  background: none; border: none; padding: 4px 6px; border-radius: 8px; cursor: default;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.mh-month, .mh-caret { display: none; }   /* 모바일에서만 보임 */
+.mh-caret { color: var(--muted); }
+.cal-drop { display: none; }              /* 모바일 펼침 달력 */
 .mh-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .mh-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
@@ -235,13 +257,7 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   font-size: 13px; font-weight: 500; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 
-/* 좁은 화면: 사이드바·글자 축소, 담당자 열은 가로 스크롤 */
-@media (max-width: 760px) {
-  :root { --colmin: 100px; }
-  .sidebar { width: 164px; }
-  .minical { padding: 12px 5px; }
-  .time-label { font-size: 12px; }
-}
+
 .col { position: relative; border-left: 1px solid var(--line); }
 .col.off { background: repeating-linear-gradient(135deg, #fafbfc 0 8px, #f2f4f6 8px 9px); cursor: default; }
 .off-label {
@@ -285,7 +301,8 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   font-size: 12px; font-weight: 500; color: var(--muted); text-align: left;
   padding: 8px 10px; border-bottom: 1px solid var(--line-strong);
 }
-.pay-table td { font-size: 14px; padding: 13px 10px; border-bottom: 1px solid var(--line); }
+.pay-table td { font-size: 14px; padding: 13px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.pay-table th { white-space: nowrap; }
 .pay-table th:not(:first-child), .pay-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 .pay-table td .dot { display: inline-block; margin-right: 7px; }
 .pay-table tfoot td { font-weight: 700; border-bottom: none; }
@@ -329,14 +346,22 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .staff-name { font-size: 15px; font-weight: 500; white-space: nowrap; }
 .staff-row.on .staff-name { font-weight: 600; color: var(--blue-dark); }
 .staff-sum { font-size: 12px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.icon-btn.order { width: 26px; }
+/* 드래그 정렬 (ui.jsx useDragSort) */
+.drag-handle {
+  flex: none; align-self: stretch; display: flex; align-items: center; padding: 0 4px 0 12px;
+  color: var(--faint); cursor: grab; touch-action: none; user-select: none;
+}
+.drag-handle:hover { color: var(--sub); }
+.staff-row.dragging { background: var(--blue-soft); box-shadow: 0 6px 18px rgba(0, 0, 0, .12); position: relative; z-index: 1; }
+.staff-row.dragging .drag-handle { cursor: grabbing; color: var(--blue); }
 .staff-panel-head { display: flex; align-items: center; gap: 10px; }
 .staff-panel-head .inl { font-size: 17px; }
 .staff-panel .m-row { margin-bottom: 0; }
 .staff-panel-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
 
 /* 메뉴 × 시간 가격표 */
-.set-table-wrap { overflow-x: auto; }
+/* position: relative — 안의 절대위치 요소(.sr-only)가 스크롤 상자 밖으로 빠져 페이지를 넓히지 않게 */
+.set-table-wrap { overflow-x: auto; position: relative; }
 .price-table {
   width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0;
   table-layout: fixed; /* 시간 열 균등 분배 */
@@ -408,3 +433,43 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   cursor: pointer; box-shadow: 0 6px 16px rgba(49, 130, 246, .38);
 }
 .fab:hover { background: var(--blue-dark); }
+
+/* 태블릿 세로 이하: 사이드바 달력 → 날짜 눌러 펼치는 달력 (보드에 담당자 칸을 더 보여주려고) */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .mh-date { cursor: pointer; }
+  .mh-date:hover { background: var(--line); }
+  .mh-month, .mh-caret { display: inline-flex; }
+  .main-head { justify-content: center; padding: 8px 10px; }
+  .cal-drop {
+    display: block; flex: none; border-bottom: 1px solid var(--line-strong);
+    padding: 4px 8px 8px; background: var(--surface);
+  }
+  .cal-drop .minical { max-width: 360px; margin: 0 auto; padding: 8px 4px; }
+}
+
+/* 폰: 칸·글자 축소, 설정 메뉴 → 위쪽 가로 탭 */
+@media (max-width: 760px) {
+  :root { --colmin: 96px; --timecol: 70px; }
+  .time-label { font-size: 12px; right: 8px; }
+
+  .tb-tabs { margin-left: 8px; }
+  .tb-tabs button { padding: 10px 9px; }
+
+  .settings { flex-direction: column; }
+  .set-nav {
+    width: auto; flex-direction: row; gap: 4px; overflow-x: auto;
+    border-right: none; border-bottom: 1px solid var(--line-strong); padding: 8px 12px;
+  }
+  .set-nav-item { flex: none; white-space: nowrap; padding: 8px 12px; }
+  .set-body { padding: 16px; }
+  .set-head h1 { font-size: 18px; }
+  .set-head-right { margin-left: 0; width: 100%; justify-content: space-between; }
+  .staff-list, .staff-panel { flex-basis: 100%; max-width: none; min-width: 0; }
+
+  .payroll { padding: 12px; }
+  .pay-table td { padding: 12px 6px; }
+}
+@media (max-width: 400px) {
+  .tb-clock-day { display: none; }   /* 아주 좁으면 시계는 시간만 */
+}

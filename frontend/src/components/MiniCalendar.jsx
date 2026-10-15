@@ -3,9 +3,11 @@ import { fmtDate } from '../api';
 import { DAYS } from '../lib/constants';
 import { Chevron } from './ui';
 
-export default function MiniCalendar({ selected, onSelect, eventDates }) {
-  const [view, setView] = useState(new Date(selected.getFullYear(), selected.getMonth(), 1));
+// selected 가 null 이면 이번 달을 보여주고 선택 표시는 없음 (DatePicker 의 빈 값)
+export default function MiniCalendar({ selected, onSelect, eventDates = new Set() }) {
   const today = new Date();
+  const base = selected ?? today;
+  const [view, setView] = useState(new Date(base.getFullYear(), base.getMonth(), 1));
 
   const weeks = useMemo(() => {
     const first = new Date(view.getFullYear(), view.getMonth(), 1);
@@ -27,10 +29,10 @@ export default function MiniCalendar({ selected, onSelect, eventDates }) {
   return (
     <div className="minical">
       <div className="mc-head">
-        <button className="mc-arrow" onClick={() => move(-1)} aria-label="이전 달"><Chevron dir="left" size={13} /></button>
+        <button type="button" className="mc-arrow" onClick={() => move(-1)} aria-label="이전 달"><Chevron dir="left" size={13} /></button>
         <span className="mc-title">{view.getFullYear()}년 {view.getMonth() + 1}월</span>
-        <button className="mc-today" onClick={() => { setView(new Date(today.getFullYear(), today.getMonth(), 1)); onSelect(today); }}>오늘</button>
-        <button className="mc-arrow" onClick={() => move(1)} aria-label="다음 달"><Chevron dir="right" size={13} /></button>
+        <button type="button" className="mc-today" onClick={() => { setView(new Date(today.getFullYear(), today.getMonth(), 1)); onSelect(today); }}>오늘</button>
+        <button type="button" className="mc-arrow" onClick={() => move(1)} aria-label="다음 달"><Chevron dir="right" size={13} /></button>
       </div>
       <div className="mc-grid mc-dow">
         {DAYS.map((d, i) => <span key={d} className={i === 0 ? 'sun' : i === 6 ? 'sat' : ''}>{d}</span>)}
@@ -44,10 +46,10 @@ export default function MiniCalendar({ selected, onSelect, eventDates }) {
               out && 'out',
               d.getDay() === 0 && 'sun',
               d.getDay() === 6 && 'sat',
-              same(d, selected) && 'sel',
+              selected && same(d, selected) && 'sel',
             ].filter(Boolean).join(' ');
             return (
-              <button key={fmtDate(d)} className={cls} onClick={() => onSelect(new Date(d))}>
+              <button type="button" key={fmtDate(d)} className={cls} onClick={() => onSelect(new Date(d))}>
                 <span className="num">{d.getDate()}</span>
                 {eventDates.has(fmtDate(d)) && <i className="ev" />}
               </button>
