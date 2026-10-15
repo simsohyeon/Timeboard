@@ -7,9 +7,19 @@
 
 ```
 frontend/   React (Vite) — 보드 UI, supabase-js로 DB 직접 접근
+  src/
+    App.jsx            상태·조립만
+    api.js             데이터 접근 전부 (Supabase)
+    lib/constants.js   시간 범위·요일·시간 포맷 등 공통 상수
+    components/
+      ui.jsx           공용 프리미티브 (Modal/Button/Field, 토스 스타일)
+      TopBar.jsx  MiniCalendar.jsx  DateHeader.jsx  Board.jsx
+      ReservationModal.jsx  MenuModal.jsx
 supabase/   setup.sql — 테이블·RLS·시드 (SQL Editor에서 1회 실행)
 backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않음
 ```
+
+디자인 토큰은 `App.css`의 `:root`에 모여 있어 색·둥글기 전역 변경은 거기서 한다.
 
 프론트가 Supabase PostgreSQL에 직결하므로 서버·콜드스타트가 없다.
 데이터 접근은 전부 `frontend/src/api.js` 한 파일을 거친다.

@@ -49,6 +49,22 @@ select * from (values
 ) v(name, durations, sort_order)
 where not exists (select 1 from public.menu);
 
+-- 메뉴 가격(durations와 같은 순서) / 예약 금액(예약 시점 스냅샷)
+alter table public.menu add column if not exists prices int[] not null default '{}';
+alter table public.reservation add column if not exists price int not null default 0;
+
+-- 가게 설정 (단일 행): 업무시간
+create table if not exists public.settings (
+  id int primary key default 1 check (id = 1),
+  open_min int not null default 360,    -- 오전 6:00
+  close_min int not null default 1320   -- 오후 10:00
+);
+alter table public.settings enable row level security;
+drop policy if exists "open settings" on public.settings;
+create policy "open settings" on public.settings
+  for all to anon, authenticated using (true) with check (true);
+insert into public.settings (id) values (1) on conflict (id) do nothing;
+
 -- 데모 시드 (비어 있을 때만)
 insert into public.staff (name, dot_color, sort_order)
 select * from (values
