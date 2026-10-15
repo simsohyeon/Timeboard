@@ -22,6 +22,7 @@ export default function App() {
   const [modal, setModal] = useState(null); // 예약 등록/수정 폼 초기값
   const [dbErr, setDbErr] = useState('');
   const [display, setDisplay] = useState(loadDisplay);
+  const [calOpen, setCalOpen] = useState(false); // 모바일 펼침 달력
 
   const loadStaff = () => api.staff().then(s => { setStaff(s); setDbErr(''); })
     .catch(e => { setStaff([]); setDbErr(e.message || String(e)); });
@@ -71,6 +72,18 @@ export default function App() {
   const moveDay = n => setDate(d => { const x = new Date(d); x.setDate(x.getDate() + n); return x; });
   const openCreate = (staffId, startMin) => setModal({ staffId, startMin, durationMin: 60, title: '', subtitle: '' });
 
+  // 예약·결제 공통 날짜 헤더 + 모바일 펼침 달력 (.cal-drop은 데스크톱에서 CSS로 숨김)
+  const dateHead = (<>
+    <DateHeader date={date} count={list.length} onMove={moveDay}
+      calOpen={calOpen} onDateClick={() => setCalOpen(o => !o)} />
+    {calOpen && (
+      <div className="cal-drop">
+        <MiniCalendar selected={date} eventDates={eventDates}
+          onSelect={d => { setDate(d); setCalOpen(false); }} />
+      </div>
+    )}
+  </>);
+
   return (
     <div className="app">
       <TopBar tab={tab} onTab={setTab} />
@@ -86,13 +99,13 @@ export default function App() {
           )}
           {dbErr && <p className="notice">{dbErr}</p>}
           {tab === 'reserve' && (<>
-            <DateHeader date={date} count={list.length} onMove={moveDay} />
+            {dateHead}
             <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
               hourPx={display.hourPx} halfLine={display.halfLine}
               onCellClick={openCreate} onBlockClick={r => setModal(r)} />
           </>)}
           {tab === 'pay' && (<>
-            <DateHeader date={date} count={list.length} onMove={moveDay} />
+            {dateHead}
             <PayrollPage staff={payStaff} list={list} />
           </>)}
           {tab === 'settings' && (

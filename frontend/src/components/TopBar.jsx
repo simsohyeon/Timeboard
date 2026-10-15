@@ -13,7 +13,8 @@ export default function TopBar({ tab, onTab }) {
     const t = setInterval(() => setNow(new Date()), 10000);
     return () => clearInterval(t);
   }, []);
-  const clock = `${now.getMonth() + 1}.${now.getDate()} (${DAYS[now.getDay()]}) ${now.getHours() < 12 ? '오전' : '오후'} ${((now.getHours() + 11) % 12) + 1}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const day = `${now.getMonth() + 1}.${now.getDate()} (${DAYS[now.getDay()]}) `;
+  const time = `${now.getHours() < 12 ? '오전' : '오후'} ${((now.getHours() + 11) % 12) + 1}:${String(now.getMinutes()).padStart(2, '0')}`;
 
   return (
     <div className="topbar">
@@ -24,7 +25,7 @@ export default function TopBar({ tab, onTab }) {
         ))}
       </nav>
       <div className="tb-right">
-        <span className="tb-clock">{clock}</span>
+        <span className="tb-clock"><span className="tb-clock-day">{day}</span>{time}</span>
       </div>
     </div>
   );

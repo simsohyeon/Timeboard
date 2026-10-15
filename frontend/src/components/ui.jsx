@@ -118,6 +118,66 @@ export function ColorPicker({ value, palette, onChange, label = '색 바꾸기' 
   );
 }
 
+// 드래그 손잡이 아이콘 (점 6개)
+export function GripIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" fill="currentColor">
+      {[3, 7, 11].flatMap(y => [4.5, 9.5].map(x => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.3" />))}
+    </svg>
+  );
+}
+
+// 드래그앤드롭 정렬 — 마우스·터치 공통(포인터 이벤트). 행에 data-sort-id, 손잡이에 handleProps(id).
+// onDrop(새 id 순서) 후 부모가 items 를 새로 받을 때까지 바뀐 순서를 그대로 보여준다.
+export function useDragSort(items, onDrop) {
+  const [drag, setDrag] = useState(null); // { id: 끄는 중인 id | null(저장 대기), order: [id...] }
+  const dragRef = useRef(drag); dragRef.current = drag;
+  const itemsRef = useRef(items); itemsRef.current = items;
+  const dropRef = useRef(onDrop); dropRef.current = onDrop;
+  useEffect(() => setDrag(null), [items]);
+  const ordered = drag ? drag.order.map(id => items.find(x => x.id === id)).filter(Boolean) : items;
+  const dragging = drag?.id != null;
+
+  // 이동/놓기는 window 에서 받는다 — 순서가 바뀌며 손잡이 DOM 이 옮겨져도 추적이 끊기지 않게
+  useEffect(() => {
+    if (!dragging) return;
+    const move = e => {
+      const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-sort-id]');
+      if (!over) return;
+      setDrag(d => {
+        if (d?.id == null || over.dataset.sortId === String(d.id)) return d;
+        const to = d.order.findIndex(x => String(x) === over.dataset.sortId);
+        if (to < 0) return d;
+        const order = d.order.filter(x => x !== d.id);
+        order.splice(to, 0, d.id);
+        return { ...d, order };
+      });
+    };
+    const up = () => {
+      const d = dragRef.current;
+      if (!d) return;
+      const changed = d.order.some((x, i) => x !== itemsRef.current[i]?.id);
+      if (changed) { setDrag({ id: null, order: d.order }); dropRef.current(d.order); }
+      else setDrag(null);
+    };
+    const cancel = () => setDrag(null);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', cancel);
+    return () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel);
+    };
+  }, [dragging]);
+
+  const handleProps = id => ({
+    onPointerDown: e => { e.preventDefault(); setDrag({ id, order: ordered.map(x => x.id) }); },
+  });
+
+  return { ordered, dragId: drag?.id ?? null, handleProps };
+}
+
 // 자동 저장 상태 표시: { kind: 'idle' | 'saving' | 'saved' | 'error', msg }
 export function SaveStatus({ status, idleText = '변경은 바로 저장돼요' }) {
   if (status.kind === 'error') return <span className="save-status err">{status.msg}</span>;

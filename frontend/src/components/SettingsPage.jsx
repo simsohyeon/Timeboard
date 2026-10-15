@@ -3,8 +3,8 @@ import { api } from '../api';
 import { DAYS, DUR_OPTIONS, PALETTE, minLabel } from '../lib/constants';
 import { BASE_FONT, FONT_SIZES, DENSITIES } from '../lib/display';
 import {
-  BlurInput, Button, Checkbox, ChipGroup, Chevron, ColorPicker, Field, FieldGroup,
-  IconButton, SaveStatus, Select, TrashIcon,
+  BlurInput, Button, Checkbox, ChipGroup, ColorPicker, Field, FieldGroup, GripIcon,
+  IconButton, SaveStatus, Select, TrashIcon, useDragSort,
 } from './ui';
 
 const SECTIONS = [
@@ -50,14 +50,13 @@ export default function SettingsPage({ staff, menus, settings, display, onDispla
   // ── 담당자
   const sel = staff.find(s => s.id === selId) ?? staff[0];
   const patchStaff = (s, patch) => run(() => api.updateStaff(s.id, { ...s, ...patch }), onStaffChanged);
-  const move = (i, dir) => {
-    const a = staff[i], b = staff[i + dir];
-    if (!b) return;
-    run(() => Promise.all([
-      api.updateStaff(a.id, { ...a, sortOrder: i + dir }),
-      api.updateStaff(b.id, { ...b, sortOrder: i }),
-    ]), onStaffChanged);
-  };
+  // 드래그로 바뀐 순서 저장 — 자리가 바뀐 사람만 업데이트
+  const staffSort = useDragSort(staff, order => run(() => Promise.all(
+    order.map((id, i) => {
+      const s = staff.find(x => x.id === id);
+      return s.sortOrder === i ? null : api.updateStaff(id, { ...s, sortOrder: i });
+    }),
+  ), onStaffChanged));
   const daysOf = s => s.workDays ?? ALL_DAYS;
   const toggleDay = (s, d) => {
     const days = daysOf(s);
@@ -124,7 +123,7 @@ export default function SettingsPage({ staff, menus, settings, display, onDispla
           <header className="set-head">
             <div>
               <h1>담당자</h1>
-              <p>보드의 세로 칸 하나가 담당자 한 명이에요. 순서가 보드 칸 순서예요.</p>
+              <p>보드의 세로 칸 하나가 담당자 한 명이에요. 왼쪽 ⠿ 를 끌어서 보드 칸 순서를 바꿀 수 있어요.</p>
             </div>
             <div className="set-head-right">
               <SaveStatus status={status} />
@@ -133,16 +132,17 @@ export default function SettingsPage({ staff, menus, settings, display, onDispla
           </header>
           <div className="staff-layout">
             <div className="set-card staff-list">
-              {staff.map((s, i) => (
-                <div className={'staff-row' + (sel?.id === s.id ? ' on' : '')} key={s.id}>
+              {staffSort.ordered.map(s => (
+                <div key={s.id} data-sort-id={s.id}
+                  className={'staff-row' + (sel?.id === s.id ? ' on' : '') + (staffSort.dragId === s.id ? ' dragging' : '')}>
+                  <span className="drag-handle" aria-label={`${s.name} 순서 끌어서 바꾸기`} title="끌어서 순서 바꾸기"
+                    {...staffSort.handleProps(s.id)}><GripIcon /></span>
                   <button type="button" className="staff-pick" onClick={() => setSelId(s.id)}
                     aria-current={sel?.id === s.id ? 'true' : undefined}>
                     <i className="dot" style={{ background: s.dotColor || '#d1d6db' }} />
                     <span className="staff-name">{s.name}</span>
                     <span className="staff-sum">{summary(s)}</span>
                   </button>
-                  <IconButton label="위로" className="order" disabled={i === 0} onClick={() => move(i, -1)}><Chevron dir="up" /></IconButton>
-                  <IconButton label="아래로" className="order" disabled={i === staff.length - 1} onClick={() => move(i, 1)}><Chevron dir="down" /></IconButton>
                 </div>
               ))}
             </div>
