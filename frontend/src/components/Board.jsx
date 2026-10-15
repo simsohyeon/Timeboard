@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fmtDate } from '../api';
 import { START_H, END_H, HOUR_PX, hourLabel, worksOn, workRange } from '../lib/constants';
-import { freeGaps, durLabel, nowMinutes, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel } from '../lib/schedule';
+import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel } from '../lib/schedule';
 
 // 예약 보드: 가로 = 담당자, 세로 = 시간.
 // 30분 이상 빈 시간은 점선 칸으로 보여 주고, 누르면 그 시각으로 바로 예약 등록.
@@ -9,16 +9,16 @@ const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).pad
 
 export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick }) {
   const dateStr = fmtDate(date);
-  const isToday = dateStr === fmtDate(new Date());
+  const isToday = dateStr === bizToday();
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 60000); return () => clearInterval(t); }, []);
   useEffect(() => {
-    // 처음에 현재 시각(또는 정오) 부근이 보이게 스크롤
+    // 처음에(그리고 운영시간을 불러온 뒤에) 현재 시각(또는 정오) 부근이 보이게 스크롤
     const el = document.querySelector('.board');
     if (!el) return;
-    const base = isToday ? new Date().getHours() : 12;
+    const base = isToday ? Math.floor(nowMinutes() / 60) : 12;
     el.scrollTop = Math.max(0, (base - 1 - startH) * hourPx);
-  }, []);
+  }, [startH, endH]);
 
   const open = startH * 60, close = endH * 60;
   const top = m => (m - open) / 60 * hourPx;

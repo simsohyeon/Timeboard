@@ -1,9 +1,9 @@
 import { fmtDate } from '../api';
-import { nowMinutes, staffNow, leaveOn, hitsLeave } from '../lib/schedule';
+import { nowMinutes, bizToday, staffNow, leaveOn, hitsLeave } from '../lib/schedule';
 
 // 보드 위 한 줄 요약: 예약 수 · 완료 수 · (오늘이면) 지금 시술 중 · 바로 가능한 사람
 export default function DaySummary({ staff, list, leaves = [], date, openMin, closeMin }) {
-  const isToday = fmtDate(date) === fmtDate(new Date());
+  const isToday = fmtDate(date) === bizToday();
   const done = list.filter(r => r.done).length;
   let busy = 0, free = [];
   if (isToday) {

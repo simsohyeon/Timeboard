@@ -2,7 +2,18 @@
 import { worksOn, workRange, isActiveOn } from './constants';
 import { fmtDate } from '../api';
 
-export const nowMinutes = (d = new Date()) => d.getHours() * 60 + d.getMinutes();
+// ───── 영업일 ─────
+// 마감이 자정을 넘으면(예: 새벽 3시 = 1620분) 자정~새벽 3시는 '전날 영업일'의 1440분 이후로 본다
+let overnight = 0; // 자정 넘어 영업하는 분 (새벽 3시 마감 → 180)
+export const setDayEnd = closeMin => { overnight = Math.max(0, (closeMin || 0) - 1440); };
+export const bizNow = (d = new Date()) => {
+  const m = d.getHours() * 60 + d.getMinutes();
+  if (m >= overnight) return { date: d, min: m };
+  const y = new Date(d); y.setDate(y.getDate() - 1);
+  return { date: y, min: m + 1440 };
+};
+export const nowMinutes = () => bizNow().min;          // 영업일 기준 지금 (분)
+export const bizToday = () => fmtDate(bizNow().date);  // 영업일 기준 오늘 'YYYY-MM-DD'
 export const ceilTo = (m, step = 10) => Math.ceil(m / step) * step;
 const endOf = r => r.startMin + r.durationMin;
 

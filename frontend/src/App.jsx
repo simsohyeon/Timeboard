@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, fmtDate, configured } from './api';
 import { START_H, END_H, isActiveOn } from './lib/constants';
 import { BASE_FONT, loadDisplay } from './lib/display';
+import { bizNow, setDayEnd } from './lib/schedule';
 import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
@@ -29,7 +30,7 @@ export default function App() {
   const [settingsDirty, setSettingsDirty] = useState(false);
   const changeTab = t => {
     if (t !== tab && settingsDirty && !window.confirm('저장하지 않은 설정 변경이 있어요. 저장하지 않고 이동할까요?')) return;
-    if (t === 'now') { setDate(new Date()); setCalOpen(false); } // 현황판은 늘 오늘
+    if (t === 'now') { setDate(bizNow().date); setCalOpen(false); } // 현황판은 늘 오늘
     setTab(t);
   };
   useEffect(() => {
@@ -57,7 +58,12 @@ export default function App() {
   const loadStaff = () => api.staff().then(s => { setStaff(s); setDbErr(''); })
     .catch(e => { setStaff([]); setDbErr(e.message || String(e)); });
   const loadMenus = () => api.menus().then(setMenus).catch(() => setMenus([]));
-  const loadSettings = () => api.settings().then(setSettings).catch(() => {});
+  const loadSettings = () => api.settings().then(s => {
+    // 자정 넘어 영업하면 새벽 시간대는 전날 영업일로 — 처음 열었을 때 보드도 그 날로
+    setDayEnd(s?.closeMin);
+    setSettings(s);
+    setDate(d => (fmtDate(d) === fmtDate(new Date()) ? bizNow().date : d));
+  }).catch(() => {});
   const loadLeaves = () => api.leaves().then(l => { setLeaves(l); setLeaveErr(''); })
     .catch(e => { setLeaves([]); setLeaveErr(e.message || String(e)); });
   useEffect(() => { loadStaff(); loadMenus(); loadSettings(); loadLeaves(); }, []);

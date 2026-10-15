@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { minLabel, worksOn } from '../lib/constants';
-import { staffNow, earliestStart, durLabel, nowMinutes, ceilTo, leaveLabel } from '../lib/schedule';
+import { staffNow, earliestStart, durLabel, bizNow, ceilTo, leaveLabel } from '../lib/schedule';
 
 // 지금 현황판: 오늘 지금 이 순간 누가 뭘 하고 있는지 + 워크인 손님 배정 도우미 + 다음 손님
 const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')}`;
@@ -9,8 +9,7 @@ const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).pad
 export default function NowPage({ staff, list, leaves = [], openMin, closeMin, menus, onCreate, onOpen, onChanged }) {
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 30000); return () => clearInterval(t); }, []);
-  const today = new Date();
-  const nowMin = nowMinutes(today);
+  const { date: today, min: nowMin } = bizNow(); // 영업일 기준 (새벽 1시면 전날 25:00)
 
   // 워크인 도우미: 메뉴판에 있는 시간들 (없으면 30/60/90)
   const durs = [...new Set(menus.flatMap(m => m.durations))].sort((a, b) => a - b);

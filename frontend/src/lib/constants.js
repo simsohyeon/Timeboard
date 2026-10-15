@@ -19,10 +19,12 @@ export const isActiveOn = (s, dateStr) =>
 export const worksOn = (s, dow) => !s.workDays || s.workDays.includes(dow);
 export const workRange = (s, openMin, closeMin) => [s.workOpenMin ?? openMin, s.workCloseMin ?? closeMin];
 
+// 시간은 '영업일 0시 기준 분'. 자정을 넘는 영업(예: 새벽 3시 마감)은 24시 이후 = 1440분 이상으로 다룬다
+export const ampmOf = h => (h >= 24 ? '새벽' : h < 12 ? '오전' : '오후');
 export const hourLabel = h =>
-  h < 12 ? `오전 ${h}:00` : h === 12 ? `오후 12:00` : `오후 ${h - 12}:00`;
+  h >= 24 ? `새벽 ${h === 24 ? 12 : h - 24}:00` : h < 12 ? `오전 ${h}:00` : h === 12 ? `오후 12:00` : `오후 ${h - 12}:00`;
 
 export const minLabel = m => {
   const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0');
-  return `${h < 12 ? '오전' : '오후'} ${((h + 11) % 12) + 1}:${mm}`;
+  return `${ampmOf(h)} ${((h + 11) % 12) + 1}:${mm}`;
 };
