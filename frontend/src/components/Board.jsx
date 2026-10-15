@@ -64,9 +64,10 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             {!off && wo > startH * 60 && <i className="off-zone" style={{ top: 0, height: top(wo) }} />}
             {!off && wc < endH * 60 && <i className="off-zone" style={{ top: top(wc), bottom: 0 }} />}
             {list.filter(r => r.staffId === s.id).map(r => (
-              <div className="resv" key={r.id} style={{ top: (r.startMin - startH * 60) / 60 * hourPx, height: r.durationMin / 60 * hourPx - 2 }}
+              <div className={'resv' + (r.done ? ' done' : '')} key={r.id}
+                style={{ top: (r.startMin - startH * 60) / 60 * hourPx, height: r.durationMin / 60 * hourPx - 2 }}
                 onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
-                <b>{r.title}</b>
+                <b>{r.done && <span className="resv-check" aria-label="완료">✓</span>}{r.title}</b>
                 <span>{r.subtitle}</span>
               </div>
             ))}

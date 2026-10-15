@@ -284,6 +284,13 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .resv:hover { filter: brightness(.97); }
 .resv b { display: block; font-size: 12px; font-weight: 700; color: var(--blue-dark); }
 .resv span { font-size: 11.5px; color: var(--sub); }
+/* 완료된 예약: 회색 + 체크 */
+.resv.done { background: var(--line); }
+.resv.done b { color: var(--sub); }
+.resv .resv-check {
+  display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; margin-right: 4px;
+  border-radius: 50%; background: #1f9d55; color: #fff; font-size: 10px; font-weight: 800; vertical-align: -2px;
+}
 .now-line { position: absolute; left: 0; right: 0; border-top: 1.5px solid var(--blue); z-index: 3; pointer-events: none; }
 .now-pill {
   position: absolute; right: 4px; transform: translateY(-50%); z-index: 4;
@@ -303,6 +310,28 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .m-end { font-size: 13px; color: var(--blue); font-weight: 600; padding-bottom: 11px; white-space: nowrap; }
 .m-full { margin-bottom: 12px; }
 .m-err { font-size: 12px; color: var(--red); margin: 0 0 10px; }
+p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
+.m-empty { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* 예약 모달 메뉴 버튼판: (메뉴, 시간) 하나 = 버튼 하나 */
+.menu-pick {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px;
+  max-height: 220px; overflow-y: auto; padding: 1px;
+}
+.menu-opt {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px;
+  font: inherit; text-align: left; cursor: pointer; border-radius: 10px;
+  background: var(--line); border: 1.5px solid transparent; color: var(--fg);
+}
+.menu-opt b { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.menu-opt small { font-size: 12px; color: var(--muted); }
+.menu-opt:hover { background: var(--line-strong); }
+.menu-opt.on { background: var(--blue-soft); border-color: var(--blue); }
+.menu-opt.on b { color: var(--blue-dark); }
+
+.done-btn { width: 100%; margin-bottom: 8px; }
+.done-btn:not(.is-done) { background: #e7f6ec; color: #1f7a45; }
+.done-btn:not(.is-done):hover:not(:disabled) { background: #d4efdd; }
 .m-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 /* ───── 결제 (담당자별 정산) ───── */
