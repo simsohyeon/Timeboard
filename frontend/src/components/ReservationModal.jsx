@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, fmtDate } from '../api';
-import { START_H, END_H, DAYS, minLabel, worksOn, workRange, isActiveOn } from '../lib/constants'; // startH/endH prop 기본값
+import { START_H, END_H, DAYS, minLabel, nim, worksOn, workRange, isActiveOn } from '../lib/constants'; // startH/endH prop 기본값
 import { nowMinutes, bizToday, bizNow, leaveOn, hitsLeave, leaveLabel } from '../lib/schedule';
 import { Modal, Button } from './ui';
 import MiniCalendar from './MiniCalendar';
@@ -112,12 +112,12 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   // 고른 시각이 되는지 한 줄로: ok(초록) / warn(주황, 저장은 됨) / block(휴가 — 저장 막음)
   const hit = sel && clash(sel.id, start, dur);
   const status = !sel ? { kind: 'warn', text: '담당자를 골라 주세요' }
-    : !worksOn(sel, date.getDay()) ? { kind: 'warn', text: `${sel.name}님은 이 날 휴무예요` }
-    : leaveAt(start) ? { kind: 'block', text: `${sel.name}님 휴가(${leaveLabel(lvOf(sel).full ?? lvOf(sel).parts.find(p => start < p.b && p.a < endMin).leave)}) 시간이라 예약할 수 없어요` }
+    : !worksOn(sel, date.getDay()) ? { kind: 'warn', text: `${nim(sel.name)}은 이 날 휴무예요` }
+    : leaveAt(start) ? { kind: 'block', text: `${nim(sel.name)} 휴가(${leaveLabel(lvOf(sel).full ?? lvOf(sel).parts.find(p => start < p.b && p.a < endMin).leave)}) 시간이라 예약할 수 없어요` }
     : hit ? { kind: 'warn', text: `${short(hit.startMin)} ${hit.title} 예약과 겹쳐요` }
-    : (start < wo || endMin > wc) ? { kind: 'warn', text: `${sel.name}님 근무 시간(${short(wo)}–${short(wc)}) 밖이에요` }
+    : (start < wo || endMin > wc) ? { kind: 'warn', text: `${nim(sel.name)} 근무 시간(${short(wo)}–${short(wc)}) 밖이에요` }
     : isToday && start + 10 <= nowMin && !form.id ? { kind: 'warn', text: '이미 지난 시각이에요' }
-    : { kind: 'ok', text: `${short(start)}–${short(endMin)} ${sel.name}님 비어 있어요` };
+    : { kind: 'ok', text: `${short(start)}–${short(endMin)} ${nim(sel.name)} 비어 있어요` };
 
   // '빈 시간 보기': 고른 담당자·코스로 바로 넣을 수 있는 시작 시각 (30분 간격 + 지금)
   const [showFree, setShowFree] = useState(false);
