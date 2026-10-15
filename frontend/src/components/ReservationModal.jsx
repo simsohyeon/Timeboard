@@ -79,7 +79,8 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   const nowMin = nowMinutes();
   const times = [];
   for (let m = Math.ceil(open / 30) * 30; m < close; m += 30) times.push(m);
-  if (!times.includes(start)) { times.push(start); times.sort((a, b) => a - b); }
+  // 2:20처럼 30분 단위가 아닌 시각은 버튼을 끼워 넣지 않고, 오른쪽 위 '10분 단위' 칸에 파랗게 표시
+  const offGrid = !times.includes(start);
   const timeGroups = [['오전', times.filter(m => m < 720)], ['오후', times.filter(m => m >= 720)]].filter(([, t]) => t.length);
   const exact = []; // 30분 단위가 아닌 시각은 '다른 시각'에서 10분 단위로
   for (let m = open; m < close; m += 10) exact.push(m);
@@ -183,7 +184,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
             <section className="rm-sec">
               <div className="rm-sec-head">
                 <h3>3. 날짜 · 시간</h3>
-                <div className="rm-exact">
+                <div className={'rm-exact' + (offGrid ? ' on' : '')}>
                   <Select value={start} onChange={v => set('startMin', Number(v))}
                     options={exact.map(m => ({ value: m, label: minLabel(m) }))} />
                 </div>

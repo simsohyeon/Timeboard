@@ -534,6 +534,8 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm-sec-head h3 { margin: 0; flex: 1; }
 .rm-exact { width: 128px; }
 .rm-exact .select-trigger { padding: 7px 10px; font-size: 13px; }
+.rm-exact.on .select-trigger { background: var(--blue); color: #fff; font-weight: 700; }
+.rm-exact.on .select-trigger svg { color: #fff; }
 .rm-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .rm-chip {
   min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
