@@ -47,6 +47,17 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 배포 시 Vercel 프로젝트의 Environment Variables에 `VITE_SUPABASE_URL`,
 `VITE_SUPABASE_ANON_KEY`를 넣고 Root Directory를 `frontend`로 지정하면 끝.
 
+## PWA (홈 화면 설치)
+
+`frontend/public/`의 `manifest.webmanifest` · `sw.js` · 아이콘으로 구성.
+배포 주소를 폰·태블릿에서 열고 "홈 화면에 추가"하면 앱처럼 전체화면으로 실행된다.
+
+- 서비스워커는 **배포 빌드에서만** 등록 (`npm run dev`에선 안 함 — 캐시가 수정사항을 가리지 않게)
+- 앱 화면 파일만 캐시하고 **Supabase 데이터 요청은 캐시하지 않음** → 예약은 항상 최신
+- 오프라인이면 화면은 뜨지만 데이터는 비어 보인다
+- 로컬에서 PWA 확인: `npm run build && npm run preview`
+- `sw.js`의 캐시 동작을 바꾸면 `CACHE` 이름의 버전(v1 → v2)을 올릴 것
+
 ## DB 스키마
 
 ```
