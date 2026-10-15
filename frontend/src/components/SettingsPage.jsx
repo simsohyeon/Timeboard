@@ -293,8 +293,6 @@ function StoreSection({ menus, openMin, closeMin, onMenusSaved, onHoursSaved, on
   };
 
   return (<>
-    <SectionHead title="매장 운영" desc="예약 보드에 보이는 운영 시간과, 예약할 때 고르는 메뉴·가격이에요." />
-
     <section className="store-block">
       <div className="store-block-head">
         <div><h2>운영 시간</h2><p>담당자별 근무 시간은 담당자에서 따로 정해요.</p></div>
