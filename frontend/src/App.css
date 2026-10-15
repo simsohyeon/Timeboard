@@ -441,6 +441,84 @@ p.now-overdue { margin-top: 6px; color: var(--amber); font-weight: 600; }
 p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .m-empty { margin: 0; font-size: 13px; color: var(--muted); }
 
+/* 예약 등록/수정 창 (ReservationModal) — 한 화면 4단계, 아래 요약·저장 고정. 폰에선 아래에서 올라오는 시트 */
+.rm .modal {
+  width: 560px; padding: 0; display: flex; flex-direction: column;
+  max-height: calc(100vh / var(--scale, 1) - 32px); overflow: hidden;
+}
+.rm .modal h2 { margin: 0; padding: 20px 56px 8px 22px; font-size: 19px; }
+.rm-close {
+  position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; border: none; border-radius: 10px;
+  background: none; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.rm-close:hover { background: var(--line); color: var(--sub); }
+.rm-form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.rm-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 22px 12px; }
+.rm-sec { margin-bottom: 20px; }
+.rm-sec h3 { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--sub); }
+.rm-sec h3 span { font-weight: 400; color: var(--muted); }
+.rm-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.rm-sec-head h3 { margin: 0; flex: 1; }
+.rm-exact { width: 128px; }
+.rm-exact .select-trigger { padding: 7px 10px; font-size: 13px; }
+.rm-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.rm-chip {
+  min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font: inherit; cursor: pointer; border-radius: 12px; border: 1.5px solid var(--line-strong); background: var(--surface); color: var(--fg);
+}
+.rm-chip b { font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
+.rm-chip small { font-size: 12px; font-weight: 600; color: var(--muted); }
+.rm-chip.st-ok small { color: var(--green); }
+.rm-chip.st-clash small { color: var(--amber); }
+.rm-chip.st-off { background: var(--hover); }
+.rm-chip.on { border: 2px solid var(--blue); background: var(--blue-soft); }
+.rm-chip.on b { color: var(--blue-dark); }
+.rm .menu-pick { max-height: none; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.rm .menu-opt { min-height: 56px; justify-content: center; border-radius: 12px; }
+.rm .menu-opt b { font-size: 15px; }
+.rm-times { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+.rm-time {
+  min-height: 44px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; font-variant-numeric: tabular-nums;
+  border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg);
+}
+.rm-time:hover { background: var(--hover); }
+.rm-time.bad { color: var(--faint); background: var(--hover); border-style: dashed; text-decoration: line-through; }
+.rm-time.on { background: var(--blue); border-color: var(--blue); color: #fff; text-decoration: none; }
+.rm-time.on.bad { background: var(--amber); border-color: var(--amber); border-style: solid; }
+.rm-hint { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.rm-input {
+  width: 100%; box-sizing: border-box; height: 48px; padding: 0 14px; font: inherit; font-size: 16px; color: var(--fg);
+  background: var(--line); border: none; border-radius: 12px;
+}
+.rm-recent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.rm-recent span { font-size: 12px; color: var(--muted); margin-right: 2px; }
+.rm-recent button {
+  min-height: 34px; padding: 0 12px; font: inherit; font-size: 13px; cursor: pointer;
+  border: none; border-radius: 99px; background: var(--line); color: var(--fg);
+}
+.rm-recent button:hover { background: var(--line-strong); }
+.rm-foot { flex: none; padding: 12px 22px 18px; border-top: 1px solid var(--line-strong); background: var(--surface); }
+.rm-summary { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.rm-summary span { flex: 1; font-size: 15px; font-weight: 600; }
+.rm-summary b { font-size: 18px; }
+.rm-warn { margin: 0 0 8px; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--amber); background: var(--amber-soft); }
+.rm .m-actions { margin-top: 0; }
+.rm .m-actions .btn { min-height: 50px; font-size: 16px; }
+.rm .done-btn { min-height: 46px; }
+@media (max-width: 760px) {
+  .rm { align-items: flex-end; }
+  .rm .modal {
+    width: 100%; max-width: none; border-radius: 22px 22px 0 0;
+    max-height: calc(100vh / var(--scale, 1) - 40px);
+  }
+  .rm .modal h2 { padding: 18px 56px 6px 16px; }
+  .rm-body { padding: 4px 16px 12px; }
+  .rm-foot { padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); }
+  .rm-staff { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
+  .rm .menu-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rm-times { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
 /* 예약 모달 메뉴 버튼판: (메뉴, 시간) 하나 = 버튼 하나 */
 .menu-pick {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px;

@@ -1,9 +1,9 @@
 // 공용 UI 프리미티브 (토스 스타일) — 디자인 변경은 여기와 App.css의 토큰만 고치면 된다
 import { useEffect, useRef, useState } from 'react';
 
-export function Modal({ title, onClose, children }) {
+export function Modal({ title, onClose, children, className = '' }) {
   return (
-    <div className="modal-wrap">
+    <div className={`modal-wrap ${className}`}>
       <div className="scrim" onClick={onClose} />
       <div className="modal">
         <h2>{title}</h2>

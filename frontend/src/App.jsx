@@ -153,7 +153,7 @@ export default function App() {
           onClick={() => openCreate(activeStaff[0]?.id, 12 * 60)}>+</button>
       )}
       {modal && (
-        <ReservationModal init={modal} staff={modalStaff} menus={menus} date={date}
+        <ReservationModal init={modal} staff={modalStaff} list={list} menus={menus} date={date}
           startH={startH} endH={endH} hidePrice={display.hidePrice}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); reload(); }} />
