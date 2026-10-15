@@ -36,7 +36,60 @@ export const api = {
     supabase
       ? [...new Set(rows(await supabase.from('reservation').select('date')).map(r => r.date))]
       : [],
+
+  menus: async () =>
+    supabase
+      ? rows(await supabase.from('menu')
+          .select('id,name,durations,sortOrder:sort_order')
+          .order('sort_order'))
+      : [],
+
+  createMenu: async m => {
+    need();
+    return rows(await supabase.from('menu')
+      .insert({ name: m.name, durations: m.durations, sort_order: m.sortOrder ?? 0 }).select());
+  },
+
+  updateMenu: async (id, m) => {
+    need();
+    return rows(await supabase.from('menu')
+      .update({ name: m.name, durations: m.durations }).eq('id', id).select());
+  },
+
+  deleteMenu: async id => {
+    need();
+    const { error } = await supabase.from('menu').delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  createReservation: async r => {
+    need();
+    return rows(await supabase.from('reservation').insert(toRow(r)).select(RESV_COLS));
+  },
+
+  updateReservation: async (id, r) => {
+    need();
+    return rows(await supabase.from('reservation').update(toRow(r)).eq('id', id).select(RESV_COLS));
+  },
+
+  deleteReservation: async id => {
+    need();
+    const { error } = await supabase.from('reservation').delete().eq('id', id);
+    if (error) throw error;
+  },
 };
+
+const need = () => { if (!supabase) throw new Error('Supabase 미설정 (frontend/.env)'); };
+
+// 카멜케이스 → DB 컬럼명
+const toRow = r => ({
+  staff_id: r.staffId,
+  date: r.date,
+  start_min: r.startMin,
+  duration_min: r.durationMin,
+  title: r.title,
+  subtitle: r.subtitle ?? '',
+});
 
 export const fmtDate = d =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

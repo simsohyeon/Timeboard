@@ -30,6 +30,25 @@ drop policy if exists "open reservation" on public.reservation;
 create policy "open reservation" on public.reservation
   for all to anon, authenticated using (true) with check (true);
 
+-- 메뉴: 예약 등록 시 선택, 선택한 시간이 소요시간이 된다
+create table if not exists public.menu (
+  id bigint generated always as identity primary key,
+  name text not null,
+  durations int[] not null default '{60,90,120}',  -- 선택 가능한 시간(분)
+  sort_order int not null default 0
+);
+alter table public.menu enable row level security;
+drop policy if exists "open menu" on public.menu;
+create policy "open menu" on public.menu
+  for all to anon, authenticated using (true) with check (true);
+
+insert into public.menu (name, durations, sort_order)
+select * from (values
+  ('타이', array[60, 90, 120], 0),
+  ('아로마', array[60, 90, 120], 1)
+) v(name, durations, sort_order)
+where not exists (select 1 from public.menu);
+
 -- 데모 시드 (비어 있을 때만)
 insert into public.staff (name, dot_color, sort_order)
 select * from (values
