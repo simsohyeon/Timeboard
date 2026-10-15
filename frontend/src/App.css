@@ -532,10 +532,6 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm-sec h3 span { font-weight: 400; color: var(--muted); }
 .rm-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .rm-sec-head h3 { margin: 0; flex: 1; }
-.rm-exact { width: 128px; }
-.rm-exact .select-trigger { padding: 7px 10px; font-size: 13px; }
-.rm-exact.on .select-trigger { background: var(--blue); color: #fff; font-weight: 700; }
-.rm-exact.on .select-trigger svg { color: #fff; }
 .rm-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .rm-chip {
   min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
@@ -551,7 +547,6 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm .menu-pick { max-height: none; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .rm .menu-opt { min-height: 56px; justify-content: center; border-radius: 12px; }
 .rm .menu-opt b { font-size: 15px; }
-.rm-times { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
 .rm-time {
   min-height: 44px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; font-variant-numeric: tabular-nums;
   border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg);
@@ -560,7 +555,26 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm-time.bad { color: var(--faint); background: var(--hover); border-style: dashed; text-decoration: line-through; }
 .rm-time.on { background: var(--blue); border-color: var(--blue); color: #fff; text-decoration: none; }
 .rm-time.on.bad { background: var(--amber); border-color: var(--amber); border-style: solid; }
-.rm-hint { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.rm-hint { margin: 10px 0 0; font-size: 12px; color: var(--muted); }
+.rm-picked { font-size: 15px; font-weight: 700; color: var(--blue-dark); white-space: nowrap; }
+.rm-hm { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.rm-hm-label { flex: none; width: 18px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.rm-hours {
+  flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; padding: 2px; scrollbar-width: thin;
+  overscroll-behavior-x: contain; scroll-snap-type: x proximity;
+}
+.rm-hour {
+  flex: none; width: 52px; height: 52px; scroll-snap-align: center; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  font: inherit; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums;
+  border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg);
+}
+.rm-hour small { font-size: 10px; font-weight: 600; color: var(--muted); height: 12px; line-height: 12px; }
+.rm-hour.dim { color: var(--muted); background: var(--hover); border-color: var(--line); }
+.rm-hour.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+.rm-hour.on small { color: #fff; }
+.rm-mins { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; padding: 2px; }
+.rm-time:disabled { visibility: hidden; }
 .rm-time.dim { color: var(--muted); background: var(--hover); border-color: var(--line); }
 .rm-date { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .rm-date-pick { flex: 1 1 160px; min-width: 0; }
@@ -569,9 +583,6 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
   border: none; border-radius: 10px; background: var(--line); color: var(--sub);
 }
 .rm-day.on { background: var(--blue-soft); color: var(--blue-dark); }
-.rm-time-group { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; }
-.rm-ampm { flex: none; width: 30px; padding-top: 12px; font-size: 12px; font-weight: 700; color: var(--muted); }
-.rm-time-group .rm-times { flex: 1; min-width: 0; }
 .rm-input {
   width: 100%; box-sizing: border-box; height: 48px; padding: 0 14px; font: inherit; font-size: 16px; color: var(--fg);
   background: var(--line); border: none; border-radius: 12px;
@@ -602,9 +613,6 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
   .rm-foot { padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); }
   .rm-staff { grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); }
   .rm .menu-pick { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .rm-times { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .rm-time-group { flex-direction: column; gap: 4px; }
-  .rm-ampm { padding-top: 0; }
 }
 
 /* 예약 모달 메뉴 버튼판: (메뉴, 시간) 하나 = 버튼 하나 */

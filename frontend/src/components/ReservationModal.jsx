@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, fmtDate } from '../api';
 import { START_H, END_H, minLabel, worksOn, workRange, isActiveOn } from '../lib/constants'; // startH/endH prop 기본값
 import { nowMinutes, leaveOn, hitsLeave, leaveLabel } from '../lib/schedule';
-import { Modal, Button, Select } from './ui';
+import { Modal, Button } from './ui';
 import DatePicker from './DatePicker';
 
 // 예약 등록/수정 — 한 화면에서 버튼만 눌러 끝낸다: ① 담당자 ② 메뉴 ③ 시간 ④ 손님
@@ -71,19 +71,28 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   };
   const STATE_LABEL = { off: '휴무', leave: '휴가', out: '근무 외', clash: '겹침', ok: '가능' };
 
-  // 시간 버튼: 매장 운영시간 전체를 30분 간격으로 다 보여 준다 (오전/오후로 나눔).
-  // 못 쓰는 시간은 숨기지 않고 흐리게(지난 시각·근무 외) 또는 줄 긋기(겹침·휴가) — 그래도 누를 수는 있다
+  // 시간 고르기: "시" 한 줄 + "분"(10분 단위) 한 줄. 버튼 두 번이면 끝.
+  // 못 쓰는 시각은 숨기지 않고 흐리게(지난 시각·근무 외) 또는 줄 긋기(겹침·휴가) — 그래도 누를 수는 있다
   const sel = staff.find(s => s.id === Number(form.staffId));
   const [wo, wc] = sel ? workRange(sel, open, close) : [open, close];
   const isToday = dateStr === fmtDate(new Date());
   const nowMin = nowMinutes();
-  const times = [];
-  for (let m = Math.ceil(open / 30) * 30; m < close; m += 30) times.push(m);
-  // 2:20처럼 30분 단위가 아닌 시각은 버튼을 끼워 넣지 않고, 오른쪽 위 '10분 단위' 칸에 파랗게 표시
-  const offGrid = !times.includes(start);
-  const timeGroups = [['오전', times.filter(m => m < 720)], ['오후', times.filter(m => m >= 720)]].filter(([, t]) => t.length);
-  const exact = []; // 30분 단위가 아닌 시각은 '다른 시각'에서 10분 단위로
-  for (let m = open; m < close; m += 10) exact.push(m);
+  // 그 시각 m의 상태: bad(겹침·휴가 — 무엇과 겹치는지) / dim(지났거나 근무 외)
+  const badAt = m => sel && (clash(sel.id, m, dur) || (hitsLeave(lvOf(sel), m, dur) && { title: '휴가' }));
+  const dimAt = m => (isToday && m + 10 <= nowMin) || (sel && (m < wo || m + dur > wc || !worksOn(sel, date.getDay())));
+  const hours = [];
+  for (let h = Math.floor(open / 60); h * 60 < close; h++) hours.push(h);
+  const curH = Math.floor(start / 60), curM = start % 60;
+  const minsOf = h => [0, 10, 20, 30, 40, 50].map(mm => h * 60 + mm).filter(m => m >= open && m < close);
+  const pickHour = h => {
+    const ms = minsOf(h);
+    set('startMin', ms.includes(h * 60 + curM) ? h * 60 + curM : ms[0]);
+  };
+  // 고른 시가 보이게 가로 스크롤
+  const hourRow = useRef(null);
+  useEffect(() => {
+    hourRow.current?.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [curH]);
 
   const hit = sel && clash(sel.id, start, dur);
   const warn = !sel ? '' :
@@ -184,10 +193,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
             <section className="rm-sec">
               <div className="rm-sec-head">
                 <h3>3. 날짜 · 시간</h3>
-                <div className={'rm-exact' + (offGrid ? ' on' : '')}>
-                  <Select value={start} onChange={v => set('startMin', Number(v))}
-                    options={exact.map(m => ({ value: m, label: minLabel(m) }))} />
-                </div>
+                <b className="rm-picked">{minLabel(start)}</b>
               </div>
               <div className="rm-date">
                 <div className="rm-date-pick">
@@ -203,27 +209,45 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                   );
                 })}
               </div>
-              {timeGroups.map(([label, ts]) => (
-                <div key={label} className="rm-time-group">
-                  <span className="rm-ampm">{label}</span>
-                  <div className="rm-times" role="radiogroup" aria-label={`${label} 시작 시간`}>
-                    {ts.map(m => {
-                      const bad = sel && (clash(sel.id, m, dur) || (hitsLeave(lvOf(sel), m, dur) && { title: '휴가' }));
-                      const dim = (isToday && m + 30 <= nowMin) || (sel && (m < wo || m + dur > wc || !worksOn(sel, date.getDay())));
-                      return (
-                        <button key={m} type="button" role="radio" aria-checked={m === start}
-                          className={'rm-time' + (m === start ? ' on' : '') + (bad ? ' bad' : dim ? ' dim' : '')}
-                          title={bad ? `${bad.title}${bad.id ? ' 예약' : ''}과 겹침` : undefined}
-                          onClick={() => set('startMin', m)}>
-                          {short(m)}
-                        </button>
-                      );
-                    })}
-                  </div>
+              <div className="rm-hm">
+                <span className="rm-hm-label">시</span>
+                <div className="rm-hours" ref={hourRow} role="radiogroup" aria-label="시">
+                  {hours.map((h, i) => {
+                    const ms = minsOf(h);
+                    const allBad = ms.every(m => badAt(m) || dimAt(m));
+                    const ampm = i === 0 || h === 12 ? (h < 12 ? '오전' : '오후') : '';
+                    return (
+                      <button key={h} type="button" role="radio" aria-checked={h === curH}
+                        aria-label={`${h < 12 ? '오전' : '오후'} ${((h + 11) % 12) + 1}시`}
+                        className={'rm-hour' + (h === curH ? ' on' : '') + (allBad ? ' dim' : '')}
+                        onClick={() => pickHour(h)}>
+                        <small>{ampm}</small>{((h + 11) % 12) + 1}
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
+              <div className="rm-hm">
+                <span className="rm-hm-label">분</span>
+                <div className="rm-mins" role="radiogroup" aria-label="분">
+                  {[0, 10, 20, 30, 40, 50].map(mm => {
+                    const m = curH * 60 + mm;
+                    const out = m < open || m >= close;
+                    const bad = !out && badAt(m);
+                    const dim = out || dimAt(m);
+                    return (
+                      <button key={mm} type="button" role="radio" aria-checked={m === start} disabled={out}
+                        className={'rm-time' + (m === start ? ' on' : '') + (bad ? ' bad' : dim ? ' dim' : '')}
+                        title={bad ? `${bad.title}${bad.id ? ' 예약' : ''}과 겹침` : undefined}
+                        onClick={() => set('startMin', m)}>
+                        :{String(mm).padStart(2, '0')}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <p className="rm-hint">
-                흐린 시간은 지났거나 근무 시간 밖, 줄 그어진 시간은 다른 예약·휴가와 겹쳐요. 10분 단위는 오른쪽 위에서 고르세요.
+                흐린 시각은 지났거나 근무 시간 밖, 줄 그어진 시각은 다른 예약·휴가와 겹쳐요.
               </p>
             </section>
 
