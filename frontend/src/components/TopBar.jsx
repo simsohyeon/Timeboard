@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import { DAYS } from '../lib/constants';
 
-export default function TopBar() {
+const TABS = [
+  ['reserve', '예약'],
+  ['pay', '결제'],
+  ['settings', '설정'],
+];
+
+export default function TopBar({ tab, onTab }) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 10000);
@@ -12,6 +18,11 @@ export default function TopBar() {
   return (
     <div className="topbar">
       <span className="tb-brand">타임보드</span>
+      <nav className="tb-tabs">
+        {TABS.map(([k, label]) => (
+          <button key={k} className={tab === k ? 'active' : ''} onClick={() => onTab(k)}>{label}</button>
+        ))}
+      </nav>
       <div className="tb-right">
         <span className="tb-clock">{clock}</span>
       </div>

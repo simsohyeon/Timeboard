@@ -74,6 +74,12 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   display: flex; align-items: center; padding: 0 16px;
 }
 .tb-brand { color: #fff; font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+.tb-tabs { display: flex; gap: 2px; margin-left: 14px; }
+.tb-tabs button {
+  background: none; border: none; font: inherit; font-size: 14px; font-weight: 600;
+  color: #9a9ea6; padding: 10px 12px; cursor: pointer;
+}
+.tb-tabs button.active { color: #fff; }
 .tb-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .tb-clock { font-size: 12px; color: #c1c6cc; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
@@ -199,6 +205,43 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   color: var(--blue); cursor: pointer;
 }
 .menu-add:hover { background: var(--blue-soft); border-color: var(--blue); }
+
+/* ───── 결제 (담당자별 정산) ───── */
+.payroll { flex: 1; overflow: auto; padding: 18px 20px; }
+.pay-table { width: 100%; max-width: 520px; border-collapse: collapse; }
+.pay-table th {
+  font-size: 12px; font-weight: 500; color: var(--muted); text-align: left;
+  padding: 8px 10px; border-bottom: 1px solid var(--line-strong);
+}
+.pay-table td { font-size: 14px; padding: 13px 10px; border-bottom: 1px solid var(--line); }
+.pay-table th:not(:first-child), .pay-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.pay-table td .dot { display: inline-block; margin-right: 7px; }
+.pay-table tfoot td { font-weight: 700; border-bottom: none; }
+.pay-hint { font-size: 12px; color: var(--muted); margin-top: 12px; max-width: 520px; line-height: 1.5; }
+
+/* ───── 설정 ───── */
+.settings {
+  flex: 1; overflow: auto; padding: 18px 20px;
+  display: flex; flex-direction: column; gap: 14px; max-width: 580px;
+}
+.set-card { border: 1px solid var(--line-strong); border-radius: 16px; padding: 18px; }
+.set-card h3 { margin: 0 0 4px; font-size: 15px; }
+.set-hint { margin: 0 0 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.dot-btn {
+  background: var(--line); border: none; border-radius: 10px; cursor: pointer; flex: none;
+  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+}
+.dot-btn .dot { width: 12px; height: 12px; }
+.menu-card { border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px; }
+.menu-card:last-of-type { border-bottom: none; }
+.price-rows { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; padding-left: 2px; }
+.price-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.price-row input {
+  width: 88px; font: inherit; font-size: 13px; color: var(--fg); text-align: right;
+  background: var(--line); border: none; border-radius: 8px; padding: 7px 9px;
+}
+.hours-row { display: flex; align-items: center; gap: 10px; max-width: 340px; }
+.hours-tilde { color: var(--muted); }
 
 /* ───── 플로팅 ───── */
 .fab {
