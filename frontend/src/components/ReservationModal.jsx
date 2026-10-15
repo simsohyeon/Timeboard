@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, fmtDate } from '../api';
 import { START_H, END_H, minLabel, worksOn, workRange, isActiveOn } from '../lib/constants'; // startH/endH prop 기본값
 import { nowMinutes, leaveOn, hitsLeave, leaveLabel } from '../lib/schedule';
@@ -88,11 +88,16 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     const ms = minsOf(h);
     set('startMin', ms.includes(h * 60 + curM) ? h * 60 + curM : ms[0]);
   };
-  // 고른 시가 보이게 가로 스크롤
-  const hourRow = useRef(null);
-  useEffect(() => {
-    hourRow.current?.querySelector('.on')?.scrollIntoView({ block: 'nearest', inline: 'center' });
-  }, [curH]);
+  // 오전/오후를 먼저 고르고, 그 반나절의 시만 보여 준다 (스크롤 없이 최대 두 줄)
+  const pm = curH >= 12;
+  const halves = [['오전', hours.filter(h => h < 12)], ['오후', hours.filter(h => h >= 12)]].filter(([, hs]) => hs.length);
+  const shownHours = hours.filter(h => (h >= 12) === pm);
+  const pickHalf = toPm => {
+    if (toPm === pm) return;
+    const hs = hours.filter(h => (h >= 12) === toPm);
+    const same = curH % 12 + (toPm ? 12 : 0); // 2시 ↔ 14시처럼 같은 숫자로
+    pickHour(hs.includes(same) ? same : hs[0]);
+  };
 
   const hit = sel && clash(sel.id, start, dur);
   const warn = !sel ? '' :
@@ -209,19 +214,31 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                   );
                 })}
               </div>
+              {halves.length > 1 && (
+                <div className="rm-hm">
+                  <span className="rm-hm-label" />
+                  <div className="rm-half" role="radiogroup" aria-label="오전 오후">
+                    {halves.map(([label]) => {
+                      const on = (label === '오후') === pm;
+                      return (
+                        <button key={label} type="button" role="radio" aria-checked={on}
+                          className={on ? 'on' : ''} onClick={() => pickHalf(label === '오후')}>{label}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <div className="rm-hm">
                 <span className="rm-hm-label">시</span>
-                <div className="rm-hours" ref={hourRow} role="radiogroup" aria-label="시">
-                  {hours.map((h, i) => {
-                    const ms = minsOf(h);
-                    const allBad = ms.every(m => badAt(m) || dimAt(m));
-                    const ampm = i === 0 || h === 12 ? (h < 12 ? '오전' : '오후') : '';
+                <div className="rm-hours" role="radiogroup" aria-label="시">
+                  {shownHours.map(h => {
+                    const allBad = minsOf(h).every(m => badAt(m) || dimAt(m));
                     return (
                       <button key={h} type="button" role="radio" aria-checked={h === curH}
                         aria-label={`${h < 12 ? '오전' : '오후'} ${((h + 11) % 12) + 1}시`}
                         className={'rm-hour' + (h === curH ? ' on' : '') + (allBad ? ' dim' : '')}
                         onClick={() => pickHour(h)}>
-                        <small>{ampm}</small>{((h + 11) % 12) + 1}
+                        {((h + 11) % 12) + 1}
                       </button>
                     );
                   })}

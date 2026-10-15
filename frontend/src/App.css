@@ -559,20 +559,19 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm-picked { font-size: 15px; font-weight: 700; color: var(--blue-dark); white-space: nowrap; }
 .rm-hm { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .rm-hm-label { flex: none; width: 18px; font-size: 13px; font-weight: 700; color: var(--muted); }
-.rm-hours {
-  flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; padding: 2px; scrollbar-width: thin;
-  overscroll-behavior-x: contain; scroll-snap-type: x proximity;
+.rm-half { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--line); }
+.rm-half button {
+  min-height: 40px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  border: none; border-radius: 9px; background: transparent; color: var(--sub);
 }
+.rm-half button.on { background: var(--surface); color: var(--blue-dark); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.rm-hours { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; padding: 2px; }
 .rm-hour {
-  flex: none; width: 52px; height: 52px; scroll-snap-align: center; cursor: pointer;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
-  font: inherit; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums;
-  border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg);
+  min-height: 44px; cursor: pointer; font: inherit; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums;
+  border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--fg);
 }
-.rm-hour small { font-size: 10px; font-weight: 600; color: var(--muted); height: 12px; line-height: 12px; }
 .rm-hour.dim { color: var(--muted); background: var(--hover); border-color: var(--line); }
 .rm-hour.on { background: var(--blue); border-color: var(--blue); color: #fff; }
-.rm-hour.on small { color: #fff; }
 .rm-mins { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; padding: 2px; }
 .rm-time:disabled { visibility: hidden; }
 .rm-time.dim { color: var(--muted); background: var(--hover); border-color: var(--line); }
