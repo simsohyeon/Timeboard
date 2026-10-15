@@ -90,7 +90,10 @@ export default function ReservationModal({ init, staff, menus, date, startH = ST
             <Select value={form.startMin} onChange={v => set('startMin', v)}
               options={slots.map(m => ({ value: m, label: minLabel(m) }))} />
           </Field>
-          <span className="m-end">~ {minLabel(endMin)} 종료 · {(Number(form.price) || 0).toLocaleString()}원</span>
+          <span className="m-end">
+            ~ {minLabel(endMin)} 종료
+            {Number(form.price) > 0 && ` · ${Number(form.price).toLocaleString()}원`}
+          </span>
         </div>
         <Field label="고객명/메모" className="m-full">
           <input value={form.title || ''} onChange={e => set('title', e.target.value)}
