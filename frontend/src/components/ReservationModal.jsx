@@ -26,13 +26,18 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     ? { label: init.subtitle || `${init.durationMin}분`, dur: init.durationMin, price: init.price || 0 }
     : null;
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     ...init,
+    // 새 예약인데 처음 잡힌 담당자가 그 날 종일 휴가면, 휴가 아닌 첫 담당자로
+    staffId: !init.id && leaveOn(leaves, Number(init.staffId), fmtDate(boardDate)).full
+      ? (allStaff.find(s => isActiveOn(s, fmtDate(boardDate)) && worksOn(s, boardDate.getDay())
+          && !leaveOn(leaves, s.id, fmtDate(boardDate)).full)?.id ?? init.staffId)
+      : init.staffId,
     pick: initOpt?.key ?? (legacy ? 'legacy' : null),
     dur: initOpt?.dur ?? init.durationMin ?? 60,
     // 저장된 금액이 없으면(새 예약·과거 0원 예약) 메뉴 가격으로
     price: init.price || initOpt?.price || 0,
-  });
+  }));
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [recent, setRecent] = useState([]);
@@ -84,8 +89,11 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   for (let h = Math.floor(open / 60); h * 60 < close; h++) hours.push(h);
   const curH = Math.floor(start / 60), curM = start % 60;
   const minsOf = h => [0, 10, 20, 30, 40, 50].map(mm => h * 60 + mm).filter(m => m >= open && m < close);
+  // 휴가(반차·외출) 시간은 아예 못 고른다
+  const leaveAt = m => !!sel && hitsLeave(lvOf(sel), m, dur);
   const pickHour = h => {
-    const ms = minsOf(h);
+    const ms = minsOf(h).filter(m => !leaveAt(m));
+    if (!ms.length) return;
     set('startMin', ms.includes(h * 60 + curM) ? h * 60 + curM : ms[0]);
   };
   // 오전/오후를 먼저 고르고, 그 반나절의 시만 보여 준다 (스크롤 없이 최대 두 줄)
@@ -157,12 +165,13 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                 {staff.map(s => {
                   const st = staffState(s);
                   const on = s.id === Number(form.staffId);
+                  const full = lvOf(s).full; // 종일 휴가면 고를 수 없음
                   return (
-                    <button key={s.id} type="button" role="radio" aria-checked={on}
+                    <button key={s.id} type="button" role="radio" aria-checked={on} disabled={!!full && !on}
                       className={'rm-chip' + (on ? ' on' : '') + ' st-' + st}
                       onClick={() => set('staffId', s.id)}>
                       <b><i className="dot" style={{ background: s.dotColor || 'var(--blue)' }} />{s.name}</b>
-                      <small>{STATE_LABEL[st]}</small>
+                      <small>{full ? (full.reason || '휴가') : STATE_LABEL[st]}</small>
                     </button>
                   );
                 })}
@@ -233,8 +242,9 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                 <div className="rm-hours" role="radiogroup" aria-label="시">
                   {shownHours.map(h => {
                     const allBad = minsOf(h).every(m => badAt(m) || dimAt(m));
+                    const allLeave = minsOf(h).every(leaveAt);
                     return (
-                      <button key={h} type="button" role="radio" aria-checked={h === curH}
+                      <button key={h} type="button" role="radio" aria-checked={h === curH} disabled={allLeave && h !== curH}
                         aria-label={`${h < 12 ? '오전' : '오후'} ${((h + 11) % 12) + 1}시`}
                         className={'rm-hour' + (h === curH ? ' on' : '') + (allBad ? ' dim' : '')}
                         onClick={() => pickHour(h)}>
@@ -250,11 +260,13 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                   {[0, 10, 20, 30, 40, 50].map(mm => {
                     const m = curH * 60 + mm;
                     const out = m < open || m >= close;
-                    const bad = !out && badAt(m);
+                    const lv = !out && leaveAt(m);
+                    const bad = !out && !lv && badAt(m);
                     const dim = out || dimAt(m);
                     return (
-                      <button key={mm} type="button" role="radio" aria-checked={m === start} disabled={out}
-                        className={'rm-time' + (m === start ? ' on' : '') + (bad ? ' bad' : dim ? ' dim' : '')}
+                      <button key={mm} type="button" role="radio" aria-checked={m === start}
+                        disabled={out || (lv && m !== start)}
+                        className={'rm-time' + (m === start ? ' on' : '') + (out ? ' out' : lv ? ' leave' : bad ? ' bad' : dim ? ' dim' : '')}
                         title={bad ? `${bad.title}${bad.id ? ' 예약' : ''}과 겹침` : undefined}
                         onClick={() => set('startMin', m)}>
                         :{String(mm).padStart(2, '0')}
@@ -264,7 +276,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                 </div>
               </div>
               <p className="rm-hint">
-                흐린 시각은 지났거나 근무 시간 밖, 줄 그어진 시각은 다른 예약·휴가와 겹쳐요.
+                흐린 시각은 지났거나 근무 시간 밖, 줄 그어진 시각은 다른 예약과 겹쳐요. 휴가 시간은 고를 수 없어요.
               </p>
             </section>
 

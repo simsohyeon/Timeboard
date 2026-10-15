@@ -573,7 +573,13 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm-hour.dim { color: var(--muted); background: var(--hover); border-color: var(--line); }
 .rm-hour.on { background: var(--blue); border-color: var(--blue); color: #fff; }
 .rm-mins { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; padding: 2px; }
-.rm-time:disabled { visibility: hidden; }
+.rm-time.out { visibility: hidden; }
+.rm-time.leave, .rm-hour:disabled {
+  cursor: not-allowed; color: var(--faint); border-style: dashed; border-color: var(--line-strong);
+  background: repeating-linear-gradient(135deg, var(--leave-soft) 0 6px, transparent 6px 11px);
+}
+.rm-chip:disabled { cursor: not-allowed; opacity: .5; background: var(--hover); }
+.rm-chip:disabled small { color: var(--leave); }
 .rm-time.dim { color: var(--muted); background: var(--hover); border-color: var(--line); }
 .rm-date { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 .rm-date-pick { flex: 1 1 160px; min-width: 0; }
