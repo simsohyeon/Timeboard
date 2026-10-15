@@ -20,7 +20,22 @@ cd frontend && npm install && npm run dev
 cd backend && ./gradlew bootRun
 ```
 
-현재 프론트는 `src/data.js`의 목업 데이터를 사용한다. 백엔드 API가 생기면 교체.
+프론트는 백엔드 API(`/api`)를 사용한다 (Vite 프록시 → `localhost:8080`).
+백엔드는 시작 시 H2 인메모리에 데모 데이터를 시드한다.
+
+### API
+
+```
+GET    /api/staff                      직원 목록
+POST   /api/staff                      직원 등록
+PUT    /api/staff/{id}                 직원 수정
+DELETE /api/staff/{id}                 직원 삭제
+GET    /api/reservations?date=ISO      해당 날짜 예약 목록
+GET    /api/reservations/dates         예약 있는 날짜 목록 (달력 점)
+POST   /api/reservations               예약 등록
+PUT    /api/reservations/{id}          예약 수정
+DELETE /api/reservations/{id}          예약 삭제
+```
 
 ## 무료 배포 플랜 (2026-10 조사)
 
@@ -36,6 +51,7 @@ cd backend && ./gradlew bootRun
 
 ## 다음 할 일
 
-- [ ] 백엔드: Reservation / Staff 엔티티 + CRUD API
-- [ ] 프론트: 목업 → API 연동, 예약 등록 모달 (+ FAB)
+- [x] 백엔드: Reservation / Staff 엔티티 + CRUD API
+- [x] 프론트: 목업 → API 연동
+- [ ] 프론트: 예약 등록 모달 (+ FAB)
 - [ ] 배포: Neon 프로젝트 생성 → Render/Vercel 연결

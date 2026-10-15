@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { STAFF, RESERVATIONS, fmtDate } from './data';
+import { api, fmtDate } from './api';
 import './App.css';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -92,8 +92,7 @@ function MiniCalendar({ selected, onSelect, eventDates }) {
   );
 }
 
-function Board({ date }) {
-  const list = RESERVATIONS[fmtDate(date)] || [];
+function Board({ staff, list, date }) {
   const isToday = fmtDate(date) === fmtDate(new Date());
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 60000); return () => clearInterval(t); }, []);
@@ -113,11 +112,11 @@ function Board({ date }) {
 
   return (
     <div className="board">
-      <div className="board-grid" style={{ gridTemplateColumns: `64px repeat(${STAFF.length}, 1fr)` }}>
+      <div className="board-grid" style={{ gridTemplateColumns: `64px repeat(${staff.length || 1}, 1fr)` }}>
         <div className="col-head corner" />
-        {STAFF.map(s => (
+        {staff.map(s => (
           <div className="col-head" key={s.id}>
-            {s.dot && <i className="dot" style={{ background: s.dot }} />}{s.name}
+            {s.dotColor && <i className="dot" style={{ background: s.dotColor }} />}{s.name}
           </div>
         ))}
         <div className="time-col" style={{ height: (END_H - START_H) * HOUR_PX }}>
@@ -126,15 +125,15 @@ function Board({ date }) {
           ))}
           {showNow && <span className="now-pill" style={{ top: nowTop }}>{nowLabel}</span>}
         </div>
-        {STAFF.map(s => (
+        {staff.map(s => (
           <div className="col" key={s.id} style={{ height: (END_H - START_H) * HOUR_PX }}>
             {Array.from({ length: END_H - START_H - 1 }, (_, i) => (
               <i className="hline" key={i} style={{ top: (i + 1) * HOUR_PX }} />
             ))}
             {list.filter(r => r.staffId === s.id).map(r => (
-              <div className="resv" key={r.id} style={{ top: (r.start - START_H * 60) / 60 * HOUR_PX, height: r.dur / 60 * HOUR_PX - 2 }}>
+              <div className="resv" key={r.id} style={{ top: (r.startMin - START_H * 60) / 60 * HOUR_PX, height: r.durationMin / 60 * HOUR_PX - 2 }}>
                 <b>{r.title}</b>
-                <span>{r.sub}</span>
+                <span>{r.subtitle}</span>
               </div>
             ))}
             {showNow && <i className="now-line" style={{ top: nowTop }} />}
@@ -147,8 +146,19 @@ function Board({ date }) {
 
 export default function App() {
   const [date, setDate] = useState(new Date());
-  const count = (RESERVATIONS[fmtDate(date)] || []).length;
-  const eventDates = useMemo(() => new Set(Object.keys(RESERVATIONS)), []);
+  const [staff, setStaff] = useState([]);
+  const [list, setList] = useState([]);
+  const [eventDates, setEventDates] = useState(new Set());
+
+  useEffect(() => {
+    api.staff().then(setStaff).catch(() => setStaff([]));
+    api.reservationDates().then(d => setEventDates(new Set(d))).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    api.reservations(fmtDate(date)).then(setList).catch(() => setList([]));
+  }, [date]);
+
   const moveDay = n => setDate(d => { const x = new Date(d); x.setDate(x.getDate() + n); return x; });
 
   return (
@@ -163,7 +173,7 @@ export default function App() {
           <div className="main-head">
             <button className="mh-arrow" onClick={() => moveDay(-1)} aria-label="이전 날">‹</button>
             <span className="mh-date">{date.getDate()}일 ({DAYS[date.getDay()]})</span>
-            <span className="mh-count">총 {count}건</span>
+            <span className="mh-count">총 {list.length}건</span>
             <button className="mh-arrow" onClick={() => moveDay(1)} aria-label="다음 날">›</button>
             <div className="mh-right">
               <button className="chip link-resv"><i className="n-ico">N</i> 링크예약</button>
@@ -174,7 +184,7 @@ export default function App() {
               </button>
             </div>
           </div>
-          <Board date={date} />
+          <Board staff={staff} list={list} date={date} />
         </main>
       </div>
       <div className="mascot" aria-hidden>🐥</div>
