@@ -6,6 +6,8 @@ import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
 import Board from './components/Board';
+import DaySummary from './components/DaySummary';
+import NowPage from './components/NowPage';
 import PayrollPage from './components/PayrollPage';
 import SettingsPage from './components/SettingsPage';
 import ReservationModal from './components/ReservationModal';
@@ -25,6 +27,7 @@ export default function App() {
   const [settingsDirty, setSettingsDirty] = useState(false);
   const changeTab = t => {
     if (t !== tab && settingsDirty && !window.confirm('저장하지 않은 설정 변경이 있어요. 저장하지 않고 이동할까요?')) return;
+    if (t === 'now') { setDate(new Date()); setCalOpen(false); } // 현황판은 늘 오늘
     setTab(t);
   };
   useEffect(() => {
@@ -69,6 +72,12 @@ export default function App() {
     api.reservationDates().then(d => setEventDates(new Set(d))).catch(() => {});
   };
   useEffect(reload, [date]);
+  // 현황판은 다른 기기에서 바뀐 예약도 보이게 1분마다 새로 불러온다
+  useEffect(() => {
+    if (tab !== 'now') return;
+    const t = setInterval(reload, 60000);
+    return () => clearInterval(t);
+  }, [tab, date]);
 
   const startH = settings ? Math.floor(settings.openMin / 60) : START_H;
   const endH = settings ? Math.ceil(settings.closeMin / 60) : END_H;
@@ -80,7 +89,9 @@ export default function App() {
   const modalStaff = modal ? staff.filter(s => isActiveOn(s, dateStr) || s.id === modal.staffId) : [];
 
   const moveDay = n => setDate(d => { const x = new Date(d); x.setDate(x.getDate() + n); return x; });
-  const openCreate = (staffId, startMin) => setModal({ staffId, startMin, durationMin: 60, title: '', subtitle: '' });
+  // preferDur: 이 시간(분) 메뉴를 먼저 골라 둔다 (지금 탭 워크인 도우미)
+  const openCreate = (staffId, startMin, preferDur) =>
+    setModal({ staffId, startMin, durationMin: preferDur ?? 60, preferDur, title: '', subtitle: '' });
 
   // 예약·결제 공통 날짜 헤더 + 모바일 펼침 달력 (.cal-drop은 데스크톱에서 CSS로 숨김)
   const dateHead = (<>
@@ -101,7 +112,7 @@ export default function App() {
     <div className="app">
       <TopBar tab={tab} onTab={changeTab} />
       <div className="body">
-        {tab !== 'settings' && (
+        {(tab === 'reserve' || tab === 'pay') && (
           <aside className="sidebar">
             <MiniCalendar selected={date} onSelect={setDate} eventDates={eventDates} />
           </aside>
@@ -113,10 +124,16 @@ export default function App() {
           {dbErr && <p className="notice">{dbErr}</p>}
           {tab === 'reserve' && (<>
             {dateHead}
+            <DaySummary staff={activeStaff} list={list} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
               hourPx={display.hourPx} halfLine={display.halfLine}
               onCellClick={openCreate} onBlockClick={r => setModal(r)} />
           </>)}
+          {tab === 'now' && (
+            <NowPage staff={activeStaff} list={list} menus={menus}
+              openMin={startH * 60} closeMin={endH * 60}
+              onCreate={openCreate} onOpen={r => setModal(r)} onChanged={reload} />
+          )}
           {tab === 'pay' && (<>
             {dateHead}
             <PayrollPage staff={payStaff} list={list} />
@@ -131,7 +148,7 @@ export default function App() {
           )}
         </main>
       </div>
-      {tab === 'reserve' && (
+      {(tab === 'reserve' || tab === 'now') && (
         <button className="fab" aria-label="예약 추가"
           onClick={() => openCreate(activeStaff[0]?.id, 12 * 60)}>+</button>
       )}
