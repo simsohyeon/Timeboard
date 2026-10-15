@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
 import { fmtDate } from '../api';
 import { START_H, END_H, HOUR_PX, hourLabel, worksOn, workRange } from '../lib/constants';
-import { freeGaps, durLabel, nowMinutes, ceilTo, staffNow } from '../lib/schedule';
+import { freeGaps, durLabel, nowMinutes, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel } from '../lib/schedule';
 
 // 예약 보드: 가로 = 담당자, 세로 = 시간.
 // 30분 이상 빈 시간은 점선 칸으로 보여 주고, 누르면 그 시각으로 바로 예약 등록.
 const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')}`;
 
-export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx = HOUR_PX, halfLine = false, onCellClick, onBlockClick }) {
-  const isToday = fmtDate(date) === fmtDate(new Date());
+export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick }) {
+  const dateStr = fmtDate(date);
+  const isToday = dateStr === fmtDate(new Date());
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 60000); return () => clearInterval(t); }, []);
   useEffect(() => {
@@ -28,11 +29,12 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   // 담당자 머리글 아래 한 줄 상태 (오늘만)
   const status = s => {
     if (!isToday) return null;
-    const st = staffNow(s, list, date, open, close, nowMin);
+    const st = staffNow(s, list, date, open, close, nowMin, leaves);
     if (st.kind === 'busy') return <small className="ch-busy">시술 중 · {short(st.current.startMin + st.current.durationMin)} 끝</small>;
     if (st.kind === 'free') return <small className="ch-free">비어 있음{st.next ? ` · 다음 ${short(st.next.startMin)}` : ''}</small>;
     if (st.kind === 'before') return <small>{short(st.range[0])} 출근</small>;
     if (st.kind === 'after') return <small>퇴근</small>;
+    if (st.kind === 'leave') return <small className="ch-leave">{leaveLabel(st.leave)}</small>;
     return null;
   };
 
@@ -46,7 +48,9 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             <i className="avatar" style={{ '--c': s.dotColor || 'var(--blue)' }}>{s.name.slice(0, 1)}</i>
             <span className="ch-text">
               <b>{s.name}</b>
-              {worksOn(s, date.getDay()) ? status(s) : <small>휴무</small>}
+              {!worksOn(s, date.getDay()) ? <small>휴무</small>
+                : leaveOn(leaves, s.id, dateStr).full ? <small className="ch-leave">{leaveLabel(leaveOn(leaves, s.id, dateStr).full)}</small>
+                : status(s)}
             </span>
           </div>
         ))}
@@ -57,13 +61,14 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           {showNow && <span className="now-pill" style={{ top: nowTop }}>{short(nowMin)}</span>}
         </div>
         {staff.map(s => {
-          // 휴무 요일은 칸 전체, 근무시간 밖은 위아래만 빗금 + 클릭 막음
-          const off = !worksOn(s, date.getDay());
+          // 휴무 요일·종일 휴가는 칸 전체, 근무시간 밖·시간 지정 휴가는 그 부분만 빗금 + 클릭 막음
+          const lv = leaveOn(leaves, s.id, dateStr);
+          const off = !worksOn(s, date.getDay()) || !!lv.full;
           const [wo, wc] = workRange(s, open, close);
           const mine = list.filter(r => r.staffId === s.id);
           // 오늘이면 지금 이후의 빈 시간만
           const from = isToday ? Math.max(wo, ceilTo(nowMin)) : wo;
-          const gaps = off ? [] : freeGaps(mine, [wo, wc], from).filter(([a, b]) => b - a >= 30);
+          const gaps = off ? [] : freeGaps([...mine, ...leaveBlocks(lv.parts)], [wo, wc], from).filter(([a, b]) => b - a >= 30);
           return (
           <div className={'col' + (off ? ' off' : '')} key={s.id} style={{ height: (endH - startH) * hourPx }}
             onClick={e => {
@@ -74,7 +79,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
               const frac = (e.clientY - rect.top) / rect.height;
               const slot = open + Math.floor(frac * (endH - startH) * 2) * 30;
               const min = Math.min(Math.max(slot, open), close - 30);
-              if (min < wo || min >= wc) return;
+              if (min < wo || min >= wc || lv.parts.some(p => p.a <= min && min < p.b)) return;
               onCellClick(s.id, min);
             }}>
             {Array.from({ length: endH - startH - 1 }, (_, i) => (
@@ -83,7 +88,12 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             {halfLine && Array.from({ length: endH - startH }, (_, i) => (
               <i className="hline half" key={'h' + i} style={{ top: i * hourPx + hourPx / 2 }} />
             ))}
-            {off && <span className="off-label">휴무</span>}
+            {off && <span className={'off-label' + (lv.full ? ' leave' : '')}>{lv.full ? leaveLabel(lv.full) : '휴무'}</span>}
+            {!off && lv.parts.map(p => (
+              <div key={p.leave.id} className="leave-zone" style={{ top: top(p.a), height: top(p.b) - top(p.a) }}>
+                <span>{leaveLabel(p.leave)}</span>
+              </div>
+            ))}
             {!off && wo > open && <i className="off-zone" style={{ top: 0, height: top(wo) }} />}
             {!off && wc < close && <i className="off-zone" style={{ top: top(wc), bottom: 0 }} />}
             {gaps.map(([a, b]) => {
@@ -101,20 +111,22 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             {mine.map(r => {
               const live = showNow && !r.done && r.startMin <= nowMin && nowMin < r.startMin + r.durationMin;
               const h = r.durationMin / 60 * hourPx - 3;
+              // 담당자 휴가와 겹친 예약: 다른 담당자로 옮기거나 손님께 연락해야 함
+              const warn = !r.done && hitsLeave(lv, r.startMin, r.durationMin) ? ' warn' : '';
               if (h < 52) return ( // 짧은 예약(30분 등)은 한 줄로
                 <button type="button" key={r.id}
-                  className={'resv short' + (r.done ? ' done' : '') + (live ? ' live' : '')}
+                  className={'resv short' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn}
                   style={{ top: top(r.startMin) + 1, height: h, '--c': s.dotColor || 'var(--blue)' }}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
-                  <small>{r.done && '✓ '}{short(r.startMin)}</small><b>{r.title}</b>
+                  <small>{r.done && '✓ '}{warn && '⚠ '}{short(r.startMin)}</small><b>{r.title}</b>
                 </button>
               );
               return (
                 <button type="button" key={r.id}
-                  className={'resv' + (r.done ? ' done' : '') + (live ? ' live' : '')}
+                  className={'resv' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn}
                   style={{ top: top(r.startMin) + 1, height: h, '--c': s.dotColor || 'var(--blue)' }}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
-                  <small>{r.done ? '✓ 완료 · ' : live ? '진행 중 · ' : ''}{short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
+                  <small>{r.done ? '✓ 완료 · ' : warn ? '⚠ 담당자 휴가 · ' : live ? '진행 중 · ' : ''}{short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
                   <b>{r.title}</b>
                   <span>{r.subtitle}</span>
                 </button>

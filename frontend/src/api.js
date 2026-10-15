@@ -21,6 +21,8 @@ const RESV_COLS = RESV_BASE + ',done';
 const NO_DONE_MSG = '완료 표시용 칸(reservation.done)이 없어요 — supabase/setup.sql 최신 버전을 실행하세요';
 const STAFF_COLS = 'id,name,dotColor:dot_color,sortOrder:sort_order,joinedOn:joined_on,leftOn:left_on,'
   + 'commissionPct:commission_pct,workDays:work_days,workOpenMin:work_open_min,workCloseMin:work_close_min,phone,memo';
+const LEAVE_COLS = 'id,staffId:staff_id,startDate:start_date,endDate:end_date,startMin:start_min,endMin:end_min,reason';
+const NO_LEAVE_MSG = '휴가 기능용 표(staff_leave)가 없어요 — supabase/setup.sql 최신 버전을 SQL Editor에서 실행하세요';
 const MENU_COLS = 'id,name,durations,prices,sortOrder:sort_order';
 
 const staffRow = s => ({
@@ -97,6 +99,37 @@ export const api = {
     const res = await supabase.from('reservation').update({ done }).eq('id', id).select('id');
     if (res.error?.code === '42703' || res.error?.code === 'PGRST204') throw new Error(NO_DONE_MSG);
     return rows(res);
+  },
+
+  // 기간 안의 예약 전부 (휴가 등록 시 겹치는 예약 찾기)
+  reservationsRange: async (from, to) => {
+    if (!supabase) return [];
+    return rows(await supabase.from('reservation').select(RESV_COLS)
+      .gte('date', from).lte('date', to).order('date').order('start_min'));
+  },
+
+  // ───── 휴가 ─────
+  leaves: async () => {
+    if (!supabase) return [];
+    const res = await supabase.from('staff_leave').select(LEAVE_COLS).order('start_date');
+    if (res.error && ['42P01', 'PGRST205'].includes(res.error.code)) throw new Error(NO_LEAVE_MSG);
+    return rows(res);
+  },
+
+  createLeave: async l => {
+    need();
+    const res = await supabase.from('staff_leave').insert({
+      staff_id: l.staffId, start_date: l.startDate, end_date: l.endDate,
+      start_min: l.startMin ?? null, end_min: l.endMin ?? null, reason: l.reason ?? '',
+    }).select(LEAVE_COLS);
+    if (res.error && ['42P01', 'PGRST205'].includes(res.error.code)) throw new Error(NO_LEAVE_MSG);
+    return rows(res)[0];
+  },
+
+  deleteLeave: async id => {
+    need();
+    const { error } = await supabase.from('staff_leave').delete().eq('id', id);
+    if (error) throw error;
   },
 
   // 최근 예약의 고객명 (예약 등록 창의 '최근 손님' 빠른 입력용)

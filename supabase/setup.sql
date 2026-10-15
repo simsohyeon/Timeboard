@@ -94,3 +94,19 @@ from (values (0, 720, 60, '타이60분'), (2, 870, 90, '타이90'), (4, 780, 60,
   v(ord, start_min, duration_min, subtitle)
 join public.staff s on s.sort_order = v.ord
 where not exists (select 1 from public.reservation);
+
+-- 담당자 휴가: 날짜 범위(그날들 종일) 또는 시간 지정(반차·외출, 범위 안 매일 그 시간)
+create table if not exists public.staff_leave (
+  id bigint generated always as identity primary key,
+  staff_id bigint not null references public.staff (id) on delete cascade,
+  start_date date not null,
+  end_date date not null check (end_date >= start_date),
+  start_min int check (start_min between 0 and 1440),   -- null = 종일
+  end_min int check (end_min between 0 and 1440),
+  reason text not null default ''
+);
+create index if not exists staff_leave_dates_idx on public.staff_leave (start_date, end_date);
+alter table public.staff_leave enable row level security;
+drop policy if exists "open staff_leave" on public.staff_leave;
+create policy "open staff_leave" on public.staff_leave
+  for all to anon, authenticated using (true) with check (true);

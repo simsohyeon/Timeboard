@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, fmtDate } from '../api';
 import { START_H, END_H, minLabel, worksOn, workRange } from '../lib/constants'; // startH/endH prop 기본값
-import { nowMinutes } from '../lib/schedule';
+import { nowMinutes, leaveOn, hitsLeave, leaveLabel } from '../lib/schedule';
 import { Modal, Button, Select } from './ui';
 
 // 예약 등록/수정 — 한 화면에서 버튼만 눌러 끝낸다: ① 담당자 ② 메뉴 ③ 시간 ④ 손님
@@ -12,7 +12,7 @@ const optionsOf = menus => menus.flatMap(m =>
   m.durations.map((dur, i) => ({ key: `${m.name}|${dur}`, menu: m.name, dur, price: m.prices?.[i] ?? 0 })));
 const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')}`;
 
-export default function ReservationModal({ init, staff, list = [], menus, date, startH = START_H, endH = END_H, hidePrice = false, onClose, onSaved }) {
+export default function ReservationModal({ init, staff, list = [], leaves = [], menus, date, startH = START_H, endH = END_H, hidePrice = false, onClose, onSaved }) {
   const options = optionsOf(menus);
   // 수정이면 기존 subtitle("아로마 60분")에서 메뉴를 찾고, 새 예약이면 preferDur 시간의 첫 버튼(없으면 첫 번째 버튼)
   const initMenu = menus.find(m => (init.subtitle || '').startsWith(m.name))?.name;
@@ -49,13 +49,15 @@ export default function ReservationModal({ init, staff, list = [], menus, date, 
   // 같은 담당자의 다른 예약 (수정 중인 자기 자신은 빼고)
   const othersOf = sid => list.filter(r => r.staffId === Number(sid) && r.id !== form.id);
   const clash = (sid, a, d) => othersOf(sid).find(r => a < r.startMin + r.durationMin && r.startMin < a + d);
+  const lvOf = s => leaveOn(leaves, s.id, fmtDate(date));
   const staffState = s => {
     if (!worksOn(s, date.getDay())) return 'off';
+    if (hitsLeave(lvOf(s), start, dur)) return 'leave';
     const [wo, wc] = workRange(s, open, close);
     if (start < wo || endMin > wc) return 'out';
     return clash(s.id, start, dur) ? 'clash' : 'ok';
   };
-  const STATE_LABEL = { off: '휴무', out: '근무 외', clash: '겹침', ok: '가능' };
+  const STATE_LABEL = { off: '휴무', leave: '휴가', out: '근무 외', clash: '겹침', ok: '가능' };
 
   // 시간 버튼: 고른 담당자 근무시간 안에서 30분 간격. 오늘이면 지난 시각은 숨김 (고른 시각은 항상 보임)
   const sel = staff.find(s => s.id === Number(form.staffId));
@@ -71,6 +73,7 @@ export default function ReservationModal({ init, staff, list = [], menus, date, 
   const hit = sel && clash(sel.id, start, dur);
   const warn = !sel ? '' :
     !worksOn(sel, date.getDay()) ? `${sel.name}님은 이 날 휴무예요`
+    : hitsLeave(lvOf(sel), start, dur) ? `${sel.name}님 휴가(${leaveLabel(lvOf(sel).full ?? lvOf(sel).parts.find(p => start < p.b && p.a < endMin).leave)}) 시간이에요`
     : hit ? `${short(hit.startMin)} ${hit.title} 예약과 겹쳐요`
     : (start < wo || endMin > wc) ? `${sel.name}님 근무 시간(${short(wo)}–${short(wc)}) 밖이에요`
     : '';
@@ -174,11 +177,11 @@ export default function ReservationModal({ init, staff, list = [], menus, date, 
               <div className="rm-times" role="radiogroup" aria-label="시작 시간">
                 {times.length === 0 && <p className="m-empty">{sel ? '이 코스가 들어갈 근무 시간이 없어요' : '담당자를 먼저 골라 주세요'}</p>}
                 {times.map(m => {
-                  const bad = sel && clash(sel.id, m, dur);
+                  const bad = sel && (clash(sel.id, m, dur) || (hitsLeave(lvOf(sel), m, dur) && { title: '휴가' }));
                   return (
                     <button key={m} type="button" role="radio" aria-checked={m === start}
                       className={'rm-time' + (m === start ? ' on' : '') + (bad ? ' bad' : '')}
-                      title={bad ? `${bad.title} 예약과 겹침` : undefined}
+                      title={bad ? `${bad.title}${bad.id ? ' 예약' : ''}과 겹침` : undefined}
                       onClick={() => set('startMin', m)}>
                       {short(m)}
                     </button>
@@ -186,7 +189,7 @@ export default function ReservationModal({ init, staff, list = [], menus, date, 
                 })}
               </div>
               <p className="rm-hint">
-                {sel && times.some(m => clash(sel.id, m, dur)) && `줄 그어진 시간은 ${sel.name}님 다른 예약과 겹쳐요. `}
+                {sel && times.some(m => clash(sel.id, m, dur) || hitsLeave(lvOf(sel), m, dur)) && `줄 그어진 시간은 ${sel.name}님 다른 예약·휴가와 겹쳐요. `}
                 10분 단위 시각은 오른쪽 위에서 고르세요.
               </p>
             </section>
