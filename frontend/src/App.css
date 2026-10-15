@@ -258,18 +258,21 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
 /* 메뉴 × 시간 가격표 */
 .set-table-wrap { overflow-x: auto; }
-.price-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.price-table {
+  width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0;
+  table-layout: fixed; /* 시간 열 균등 분배 */
+}
 .price-table th {
   font-size: 12px; font-weight: 500; color: var(--sub); text-align: center; padding: 10px 6px;
   border-bottom: 1px solid var(--line-strong); white-space: nowrap;
 }
-.price-table th:first-child { text-align: left; padding-left: 14px; min-width: 150px; }
+.price-table th:first-child { text-align: left; padding-left: 14px; width: 150px; }
 .price-table th:last-child { width: 44px; }
 .price-table td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; }
 .price-table td:first-child { text-align: left; padding-left: 14px; }
 .price-table tr:last-child td { border-bottom: none; }
 .price-table tr:hover td { background: #fafbfc; }
-.cell-price, .cell-off { width: 100%; max-width: 104px; height: 40px; border-radius: 10px; font: inherit; }
+.cell-price, .cell-off { width: 100%; max-width: 112px; height: 40px; border-radius: 10px; font: inherit; }
 .cell-price {
   font-size: 14px; font-weight: 500; color: var(--fg); text-align: right; padding: 0 12px;
   background: var(--line); border: none; font-variant-numeric: tabular-nums;
