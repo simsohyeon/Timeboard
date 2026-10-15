@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api, fmtDate } from '../api';
-import { START_H, END_H, minLabel, ampmOf, worksOn, workRange, isActiveOn } from '../lib/constants'; // startH/endH prop 기본값
+import { START_H, END_H, DAYS, minLabel, worksOn, workRange, isActiveOn } from '../lib/constants'; // startH/endH prop 기본값
 import { nowMinutes, bizToday, bizNow, leaveOn, hitsLeave, leaveLabel } from '../lib/schedule';
 import { Modal, Button } from './ui';
-import DatePicker from './DatePicker';
+import MiniCalendar from './MiniCalendar';
+import Wheel from './Wheel';
 
 // 예약 등록/수정 — 한 화면에서 버튼만 눌러 끝낸다: ① 담당자 ② 메뉴 ③ 시간 ④ 손님
 // 메뉴를 시간보다 먼저 고르는 건, 코스 길이를 알아야 "겹치지 않는 시간"을 보여 줄 수 있어서.
@@ -76,8 +77,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   };
   const STATE_LABEL = { off: '휴무', leave: '휴가', out: '근무 외', clash: '겹침', ok: '가능' };
 
-  // 시간 고르기: "시" 한 줄 + "분"(10분 단위) 한 줄. 버튼 두 번이면 끝.
-  // 못 쓰는 시각은 숨기지 않고 흐리게(지난 시각·근무 외) 또는 줄 긋기(겹침·휴가) — 그래도 누를 수는 있다
+  // 시간 고르기: [오전/오후/새벽 | 시 | 분(10분 단위)] 휠 세 줄. 아래 한 줄로 그 시각이 되는지 바로 알려 준다
   const sel = staff.find(s => s.id === Number(form.staffId));
   const [wo, wc] = sel ? workRange(sel, open, close) : [open, close];
   const isToday = dateStr === bizToday();
@@ -92,11 +92,10 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   // 휴가(반차·외출) 시간은 아예 못 고른다
   const leaveAt = m => !!sel && hitsLeave(lvOf(sel), m, dur);
   const pickHour = h => {
-    const ms = minsOf(h).filter(m => !leaveAt(m));
+    const ms = minsOf(h);
     if (!ms.length) return;
     set('startMin', ms.includes(h * 60 + curM) ? h * 60 + curM : ms[0]);
   };
-  // 오전/오후(/새벽)를 먼저 고르고, 그 반나절의 시만 보여 준다 (스크롤 없이 최대 두 줄)
   // 새벽 = 자정 넘어 영업하는 시간 (24시 이후, 다음날 새벽)
   const halfOf = h => (h >= 24 ? 2 : h >= 12 ? 1 : 0);
   const curHalf = halfOf(curH);
@@ -110,13 +109,27 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     pickHour(hs.includes(same) ? same : hs[0]);
   };
 
+  // 고른 시각이 되는지 한 줄로: ok(초록) / warn(주황, 저장은 됨) / block(휴가 — 저장 막음)
   const hit = sel && clash(sel.id, start, dur);
-  const warn = !sel ? '' :
-    !worksOn(sel, date.getDay()) ? `${sel.name}님은 이 날 휴무예요`
-    : hitsLeave(lvOf(sel), start, dur) ? `${sel.name}님 휴가(${leaveLabel(lvOf(sel).full ?? lvOf(sel).parts.find(p => start < p.b && p.a < endMin).leave)}) 시간이에요`
-    : hit ? `${short(hit.startMin)} ${hit.title} 예약과 겹쳐요`
-    : (start < wo || endMin > wc) ? `${sel.name}님 근무 시간(${short(wo)}–${short(wc)}) 밖이에요`
-    : '';
+  const status = !sel ? { kind: 'warn', text: '담당자를 골라 주세요' }
+    : !worksOn(sel, date.getDay()) ? { kind: 'warn', text: `${sel.name}님은 이 날 휴무예요` }
+    : leaveAt(start) ? { kind: 'block', text: `${sel.name}님 휴가(${leaveLabel(lvOf(sel).full ?? lvOf(sel).parts.find(p => start < p.b && p.a < endMin).leave)}) 시간이라 예약할 수 없어요` }
+    : hit ? { kind: 'warn', text: `${short(hit.startMin)} ${hit.title} 예약과 겹쳐요` }
+    : (start < wo || endMin > wc) ? { kind: 'warn', text: `${sel.name}님 근무 시간(${short(wo)}–${short(wc)}) 밖이에요` }
+    : isToday && start + 10 <= nowMin && !form.id ? { kind: 'warn', text: '이미 지난 시각이에요' }
+    : { kind: 'ok', text: `${short(start)}–${short(endMin)} ${sel.name}님 비어 있어요` };
+
+  // '빈 시간 보기': 고른 담당자·코스로 바로 넣을 수 있는 시작 시각 (30분 간격 + 지금)
+  const [showFree, setShowFree] = useState(false);
+  const freeStarts = [];
+  if (sel && worksOn(sel, date.getDay())) {
+    const from = isToday ? Math.ceil(nowMin / 10) * 10 : wo;
+    for (let m = Math.max(wo, from); m + dur <= wc && freeStarts.length < 8; m += (m % 30 ? 10 : 30)) {
+      if (!clash(sel.id, m, dur) && !leaveAt(m)) freeStarts.push(m);
+    }
+  }
+  const [calOpen, setCalOpen] = useState(false);
+  const days = [0, 1, 2, 3, 4].map(n => { const d = new Date(bizNow().date); d.setDate(d.getDate() + n); return d; });
 
   const q = (form.title || '').trim();
   const recentShown = recent.filter(t => t !== q && (!q || t.includes(q))).slice(0, 6);
@@ -143,6 +156,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     if (locked) return;
     if (!form.pick) return setErr('메뉴를 골라 주세요');
     if (!form.staffId) return setErr('담당자를 골라 주세요');
+    if (status.kind === 'block') return setErr(status.text);
     act(() => (form.id ? api.updateReservation(form.id, payload()) : api.createReservation(payload())));
   };
   // 완료 처리: 고친 내용이 있으면 같이 저장하고 완료 표시 / 완료 취소: 상태만 되돌림
@@ -210,77 +224,68 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
             <section className="rm-sec">
               <div className="rm-sec-head">
                 <h3>3. 날짜 · 시간</h3>
-                <b className="rm-picked">{minLabel(start)}</b>
+                <b className="rm-picked">{date.getMonth() + 1}/{date.getDate()}({DAYS[date.getDay()]}) {minLabel(start)}</b>
               </div>
-              <div className="rm-date">
-                <div className="rm-date-pick">
-                  <DatePicker value={dateStr} clearable={false} aria-label="예약 날짜"
-                    onChange={v => { if (v) { const [y, m, d] = v.split('-').map(Number); setDay(new Date(y, m - 1, d)); } }} />
-                </div>
-                {[0, 1, 2].map(n => {
-                  const d = new Date(bizNow().date); d.setDate(d.getDate() + n);
+              <div className="rm-days">
+                {days.map((d, n) => {
                   const on = fmtDate(d) === dateStr;
                   return (
-                    <button key={n} type="button" className={'rm-day' + (on ? ' on' : '')} aria-pressed={on}
-                      onClick={() => setDay(d)}>{['오늘', '내일', '모레'][n]}</button>
+                    <button key={n} type="button" className={'rm-dday' + (on ? ' on' : '')} aria-pressed={on}
+                      onClick={() => { setDay(d); setCalOpen(false); }}>
+                      <span className={d.getDay() === 0 ? 'sun' : d.getDay() === 6 ? 'sat' : ''}>
+                        {n === 0 ? '오늘' : n === 1 ? '내일' : DAYS[d.getDay()]}
+                      </span>
+                      <b>{d.getDate()}</b>
+                    </button>
                   );
                 })}
+                <button type="button" className={'rm-dday cal' + (calOpen || !days.some(d => fmtDate(d) === dateStr) ? ' on' : '')}
+                  aria-label="다른 날짜 고르기" aria-expanded={calOpen} onClick={() => setCalOpen(o => !o)}>
+                  {days.some(d => fmtDate(d) === dateStr)
+                    ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+                    : <><span>{date.getMonth() + 1}월</span><b>{date.getDate()}</b></>}
+                </button>
               </div>
-              {halves.length > 1 && (
-                <div className="rm-hm">
-                  <span className="rm-hm-label" />
-                  <div className="rm-half" role="radiogroup" aria-label="오전 오후" style={{ gridTemplateColumns: `repeat(${halves.length}, 1fr)` }}>
-                    {halves.map(([label, i]) => {
-                      const on = i === curHalf;
-                      return (
-                        <button key={label} type="button" role="radio" aria-checked={on}
-                          className={on ? 'on' : ''} onClick={() => pickHalf(i)}>{label}</button>
-                      );
-                    })}
-                  </div>
+              {calOpen && (
+                <div className="rm-cal">
+                  <MiniCalendar selected={date} onSelect={d => { setDay(d); setCalOpen(false); }} />
                 </div>
               )}
-              <div className="rm-hm">
-                <span className="rm-hm-label">시</span>
-                <div className="rm-hours" role="radiogroup" aria-label="시">
-                  {shownHours.map(h => {
-                    const allBad = minsOf(h).every(m => badAt(m) || dimAt(m));
-                    const allLeave = minsOf(h).every(leaveAt);
-                    return (
-                      <button key={h} type="button" role="radio" aria-checked={h === curH} disabled={allLeave && h !== curH}
-                        aria-label={`${ampmOf(h)} ${((h + 11) % 12) + 1}시`}
-                        className={'rm-hour' + (h === curH ? ' on' : '') + (allBad ? ' dim' : '')}
-                        onClick={() => pickHour(h)}>
-                        {((h + 11) % 12) + 1}
-                      </button>
-                    );
-                  })}
-                </div>
+
+              <div className="rm-wheels">
+                <i className="rm-wheel-band" aria-hidden="true" />
+                <Wheel label="오전 오후" value={curHalf} onChange={pickHalf}
+                  items={halves.map(([label, i]) => ({ value: i, label }))} />
+                <Wheel label="시" value={curH} onChange={pickHour}
+                  items={shownHours.map(h => ({
+                    value: h, label: String(((h + 11) % 12) + 1),
+                    cls: minsOf(h).every(leaveAt) ? 'leave' : minsOf(h).every(m => badAt(m) || dimAt(m)) ? 'dim' : '',
+                  }))} />
+                <Wheel label="분" value={curM} onChange={mm => set('startMin', curH * 60 + mm)}
+                  items={minsOf(curH).map(m => ({
+                    value: m % 60, label: String(m % 60).padStart(2, '0'),
+                    cls: leaveAt(m) ? 'leave' : badAt(m) ? 'bad' : dimAt(m) ? 'dim' : '',
+                  }))} />
               </div>
-              <div className="rm-hm">
-                <span className="rm-hm-label">분</span>
-                <div className="rm-mins" role="radiogroup" aria-label="분">
-                  {[0, 10, 20, 30, 40, 50].map(mm => {
-                    const m = curH * 60 + mm;
-                    const out = m < open || m >= close;
-                    const lv = !out && leaveAt(m);
-                    const bad = !out && !lv && badAt(m);
-                    const dim = out || dimAt(m);
-                    return (
-                      <button key={mm} type="button" role="radio" aria-checked={m === start}
-                        disabled={out || (lv && m !== start)}
-                        className={'rm-time' + (m === start ? ' on' : '') + (out ? ' out' : lv ? ' leave' : bad ? ' bad' : dim ? ' dim' : '')}
-                        title={bad ? `${bad.title}${bad.id ? ' 예약' : ''}과 겹침` : undefined}
-                        onClick={() => set('startMin', m)}>
-                        :{String(mm).padStart(2, '0')}
-                      </button>
-                    );
-                  })}
-                </div>
+
+              <div className={'rm-status ' + status.kind}>
+                <span>{status.kind === 'ok' ? '✓ ' : '⚠ '}{status.text}</span>
+                {sel && (
+                  <button type="button" onClick={() => setShowFree(v => !v)} aria-expanded={showFree}>
+                    {showFree ? '접기' : '빈 시간 보기'}
+                  </button>
+                )}
               </div>
-              <p className="rm-hint">
-                흐린 시각은 지났거나 근무 시간 밖, 줄 그어진 시각은 다른 예약과 겹쳐요. 휴가 시간은 고를 수 없어요.
-              </p>
+              {showFree && (
+                <div className="rm-free">
+                  {freeStarts.length === 0 && <span className="m-empty">이 날 {dur}분 비는 시간이 없어요</span>}
+                  {freeStarts.map(m => (
+                    <button key={m} type="button" className={m === start ? 'on' : ''} onClick={() => set('startMin', m)}>
+                      {minLabel(m).replace(/^(오전|오후|새벽) /, '$1\n')}
+                    </button>
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="rm-sec">
@@ -301,7 +306,6 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
         </div>
 
         <div className="rm-foot">
-          {warn && !locked && <p className="rm-warn">⚠ {warn}</p>}
           {err && <p className="m-err">{err}</p>}
           <div className="rm-summary">
             <span>{sel?.name ?? '담당자 미선택'} · {minLabel(start)}–{short(endMin)}</span>
