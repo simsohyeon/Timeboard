@@ -39,8 +39,10 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
         {staff.map(s => (
           <div className="col" key={s.id} style={{ height: (endH - startH) * HOUR_PX }}
             onClick={e => {
-              const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
-              onCellClick(s.id, startH * 60 + Math.floor(y / (HOUR_PX / 2)) * 30);
+              // offsetY는 zoom 배율과 무관하게 요소 기준 좌표라 확대 상태에서도 정확하다
+              const y = e.nativeEvent.offsetY;
+              const slot = startH * 60 + Math.floor(y / (HOUR_PX / 2)) * 30;
+              onCellClick(s.id, Math.min(Math.max(slot, startH * 60), endH * 60 - 30));
             }}>
             {Array.from({ length: endH - startH - 1 }, (_, i) => (
               <i className="hline" key={i} style={{ top: (i + 1) * HOUR_PX }} />
