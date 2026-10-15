@@ -14,14 +14,38 @@
   --sun: #f04452;
   --sat: #3182f6;
   --topbar-bg: #17181c;
+  --surface: #ffffff;   /* 카드·보드 배경 */
+  --hover: #fafbfc;
+  --faint: #c9ced4;     /* 흐린 요소 (지난달 날짜, + 버튼) */
   --radius: 12px;
   /* 반응형 치수: 화면 폭에 따라 자동 조절 */
   --timecol: clamp(74px, 8vw, 90px);  /* 보드 시간축 폭 */
   --colmin: 112px;                    /* 담당자 열 최소 폭 */
 }
 
+/* 다크 모드 (설정 > 화면) */
+:root[data-theme="dark"] {
+  --blue: #4a93f8;
+  --blue-dark: #78aefc;
+  --blue-soft: #1c2c45;
+  --fg: #e8eaed;
+  --sub: #b4bac2;
+  --muted: #828a93;
+  --line: #24272c;
+  --line-strong: #34383f;
+  --red: #ff7070;
+  --red-soft: #3a2528;
+  --sun: #ff7070;
+  --sat: #6ea8ff;
+  --topbar-bg: #0d0e11;
+  --surface: #17191d;
+  --hover: #1d2025;
+  --faint: #4b5158;
+  color-scheme: dark;
+}
+
 /* 글자 크기(zoom) 배율만큼 높이를 나눠 확대해도 화면이 잘리지 않게 */
-.app { height: calc(100vh / var(--scale, 1)); display: flex; flex-direction: column; background: #fff; color: var(--fg); }
+.app { height: calc(100vh / var(--scale, 1)); display: flex; flex-direction: column; background: var(--surface); color: var(--fg); }
 
 /* ───── 공용 프리미티브 ───── */
 .btn {
@@ -52,10 +76,10 @@
   border: none; border-radius: 8px; padding: 8px 10px; min-width: 0; width: 100%;
 }
 .inl:hover { background: var(--line); }
-.inl:focus-visible { background: #fff; }
+.inl:focus-visible { background: var(--surface); }
 /* ui.jsx IconButton */
 .icon-btn {
-  background: none; border: none; color: #b0b8c1; cursor: pointer; width: 32px; height: 32px;
+  background: none; border: none; color: var(--faint); cursor: pointer; width: 32px; height: 32px;
   border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex: none;
 }
 .icon-btn:hover { background: var(--line); color: var(--sub); }
@@ -80,10 +104,10 @@
 .dot-btn .dot { width: 14px; height: 14px; }
 .pal {
   position: absolute; top: 42px; left: 0; z-index: 5; display: none; gap: 8px; padding: 10px;
-  background: #fff; border-radius: 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
+  background: var(--surface); border-radius: 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
 }
 .pal-wrap:hover .pal, .pal-wrap:focus-within .pal { display: flex; }
-.pal-c { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #fff; cursor: pointer; }
+.pal-c { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--surface); cursor: pointer; }
 .pal-c:hover { transform: scale(1.1); }
 .pal-c.on { border-color: var(--fg); }
 /* ui.jsx SaveStatus */
@@ -103,7 +127,7 @@
 .select-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .select-list {
   position: absolute; top: calc(100% + 6px); left: 0; min-width: 100%; z-index: 60;
-  background: #fff; border-radius: 12px; box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
+  background: var(--surface); border-radius: 12px; box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
   padding: 6px; margin: 0; list-style: none; max-height: 240px; overflow: auto;
 }
 .select-list li {
@@ -172,7 +196,7 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .mc-day:hover .num { background: var(--line); }
 .mc-day.sun .num { color: var(--sun); }
 .mc-day.sat .num { color: var(--sat); }
-.mc-day.out .num { color: #d1d6db; }
+.mc-day.out .num { color: var(--faint); }
 .mc-day.sel .num { background: var(--blue); color: #fff !important; font-weight: 600; }
 .mc-day .ev { position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--blue); }
 
@@ -199,13 +223,13 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .board { flex: 1; overflow: auto; min-height: 0; }
 .board-grid { display: grid; width: 100%; min-width: max-content; }
 .col-head {
-  position: sticky; top: 0; z-index: 5; background: #fff; border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line);
   display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 9px 4px; font-size: 12.5px; font-weight: 500; color: var(--sub);
 }
 .col-head.corner { position: sticky; left: 0; z-index: 6; }
 .dot { width: 7px; height: 7px; border-radius: 50%; }
-.time-col { position: sticky; left: 0; z-index: 4; background: #fff; }
+.time-col { position: sticky; left: 0; z-index: 4; background: var(--surface); }
 .time-label {
   position: absolute; right: 10px; transform: translateY(-50%);
   font-size: 13px; font-weight: 500; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums;
@@ -222,7 +246,7 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .col.off { background: repeating-linear-gradient(135deg, #fafbfc 0 8px, #f2f4f6 8px 9px); cursor: default; }
 .off-label {
   position: sticky; top: 44px; display: block; width: fit-content; margin: 8px auto;
-  font-size: 11px; font-weight: 600; color: var(--muted); background: #fff; border-radius: 99px; padding: 2px 8px;
+  font-size: 11px; font-weight: 600; color: var(--muted); background: var(--surface); border-radius: 99px; padding: 2px 8px;
 }
 .off-zone { position: absolute; left: 0; right: 0; background: #f7f8fa; pointer-events: none; }
 .hline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); pointer-events: none; }
@@ -244,7 +268,7 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .modal-wrap { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
 .scrim { position: absolute; inset: 0; background: rgba(25, 31, 40, .45); }
 .modal {
-  position: relative; background: #fff; border-radius: 20px; padding: 24px;
+  position: relative; background: var(--surface); border-radius: 20px; padding: 24px;
   width: 440px; max-width: calc(100vw - 32px); box-shadow: 0 16px 48px rgba(0, 0, 0, .16);
 }
 .modal h2 { font-size: 17px; font-weight: 700; margin: 0 0 18px; }
@@ -326,20 +350,20 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .price-table td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; }
 .price-table td:first-child { text-align: left; padding-left: 14px; }
 .price-table tr:last-child td { border-bottom: none; }
-.price-table tr:hover td { background: #fafbfc; }
+.price-table tr:hover td { background: var(--hover); }
 .cell-price, .cell-off { width: 100%; max-width: 112px; height: 40px; border-radius: 10px; font: inherit; }
 .cell-price {
   font-size: 14px; font-weight: 500; color: var(--fg); text-align: right; padding: 0 12px;
   background: var(--line); border: none; font-variant-numeric: tabular-nums;
 }
-.cell-price:focus-visible { background: #fff; }
-.cell-off { font-size: 16px; color: #b0b8c1; background: none; border: 1px dashed var(--line-strong); cursor: pointer; }
+.cell-price:focus-visible { background: var(--surface); }
+.cell-off { font-size: 16px; color: var(--faint); background: none; border: 1px dashed var(--line-strong); cursor: pointer; }
 .cell-off:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
 .set-legend { margin: 0; display: flex; gap: 20px; flex-wrap: wrap; font-size: 12px; color: var(--sub); }
 .set-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .set-legend i { width: 22px; height: 14px; border-radius: 5px; }
 .lg-on { background: var(--line); }
-.lg-off { border: 1px dashed #d1d6db; }
+.lg-off { border: 1px dashed var(--line-strong); }
 
 /* 화면 (글자 크기) */
 .display-card { padding: 18px 16px; max-width: 420px; }
@@ -352,6 +376,30 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .hours-bar { position: relative; height: 10px; border-radius: 99px; background: var(--line); }
 .hours-bar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: var(--blue); }
 .hours-ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -8px; font-variant-numeric: tabular-nums; }
+
+/* ───── 화면 설정 ───── */
+.display-card { display: flex; flex-direction: column; gap: 18px; padding: 18px 16px; max-width: 520px; }
+.disp-row { display: flex; flex-direction: column; gap: 8px; }
+.disp-row .set-label { font-size: 13px; font-weight: 600; }
+.disp-row .set-hint { margin: 2px 0 0; }
+.toggle-row { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }
+.scale-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.scale-chip {
+  font: inherit; font-size: 13px; font-weight: 600; padding: 9px 13px; cursor: pointer;
+  border: none; border-radius: 10px; background: var(--line); color: var(--sub);
+}
+.scale-chip.on { background: var(--blue-soft); color: var(--blue); }
+.switch {
+  flex: none; width: 46px; height: 27px; border-radius: 99px; border: none; cursor: pointer;
+  background: var(--line-strong); position: relative; transition: background .15s; padding: 0;
+}
+.switch i {
+  position: absolute; top: 3px; left: 3px; width: 21px; height: 21px; border-radius: 50%;
+  background: var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: left .15s;
+}
+.switch.on { background: var(--blue); }
+.switch.on i { left: 22px; }
+.switch:disabled { opacity: .45; cursor: default; }
 
 /* ───── 플로팅 ───── */
 .fab {

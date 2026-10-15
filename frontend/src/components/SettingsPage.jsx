@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
-import { DAYS, DUR_OPTIONS, PALETTE, minLabel, SCALES, getScale, applyScale } from '../lib/constants';
+import { DAYS, DUR_OPTIONS, PALETTE, minLabel } from '../lib/constants';
+import { BASE_FONT, FONT_SIZES, DENSITIES } from '../lib/display';
 import {
   BlurInput, Button, Checkbox, ChipGroup, Chevron, ColorPicker, Field, FieldGroup,
   IconButton, SaveStatus, Select, TrashIcon,
@@ -19,12 +20,12 @@ const num = v => parseInt(String(v).replace(/\D/g, ''), 10) || 0;
 const confirmDelete = msg => window.confirm(msg);
 
 // 설정: 좌측 서브메뉴 + 섹션 하나씩. 변경은 blur/클릭 즉시 저장
-export default function SettingsPage({ staff, menus, settings, onStaffChanged, onMenusChanged, onSettingsChanged }) {
+export default function SettingsPage({ staff, menus, settings, display, onDisplay, onStaffChanged, onMenusChanged, onSettingsChanged }) {
   const [sec, setSec] = useState('menu');
-  const [scale, setScale] = useState(getScale());
   const [status, setStatus] = useState({ kind: 'idle' });
   const [focusKey, setFocusKey] = useState(null);   // 방금 켠 가격 칸에 포커스
   const [selId, setSelId] = useState(null);         // 담당자 상세 패널에 열린 사람
+  const setDisp = patch => { onDisplay(d => ({ ...d, ...patch })); setStatus({ kind: 'saved' }); };
   const run = (fn, after) => {
     setStatus({ kind: 'saving' });
     return fn().then(() => { setStatus({ kind: 'saved' }); after(); })
@@ -297,15 +298,44 @@ export default function SettingsPage({ staff, menus, settings, onStaffChanged, o
           <div className="set-card display-card">
             <FieldGroup label="글자 크기">
               <div className="chips" role="group" aria-label="글자 크기">
-                {SCALES.map(({ label, v }, i) => (
-                  <button key={v} type="button" className={'chip-tg' + (v === scale ? ' on' : '')}
-                    style={{ fontSize: 12 + i * 2 }} aria-pressed={v === scale}
-                    onClick={() => { applyScale(v); setScale(v); setStatus({ kind: 'saved' }); }}>
+                {FONT_SIZES.map(px => (
+                  <button key={px} type="button" className={'chip-tg' + (px === display.fontPx ? ' on' : '')}
+                    aria-pressed={px === display.fontPx} onClick={() => setDisp({ fontPx: px })}>
+                    {px}px{px === BASE_FONT ? ' (기본)' : ''}
+                  </button>
+                ))}
+              </div>
+            </FieldGroup>
+            <FieldGroup label="보드 밀도">
+              <div className="chips" role="group" aria-label="보드 밀도">
+                {DENSITIES.map(({ label, v }) => (
+                  <button key={v} type="button" className={'chip-tg' + (v === display.hourPx ? ' on' : '')}
+                    aria-pressed={v === display.hourPx} onClick={() => setDisp({ hourPx: v })}>
                     {label}
                   </button>
                 ))}
               </div>
             </FieldGroup>
+            {[
+              ['halfLine', '30분 보조선', '보드에 30분 단위 점선을 표시해요'],
+              ['hidePrice', '금액 숨기기', '예약 화면에서 금액을 감춰요 (결제 탭에는 표시)'],
+              ['dark', '다크 모드', '어두운 배경으로 바꿔요'],
+              ['keepAwake', '화면 항상 켜기', '앱이 떠 있는 동안 화면이 꺼지지 않아요' + ('wakeLock' in navigator ? '' : ' — 이 브라우저는 지원하지 않아요')],
+            ].map(([key, label, desc]) => (
+              <div className="disp-row toggle-row" key={key}>
+                <div>
+                  <span className="set-label">{label}</span>
+                  <p className="set-hint">{desc}</p>
+                </div>
+                <button type="button" role="switch" aria-checked={!!display[key]}
+                  aria-label={label}
+                  disabled={key === 'keepAwake' && !('wakeLock' in navigator)}
+                  className={'switch' + (display[key] ? ' on' : '')}
+                  onClick={() => setDisp({ [key]: !display[key] })}>
+                  <i />
+                </button>
+              </div>
+            ))}
           </div>
         </>)}
       </div>

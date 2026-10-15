@@ -3,7 +3,7 @@ import { api, fmtDate } from '../api';
 import { START_H, END_H, minLabel, worksOn } from '../lib/constants'; // startH/endH prop 기본값
 import { Modal, Button, Field, Select } from './ui';
 
-export default function ReservationModal({ init, staff, menus, date, startH = START_H, endH = END_H, onClose, onSaved }) {
+export default function ReservationModal({ init, staff, menus, date, startH = START_H, endH = END_H, hidePrice = false, onClose, onSaved }) {
   // 메뉴+시간으로 가격 조회 (durations와 prices는 같은 순서)
   const priceOf = (menuName, dur) => {
     const m = menus.find(x => x.name === menuName);
@@ -92,7 +92,7 @@ export default function ReservationModal({ init, staff, menus, date, startH = ST
           </Field>
           <span className="m-end">
             ~ {minLabel(endMin)} 종료
-            {Number(form.price) > 0 && ` · ${Number(form.price).toLocaleString()}원`}
+            {!hidePrice && Number(form.price) > 0 && ` · ${Number(form.price).toLocaleString()}원`}
           </span>
         </div>
         <Field label="고객명/메모" className="m-full">
