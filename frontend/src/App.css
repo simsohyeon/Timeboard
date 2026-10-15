@@ -22,19 +22,8 @@
   flex: none; height: 44px; background: var(--topbar-bg); color: var(--topbar-fg);
   display: flex; align-items: center; padding: 0 12px; gap: 4px;
 }
-.topbar button { background: none; border: none; color: inherit; font: inherit; cursor: pointer; }
-.tb-menu { position: relative; display: flex; align-items: center; padding: 8px; }
-.badge { position: absolute; top: 5px; right: 2px; width: 5px; height: 5px; border-radius: 50%; background: var(--red); }
-.tb-nav { display: flex; gap: 2px; margin-left: 6px; }
-.tb-nav button { position: relative; font-size: 14px; font-weight: 600; padding: 8px 12px; color: var(--topbar-fg); }
-.tb-nav button.active { color: var(--topbar-active); }
-.tb-nav .badge { top: 6px; right: 4px; }
+.tb-brand { color: var(--topbar-active); font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
 .tb-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.tb-avatar {
-  width: 26px; height: 26px; border-radius: 50%; background: #2c2e33; color: #c1c6cc;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.tb-icon { display: flex; align-items: center; padding: 4px; font-size: 15px; }
 .tb-clock { font-size: 12px; color: #c1c6cc; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .body { flex: 1; display: flex; min-height: 0; }
@@ -70,10 +59,6 @@
 .mc-day.out .num { color: #c6ccd3; }
 .mc-day.sel .num { background: var(--blue); color: #fff !important; font-weight: 600; }
 .mc-day .ev { position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--blue); }
-.feedback {
-  margin: 10px; padding: 9px; font-size: 12px; color: var(--muted);
-  background: none; border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer;
-}
 
 /* ───── 메인 헤더 ───── */
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
@@ -90,13 +75,6 @@
   color: var(--fg); background: #fff; border: 1px solid var(--line-strong);
   border-radius: 8px; padding: 6px 10px; cursor: pointer; white-space: nowrap;
 }
-.chip .caret { font-style: normal; font-size: 9px; color: var(--muted); }
-.n-ico {
-  width: 15px; height: 15px; border-radius: 4px; background: var(--red); color: #fff;
-  font-size: 10px; font-weight: 800; font-style: normal;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.mh-gear { background: none; border: none; color: var(--muted); cursor: pointer; display: flex; padding: 5px; }
 
 /* ───── 스케줄 보드 ───── */
 .board { flex: 1; overflow: auto; min-height: 0; }
@@ -176,4 +154,3 @@
   background: var(--blue); color: #fff; border: none; font-size: 24px; line-height: 1;
   cursor: pointer; box-shadow: 0 4px 12px rgba(52, 120, 246, .4);
 }
-.mascot { position: fixed; right: 26px; bottom: 76px; font-size: 34px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.15)); }

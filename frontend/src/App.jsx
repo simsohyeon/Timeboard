@@ -20,24 +20,9 @@ function TopBar() {
   const clock = `${now.getMonth() + 1}.${now.getDate()} (${DAYS[now.getDay()]}) ${now.getHours() < 12 ? '오전' : '오후'} ${((now.getHours() + 11) % 12) + 1}:${String(now.getMinutes()).padStart(2, '0')}`;
   return (
     <div className="topbar">
-      <button className="tb-menu" aria-label="메뉴">
-        <svg width="18" height="18" viewBox="0 0 18 18"><path d="M2 4h14M2 9h14M2 14h14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-        <i className="badge" />
-      </button>
-      <nav className="tb-nav">
-        <button className="active">예약<i className="badge" /></button>
-        <button>결제</button>
-        <button>고객</button>
-      </nav>
+      <span className="tb-brand">타임보드</span>
       <div className="tb-right">
-        <span className="tb-avatar">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="5.5" r="3"/><path d="M2 14c.8-3 3.2-4.3 6-4.3s5.2 1.3 6 4.3z"/></svg>
-        </span>
-        <button className="tb-icon" aria-label="알림">
-          <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M8.5 2a4 4 0 0 1 4 4v2.6l1.2 2.4H3.3L4.5 8.6V6a4 4 0 0 1 4-4z"/><path d="M7 13.5a1.6 1.6 0 0 0 3 0"/></svg>
-        </button>
         <span className="tb-clock">{clock}</span>
-        <button className="tb-icon" aria-label="더보기">⋮</button>
       </div>
     </div>
   );
@@ -327,7 +312,6 @@ export default function App() {
       <div className="body">
         <aside className="sidebar">
           <MiniCalendar selected={date} onSelect={setDate} eventDates={eventDates} />
-          <button className="feedback">의견 보내기</button>
         </aside>
         <main className="main">
           {!configured && (
@@ -339,20 +323,13 @@ export default function App() {
             <span className="mh-count">총 {list.length}건</span>
             <button className="mh-arrow" onClick={() => moveDay(1)} aria-label="다음 날">›</button>
             <div className="mh-right">
-              <button className="chip link-resv"><i className="n-ico">N</i> 링크예약</button>
-              <button className="chip">담당자 전체 <i className="caret">▾</i></button>
-              <button className="chip">일 <i className="caret">▾</i></button>
-              <button className="chip" onClick={() => setMenuOpen(true)}>메뉴</button>
-              <button className="mh-gear" aria-label="설정">
-                <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" strokeWidth="1.3"><circle cx="8.5" cy="8.5" r="2.6"/><path d="M8.5 1.8v2m0 9.4v2M1.8 8.5h2m9.4 0h2M3.8 3.8l1.4 1.4m6.6 6.6 1.4 1.4m0-9.4-1.4 1.4M5.2 11.8l-1.4 1.4"/></svg>
-              </button>
+              <button className="chip" onClick={() => setMenuOpen(true)}>메뉴 관리</button>
             </div>
           </div>
           <Board staff={staff} list={list} date={date}
             onCellClick={openCreate} onBlockClick={r => setModal(r)} />
         </main>
       </div>
-      <div className="mascot" aria-hidden>🐥</div>
       <button className="fab" aria-label="예약 추가"
         onClick={() => openCreate(staff[0]?.id, 12 * 60)}>+</button>
       {modal && (
