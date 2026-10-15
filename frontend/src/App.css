@@ -272,6 +272,21 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .mh-caret { color: var(--muted); }
 .cal-drop { display: none; }              /* 모바일 펼침 달력 */
 .mh-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+/* 왼쪽 달력 접기/펴기 (태블릿 가로·PC만) */
+.mh-side {
+  flex: none; width: 36px; height: 36px; margin-right: 4px; border: none; border-radius: 8px; cursor: pointer;
+  background: none; color: var(--muted); display: flex; align-items: center; justify-content: center;
+}
+.mh-side:hover { background: var(--line); color: var(--sub); }
+/* 달력을 접으면 모바일처럼 날짜를 눌러 펼친다 */
+.app.side-hidden .mh-date { cursor: pointer; }
+.app.side-hidden .mh-date:hover { background: var(--line); }
+.app.side-hidden .mh-month, .app.side-hidden .mh-caret { display: inline-flex; }
+.app.side-hidden .cal-drop {
+  display: block; flex: none; border-bottom: 1px solid var(--line-strong);
+  padding: 4px 8px 8px; background: var(--surface);
+}
+.app.side-hidden .cal-drop .minical { max-width: 320px; padding: 8px 4px; }
 .mh-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
 .dot { width: 7px; height: 7px; border-radius: 50%; }
@@ -769,6 +784,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 /* 태블릿 세로 이하: 사이드바 달력 → 날짜 눌러 펼치는 달력 (보드에 담당자 칸을 더 보여주려고) */
 @media (max-width: 900px) {
   .sidebar { display: none; }
+  .mh-side { display: none; }
   .mh-date { cursor: pointer; }
   .mh-date:hover { background: var(--line); }
   .mh-month, .mh-caret { display: inline-flex; }
