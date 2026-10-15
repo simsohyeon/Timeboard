@@ -45,7 +45,15 @@
 }
 
 /* 글자 크기(zoom) 배율만큼 높이를 나눠 확대해도 화면이 잘리지 않게 */
-.app { height: calc(100vh / var(--scale, 1)); display: flex; flex-direction: column; background: var(--surface); color: var(--fg); }
+/* dvh = 실제로 보이는 높이. iPad 사파리의 100vh 는 주소창이 접혔을 때 기준이라 화면보다 커서
+   페이지가 밀려 올라갔다 — 지원 안 하는 브라우저는 앞 줄 100vh 를 쓴다 */
+.app {
+  height: calc(100vh / var(--scale, 1));
+  height: calc(100dvh / var(--scale, 1));
+  display: flex; flex-direction: column; background: var(--surface); color: var(--fg);
+}
+/* 안쪽 목록을 끝까지 스크롤해도 페이지 전체로 넘어가지 않게 */
+.board, .set-body, .payroll, .select-list, .menu-pick, .datepick-pop { overscroll-behavior: contain; }
 
 /* ───── 공용 프리미티브 ───── */
 .btn {
@@ -172,9 +180,11 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .chip:hover { background: var(--line-strong); }
 
 /* ───── 상단 바 ───── */
+/* sticky — 어떤 이유로 페이지가 밀려도 탭 바는 화면 맨 위에 붙어 있게 */
 .topbar {
   flex: none; height: 44px; background: var(--topbar-bg);
   display: flex; align-items: center; padding: 0 16px;
+  position: sticky; top: 0; z-index: 40;
 }
 .tb-brand { color: #fff; font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
 .tb-tabs { display: flex; gap: 2px; margin-left: 14px; }
