@@ -1,0 +1,11 @@
+* { box-sizing: border-box; }
+:root { color-scheme: light; }
+html, body, #root { height: 100%; }
+button { padding: 0; }
+body {
+  background: #fff;
+  margin: 0;
+  font-family: Pretendard, -apple-system, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
