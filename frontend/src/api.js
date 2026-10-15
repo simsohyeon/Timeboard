@@ -99,6 +99,13 @@ export const api = {
     return rows(res);
   },
 
+  // 최근 예약의 고객명 (예약 등록 창의 '최근 손님' 빠른 입력용)
+  recentCustomers: async () => {
+    if (!supabase) return [];
+    const data = rows(await supabase.from('reservation').select('title').order('id', { ascending: false }).limit(200));
+    return [...new Set(data.map(r => (r.title || '').trim()).filter(t => t && t !== '고객 등록 필요'))];
+  },
+
   reservationDates: async () =>
     supabase
       ? [...new Set(rows(await supabase.from('reservation').select('date')).map(r => r.date))]
