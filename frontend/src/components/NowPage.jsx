@@ -138,7 +138,7 @@ export default function NowPage({ staff, list, leaves = [], openMin, closeMin, m
             </button>
           ))}
           {overdue.length > 0 && (<>
-            <p className="now-overdue">완료 처리 필요 {overdue.length}건</p>
+            <p className="now-overdue">미완료 {overdue.length}건</p>
             {overdue.map(r => (
               <div key={r.id} className="q-overdue">
                 <button type="button" onClick={() => onOpen(r)}>
