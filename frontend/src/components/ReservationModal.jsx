@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, fmtDate } from '../api';
-import { START_H, END_H, minLabel } from '../lib/constants'; // startH/endH prop 기본값
+import { START_H, END_H, minLabel, worksOn } from '../lib/constants'; // startH/endH prop 기본값
 import { Modal, Button, Field, Select } from './ui';
 
 export default function ReservationModal({ init, staff, menus, date, startH = START_H, endH = END_H, onClose, onSaved }) {
@@ -74,7 +74,7 @@ export default function ReservationModal({ init, staff, menus, date, startH = ST
         <div className="m-row">
           <Field label="담당자">
             <Select value={form.staffId} onChange={v => set('staffId', v)}
-              options={staff.map(s => ({ value: s.id, label: s.name }))} />
+              options={staff.map(s => ({ value: s.id, label: s.name + (worksOn(s, date.getDay()) ? '' : ' (휴무)') }))} />
           </Field>
           <Field label="메뉴">
             <Select value={form.menu} onChange={pickMenu}

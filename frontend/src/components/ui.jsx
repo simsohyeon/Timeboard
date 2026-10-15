@@ -38,6 +38,93 @@ export function Field({ label, children, className = '' }) {
   );
 }
 
+// 버튼 여러 개를 품는 필드 (label 대신 div — 칩/체크박스 묶음용)
+export function FieldGroup({ label, children, className = '' }) {
+  return (
+    <div className={`field ${className}`}>
+      <span className="field-label">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+export function TrashIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" fill="none" stroke="currentColor"
+        strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// 아이콘만 있는 버튼 — label 은 접근성용 필수
+export function IconButton({ label, danger = false, className = '', ...props }) {
+  return (
+    <button type="button" className={`icon-btn ${danger ? 'danger' : ''} ${className}`}
+      aria-label={label} {...props} />
+  );
+}
+
+// 포커스를 잃을 때 값이 바뀌었으면 onCommit — 이름/가격/연락처처럼 바로 저장하는 입력
+// format: 값 → 표시 문자열, parse: 입력 문자열 → 값. value 가 바뀌면 입력을 새로 그린다
+export function BlurInput({ value, onCommit, format = v => v ?? '', parse = v => v.trim(),
+  multiline = false, className = '', ...props }) {
+  const Tag = multiline ? 'textarea' : 'input';
+  return (
+    <Tag key={String(value)} className={className} defaultValue={format(value)}
+      onBlur={e => { const v = parse(e.target.value); if (v !== value) onCommit(v); }} {...props} />
+  );
+}
+
+// 여러 개 고르는 칩 묶음 (요일, 시간 옵션 등)
+export function ChipGroup({ options, selected, onToggle, className = '' }) {
+  return (
+    <div className={`chips ${className}`}>
+      {options.map(o => {
+        const on = selected.includes(o.value);
+        return (
+          <button key={o.value} type="button" className={'chip-tg' + (on ? ' on' : '')}
+            aria-pressed={on} onClick={() => onToggle(o.value)}>{o.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function Checkbox({ label, checked, onChange }) {
+  return (
+    <label className="chk">
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+}
+
+// 색 점 — 올리거나 포커스하면 팔레트가 떠서 바로 고른다
+export function ColorPicker({ value, palette, onChange, label = '색 바꾸기' }) {
+  return (
+    <div className="pal-wrap">
+      <button type="button" className="dot-btn" aria-label={label}>
+        <i className="dot" style={{ background: value || '#d1d6db' }} />
+      </button>
+      <div className="pal" role="group" aria-label="색 고르기">
+        {palette.map(c => (
+          <button key={c} type="button" className={'pal-c' + (c === value ? ' on' : '')}
+            style={{ background: c }} aria-label={c} aria-pressed={c === value}
+            onClick={() => c !== value && onChange(c)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 자동 저장 상태 표시: { kind: 'idle' | 'saving' | 'saved' | 'error', msg }
+export function SaveStatus({ status, idleText = '변경은 바로 저장돼요' }) {
+  if (status.kind === 'error') return <span className="save-status err">{status.msg}</span>;
+  const text = { saving: '저장 중', saved: '저장됨' }[status.kind] ?? idleText;
+  return <span className="save-status"><i className={status.kind === 'saving' ? 'saving' : ''} />{text}</span>;
+}
+
 // 커스텀 드롭다운 — 네이티브 select 대신 사용, 펼침 목록까지 같은 디자인
 export function Select({ value, onChange, options }) {
   const [open, setOpen] = useState(false);

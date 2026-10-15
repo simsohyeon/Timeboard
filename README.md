@@ -50,8 +50,15 @@ cd frontend && npm install && npm run dev   # http://localhost:5173
 ## DB 스키마
 
 ```
-staff        id, name, dot_color, sort_order
-reservation  id, staff_id, date, start_min(0:00 기준 분), duration_min, title, subtitle
+staff        id, name, dot_color, sort_order,
+             joined_on, left_on(퇴사일: 다음 날부터 보드에서 숨김, 기록 유지),
+             commission_pct(정산 비율), work_days(0=일…6=토), work_open_min/close_min(null=매장과 같음),
+             phone, memo
+reservation  id, staff_id, date, start_min(0:00 기준 분), duration_min, title, subtitle, price
+menu         id, name, durations[], prices[](같은 순서), sort_order
+settings     id=1, open_min, close_min
+
+컬럼이 늘어나면 setup.sql을 다시 실행하면 된다 (alter … add column if not exists).
 ```
 
 지금은 로그인 없는 단일 매장 보드라 RLS를 anon 전체 허용으로 열어두었다.

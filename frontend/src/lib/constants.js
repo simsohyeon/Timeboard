@@ -28,6 +28,12 @@ export const applyScale = v => {
   document.documentElement.style.setProperty('--scale', v);
 };
 
+// 담당자 재직/근무 판정 (dateStr = 'YYYY-MM-DD', dow = 0~6)
+export const isActiveOn = (s, dateStr) =>
+  (!s.joinedOn || s.joinedOn <= dateStr) && (!s.leftOn || s.leftOn >= dateStr);
+export const worksOn = (s, dow) => !s.workDays || s.workDays.includes(dow);
+export const workRange = (s, openMin, closeMin) => [s.workOpenMin ?? openMin, s.workCloseMin ?? closeMin];
+
 export const hourLabel = h =>
   h < 12 ? `오전 ${h}:00` : h === 12 ? `오후 12:00` : `오후 ${h - 12}:00`;
 
