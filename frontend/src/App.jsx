@@ -5,7 +5,17 @@ import './App.css';
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const START_H = 6, END_H = 22, HOUR_PX = 66;
 
+// 메뉴: 선택하면 소요 시간이 자동으로 잡힌다
+const MENUS = [
+  { name: '타이', durations: [60, 90, 120] },
+  { name: '아로마', durations: [60, 90, 120] },
+];
+
 const hourLabel = h => (h < 12 ? `오전 ${h}:00` : h === 12 ? `오후 12:00` : `오후 ${h - 12}:00`);
+const minLabel = m => {
+  const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0');
+  return `${h < 12 ? '오전' : '오후'} ${((h + 11) % 12) + 1}:${mm}`;
+};
 
 function TopBar() {
   const [now, setNow] = useState(new Date());
@@ -92,7 +102,94 @@ function MiniCalendar({ selected, onSelect, eventDates }) {
   );
 }
 
-function Board({ staff, list, date }) {
+function ReservationModal({ init, staff, date, onClose, onSaved }) {
+  // 수정 모드면 기존 subtitle에서 메뉴 복원
+  const initMenu = MENUS.find(m => (init.subtitle || '').startsWith(m.name))?.name || MENUS[0].name;
+  const [form, setForm] = useState({
+    menu: initMenu,
+    dur: init.durationMin || 60,
+    ...init,
+  });
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const menuDurs = MENUS.find(m => m.name === form.menu)?.durations || [60, 90, 120];
+  const endMin = form.startMin + Number(form.dur);
+
+  const submit = async e => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const payload = {
+        staffId: Number(form.staffId),
+        date: fmtDate(date),
+        startMin: Number(form.startMin),
+        durationMin: Number(form.dur),
+        title: form.title?.trim() || '고객 등록 필요',
+        subtitle: `${form.menu} ${form.dur}분`,
+      };
+      if (form.id) await api.updateReservation(form.id, payload);
+      else await api.createReservation(payload);
+      onSaved();
+    } catch (e2) { setErr(e2.message || String(e2)); setBusy(false); }
+  };
+
+  const del = async () => {
+    setBusy(true);
+    try { await api.deleteReservation(form.id); onSaved(); }
+    catch (e2) { setErr(e2.message || String(e2)); setBusy(false); }
+  };
+
+  const slots = [];
+  for (let m = START_H * 60; m < END_H * 60; m += 30) slots.push(m);
+
+  return (
+    <div className="modal-wrap">
+      <div className="scrim" onClick={onClose} />
+      <form className="modal" onSubmit={submit}>
+        <h2>{form.id ? '예약 수정' : '예약 등록'}</h2>
+        <div className="m-row">
+          <label>담당자
+            <select value={form.staffId} onChange={e => set('staffId', e.target.value)}>
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </label>
+          <label>메뉴
+            <select value={form.menu} onChange={e => set('menu', e.target.value)}>
+              {MENUS.map(m => <option key={m.name}>{m.name}</option>)}
+            </select>
+          </label>
+          <label>시간
+            <select value={form.dur} onChange={e => set('dur', e.target.value)}>
+              {menuDurs.map(d => <option key={d} value={d}>{d}분</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="m-row">
+          <label>시작
+            <select value={form.startMin} onChange={e => set('startMin', e.target.value)}>
+              {slots.map(m => <option key={m} value={m}>{minLabel(m)}</option>)}
+            </select>
+          </label>
+          <span className="m-end">~ {minLabel(endMin)} 종료</span>
+        </div>
+        <label className="m-full">고객명/메모
+          <input value={form.title || ''} onChange={e => set('title', e.target.value)}
+            placeholder="비우면 '고객 등록 필요'" maxLength={30} />
+        </label>
+        {err && <p className="m-err">{err}</p>}
+        <div className="m-actions">
+          {form.id && <button type="button" className="m-danger" onClick={del} disabled={busy}>삭제</button>}
+          <button type="button" onClick={onClose} disabled={busy}>취소</button>
+          <button type="submit" className="m-primary" disabled={busy}>저장</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Board({ staff, list, date, onCellClick, onBlockClick }) {
   const isToday = fmtDate(date) === fmtDate(new Date());
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 60000); return () => clearInterval(t); }, []);
@@ -126,12 +223,17 @@ function Board({ staff, list, date }) {
           {showNow && <span className="now-pill" style={{ top: nowTop }}>{nowLabel}</span>}
         </div>
         {staff.map(s => (
-          <div className="col" key={s.id} style={{ height: (END_H - START_H) * HOUR_PX }}>
+          <div className="col" key={s.id} style={{ height: (END_H - START_H) * HOUR_PX }}
+            onClick={e => {
+              const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
+              onCellClick(s.id, START_H * 60 + Math.floor(y / (HOUR_PX / 2)) * 30);
+            }}>
             {Array.from({ length: END_H - START_H - 1 }, (_, i) => (
               <i className="hline" key={i} style={{ top: (i + 1) * HOUR_PX }} />
             ))}
             {list.filter(r => r.staffId === s.id).map(r => (
-              <div className="resv" key={r.id} style={{ top: (r.startMin - START_H * 60) / 60 * HOUR_PX, height: r.durationMin / 60 * HOUR_PX - 2 }}>
+              <div className="resv" key={r.id} style={{ top: (r.startMin - START_H * 60) / 60 * HOUR_PX, height: r.durationMin / 60 * HOUR_PX - 2 }}
+                onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
                 <b>{r.title}</b>
                 <span>{r.subtitle}</span>
               </div>
@@ -149,17 +251,20 @@ export default function App() {
   const [staff, setStaff] = useState([]);
   const [list, setList] = useState([]);
   const [eventDates, setEventDates] = useState(new Set());
+  const [modal, setModal] = useState(null); // 예약 등록/수정 폼 초기값
 
   useEffect(() => {
     api.staff().then(setStaff).catch(() => setStaff([]));
-    api.reservationDates().then(d => setEventDates(new Set(d))).catch(() => {});
   }, []);
 
-  useEffect(() => {
+  const reload = () => {
     api.reservations(fmtDate(date)).then(setList).catch(() => setList([]));
-  }, [date]);
+    api.reservationDates().then(d => setEventDates(new Set(d))).catch(() => {});
+  };
+  useEffect(reload, [date]);
 
   const moveDay = n => setDate(d => { const x = new Date(d); x.setDate(x.getDate() + n); return x; });
+  const openCreate = (staffId, startMin) => setModal({ staffId, startMin, durationMin: 60, title: '', subtitle: '' });
 
   return (
     <div className="app">
@@ -187,11 +292,18 @@ export default function App() {
               </button>
             </div>
           </div>
-          <Board staff={staff} list={list} date={date} />
+          <Board staff={staff} list={list} date={date}
+            onCellClick={openCreate} onBlockClick={r => setModal(r)} />
         </main>
       </div>
       <div className="mascot" aria-hidden>🐥</div>
-      <button className="fab" aria-label="예약 추가">+</button>
+      <button className="fab" aria-label="예약 추가"
+        onClick={() => openCreate(staff[0]?.id, 12 * 60)}>+</button>
+      {modal && (
+        <ReservationModal init={modal} staff={staff} date={date}
+          onClose={() => setModal(null)}
+          onSaved={() => { setModal(null); reload(); }} />
+      )}
     </div>
   );
 }

@@ -49,7 +49,7 @@ reservation  id, staff_id, date, start_min(0:00 기준 분), duration_min, title
 
 ## 다음 할 일
 
-- [ ] 예약 등록/수정 모달 (+ FAB, 빈 칸 클릭)
+- [x] 예약 등록/수정/삭제 모달 (빈 칸 클릭·블록 클릭·FAB, 메뉴 선택 시 소요시간 자동)
 - [ ] Vercel 배포 연결
 - [ ] (선택) 로그인 + RLS 강화
 

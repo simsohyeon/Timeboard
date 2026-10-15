@@ -128,6 +128,32 @@
   border-radius: 99px; padding: 2px 7px; font-variant-numeric: tabular-nums;
 }
 
+/* ───── 예약 모달 ───── */
+.modal-wrap { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }
+.scrim { position: absolute; inset: 0; background: rgba(23, 24, 28, .4); }
+.modal {
+  position: relative; background: #fff; border-radius: 14px; padding: 22px;
+  width: 420px; max-width: calc(100vw - 32px); box-shadow: 0 12px 40px rgba(0,0,0,.18);
+}
+.modal h2 { font-size: 16px; margin: 0 0 16px; }
+.m-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-end; }
+.modal label { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 5px; }
+.modal select, .modal input {
+  font: inherit; font-size: 14px; color: var(--fg); background: #fff;
+  border: 1px solid var(--line-strong); border-radius: 8px; padding: 9px 10px; width: 100%;
+}
+.m-end { font-size: 13px; color: var(--blue); font-weight: 600; padding-bottom: 10px; white-space: nowrap; }
+.m-full { margin-bottom: 12px; }
+.m-err { font-size: 12px; color: var(--red); margin: 0 0 10px; }
+.m-actions { display: flex; gap: 8px; margin-top: 6px; }
+.m-actions button {
+  flex: 1; font: inherit; font-size: 14px; font-weight: 600; padding: 11px;
+  border-radius: 9px; border: 1px solid var(--line-strong); background: #fff; color: var(--fg); cursor: pointer;
+}
+.m-actions button:disabled { opacity: .5; cursor: default; }
+.m-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+.m-danger { color: var(--red); border-color: #f5b5b5; flex: 0 0 auto; padding: 11px 16px; }
+
 /* ───── 플로팅 ───── */
 .fab {
   position: fixed; right: 22px; bottom: 22px; width: 44px; height: 44px; border-radius: 50%;
