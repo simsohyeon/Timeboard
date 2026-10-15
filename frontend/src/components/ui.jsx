@@ -223,7 +223,7 @@ export function FormBar({ dirty, status, onCancel, onSave }) {
 }
 
 // 커스텀 드롭다운 — 네이티브 select 대신 사용, 펼침 목록까지 같은 디자인
-export function Select({ value, onChange, options }) {
+export function Select({ value, onChange, options, disabled = false }) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(-1);
   const ref = useRef(null);
@@ -263,7 +263,7 @@ export function Select({ value, onChange, options }) {
 
   return (
     <div className={'select' + (open ? ' open' : '')} ref={ref}>
-      <button type="button" className="select-trigger" onClick={() => setOpen(o => !o)}
+      <button type="button" className="select-trigger" onClick={() => setOpen(o => !o)} disabled={disabled}
         onKeyDown={onKey} aria-haspopup="listbox" aria-expanded={open}>
         <span className="select-label">{label}</span>
         <Chevron size={12} />

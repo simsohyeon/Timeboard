@@ -50,15 +50,19 @@ export default function ReservationModal({ init, staff, menus, date, startH = ST
     try { await fn(); onSaved(); }
     catch (e) { setErr(e.message || String(e)); setBusy(false); }
   };
+  // 완료된 예약은 '완료 취소' 말고는 아무것도 바꿀 수 없다
+  const locked = !!form.done;
   const submit = e => {
     e.preventDefault();
+    if (locked) return;
     if (!form.pick) return setErr('메뉴를 골라 주세요');
     act(() => (form.id ? api.updateReservation(form.id, payload()) : api.createReservation(payload())));
   };
-  // 완료 처리: 고친 내용이 있으면 같이 저장하고 완료 표시
+  // 완료 처리: 고친 내용이 있으면 같이 저장하고 완료 표시 / 완료 취소: 상태만 되돌림
   const toggleDone = () => act(async () => {
+    if (locked) return api.setReservationDone(form.id, false);
     await api.updateReservation(form.id, payload());
-    await api.setReservationDone(form.id, !form.done);
+    await api.setReservationDone(form.id, true);
   });
 
   const slots = [];
@@ -67,6 +71,8 @@ export default function ReservationModal({ init, staff, menus, date, startH = ST
   return (
     <Modal title={form.id ? (form.done ? '예약 (완료됨)' : '예약 수정') : '예약 등록'} onClose={onClose}>
       <form onSubmit={submit}>
+        {locked && <p className="m-locked">완료된 예약이라 수정할 수 없어요. 고치려면 먼저 완료 취소하세요.</p>}
+        <fieldset className="m-lock" disabled={locked}>
         <div className="m-row">
           <Field label="담당자">
             <Select value={form.staffId} onChange={v => set('staffId', v)}
@@ -112,6 +118,7 @@ export default function ReservationModal({ init, staff, menus, date, startH = ST
           <input value={form.title || ''} onChange={e => set('title', e.target.value)}
             placeholder="비우면 '고객 등록 필요'" maxLength={30} />
         </Field>
+        </fieldset>
         {err && <p className="m-err">{err}</p>}
         {form.id && (
           <Button className={'done-btn' + (form.done ? ' is-done' : '')} onClick={toggleDone} disabled={busy}>
@@ -119,9 +126,9 @@ export default function ReservationModal({ init, staff, menus, date, startH = ST
           </Button>
         )}
         <div className="m-actions">
-          {form.id && <Button variant="danger" onClick={() => act(() => api.deleteReservation(form.id))} disabled={busy}>삭제</Button>}
-          <Button onClick={onClose} disabled={busy}>취소</Button>
-          <Button variant="primary" type="submit" disabled={busy}>저장</Button>
+          {form.id && <Button variant="danger" onClick={() => act(() => api.deleteReservation(form.id))} disabled={busy || locked}>삭제</Button>}
+          <Button onClick={onClose} disabled={busy}>{locked ? '닫기' : '취소'}</Button>
+          <Button variant="primary" type="submit" disabled={busy || locked}>저장</Button>
         </div>
       </form>
     </Modal>

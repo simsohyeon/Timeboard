@@ -84,7 +84,10 @@ export default function App() {
 
   // 예약·결제 공통 날짜 헤더 + 모바일 펼침 달력 (.cal-drop은 데스크톱에서 CSS로 숨김)
   const dateHead = (<>
-    <DateHeader date={date} count={list.length} onMove={moveDay}
+    <DateHeader date={date} onMove={moveDay}
+      {...(tab === 'pay'
+        ? { count: list.filter(r => r.done).length, countLabel: '완료' }
+        : { count: list.length })}
       calOpen={calOpen} onDateClick={() => setCalOpen(o => !o)} />
     {calOpen && (
       <div className="cal-drop">

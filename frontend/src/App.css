@@ -330,6 +330,16 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .menu-opt.on { background: var(--blue-soft); border-color: var(--blue); }
 .menu-opt.on b { color: var(--blue-dark); }
 
+/* 완료된 예약 잠금 */
+.m-lock { border: 0; padding: 0; margin: 0; min-width: 0; }
+.m-lock:disabled { opacity: .55; }
+.m-lock:disabled .menu-opt, .m-lock:disabled .select-trigger, .m-lock:disabled input { cursor: not-allowed; }
+.m-locked {
+  margin: -6px 0 14px; padding: 9px 12px; border-radius: 10px; font-size: 13px;
+  color: #1f7a45; background: #e7f6ec;
+}
+:root[data-theme="dark"] .m-locked { color: #7fd8a2; background: #16301f; }
+
 .done-btn { width: 100%; margin-bottom: 8px; }
 .done-btn:not(.is-done) { background: #e7f6ec; color: #1f7a45; }
 .done-btn:not(.is-done):hover:not(:disabled) { background: #d4efdd; }
@@ -349,6 +359,11 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .pay-table tfoot td { font-weight: 700; border-bottom: none; }
 .pay-table small { font-size: 12px; font-weight: 400; color: var(--muted); }
 .pay-hint { font-size: 12px; color: var(--muted); margin-top: 12px; max-width: 520px; line-height: 1.5; }
+.pay-pending {
+  max-width: 520px; margin: 14px 0 0; padding: 10px 12px; border-radius: 10px;
+  font-size: 13px; line-height: 1.5; color: #8a5300; background: #fff4e0;
+}
+:root[data-theme="dark"] .pay-pending { color: #f3c37a; background: #3a2c14; }
 
 /* ───── 설정 (좌측 서브메뉴 + 섹션) ───── */
 .settings { flex: 1; display: flex; min-height: 0; }
