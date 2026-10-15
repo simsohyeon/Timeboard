@@ -38,6 +38,12 @@
   font: inherit; font-size: 14px; color: var(--fg); width: 100%;
   background: var(--line); border: none; border-radius: 10px; padding: 10px 12px;
 }
+/* 기본 화살표 제거 후 공용 쉐브론으로 통일 */
+.field select {
+  appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%238b95a1' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 11px center;
+}
 .field select:focus-visible, .field input:focus-visible,
 button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
@@ -65,12 +71,17 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   display: flex; flex-direction: column;
 }
 .minical { padding: 14px 10px; }
-.mc-head { display: flex; align-items: center; gap: 4px; padding: 0 2px 10px; }
-.mc-arrow { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 2px 6px; }
-.mc-title { font-size: 13px; font-weight: 700; }
+.mc-head { display: flex; align-items: center; gap: 2px; padding: 0 2px 10px; }
+.mc-arrow {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; padding: 4px 3px; border-radius: 6px; flex: none;
+}
+.mc-arrow:hover { background: var(--line); color: var(--sub); }
+.mc-title { font-size: 13px; font-weight: 700; white-space: nowrap; flex: 1; text-align: center; }
 .mc-today {
   font-size: 11px; font-weight: 600; color: var(--blue); background: var(--blue-soft);
-  border: none; border-radius: 99px; padding: 3px 9px; cursor: pointer; margin-left: 2px;
+  border: none; border-radius: 99px; padding: 3px 7px; cursor: pointer;
+  white-space: nowrap; flex: none;
 }
 .mc-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
 .mc-dow { margin-bottom: 2px; }
@@ -102,9 +113,13 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   flex: none; display: flex; align-items: center; gap: 6px;
   padding: 10px 16px; border-bottom: 1px solid var(--line);
 }
-.mh-arrow { background: none; border: none; color: var(--muted); font-size: 17px; cursor: pointer; padding: 2px 7px; }
-.mh-date { font-size: 15px; font-weight: 700; }
-.mh-count { font-size: 12px; color: var(--muted); }
+.mh-arrow {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; padding: 5px 6px; border-radius: 6px;
+}
+.mh-arrow:hover { background: var(--line); color: var(--sub); }
+.mh-date { font-size: 15px; font-weight: 700; white-space: nowrap; }
+.mh-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .mh-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
 /* ───── 스케줄 보드 ───── */

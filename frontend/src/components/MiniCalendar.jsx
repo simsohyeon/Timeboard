@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { fmtDate } from '../api';
 import { DAYS } from '../lib/constants';
+import { Chevron } from './ui';
 
 export default function MiniCalendar({ selected, onSelect, eventDates }) {
   const [view, setView] = useState(new Date(selected.getFullYear(), selected.getMonth(), 1));
@@ -26,10 +27,10 @@ export default function MiniCalendar({ selected, onSelect, eventDates }) {
   return (
     <div className="minical">
       <div className="mc-head">
-        <button className="mc-arrow" onClick={() => move(-1)} aria-label="이전 달">‹</button>
+        <button className="mc-arrow" onClick={() => move(-1)} aria-label="이전 달"><Chevron dir="left" size={13} /></button>
         <span className="mc-title">{view.getFullYear()}년 {view.getMonth() + 1}월</span>
         <button className="mc-today" onClick={() => { setView(new Date(today.getFullYear(), today.getMonth(), 1)); onSelect(today); }}>오늘</button>
-        <button className="mc-arrow" onClick={() => move(1)} aria-label="다음 달">›</button>
+        <button className="mc-arrow" onClick={() => move(1)} aria-label="다음 달"><Chevron dir="right" size={13} /></button>
       </div>
       <div className="mc-grid mc-dow">
         {DAYS.map((d, i) => <span key={d} className={i === 0 ? 'sun' : i === 6 ? 'sat' : ''}>{d}</span>)}
