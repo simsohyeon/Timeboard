@@ -206,7 +206,6 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   flex: none; width: 200px; border-right: 1px solid var(--line-strong);
   padding: 20px 10px; display: flex; flex-direction: column; gap: 2px;
 }
-.set-nav-title { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 12px 8px; }
 .set-nav-item {
   font: inherit; font-size: 14px; font-weight: 500; color: var(--sub); text-align: left;
   background: none; border: none; border-radius: 10px; padding: 10px 12px; cursor: pointer;

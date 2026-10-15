@@ -67,7 +67,6 @@ export default function SettingsPage({ staff, menus, settings, onStaffChanged, o
   return (
     <div className="settings">
       <nav className="set-nav" aria-label="설정 메뉴">
-        <span className="set-nav-title">설정</span>
         {SECTIONS.map(([k, label]) => (
           <button key={k} type="button" className={'set-nav-item' + (sec === k ? ' on' : '')}
             aria-current={sec === k ? 'page' : undefined} onClick={() => { setSec(k); setStatus({ kind: 'idle' }); }}>
