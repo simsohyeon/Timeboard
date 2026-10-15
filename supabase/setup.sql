@@ -65,6 +65,17 @@ create policy "open settings" on public.settings
   for all to anon, authenticated using (true) with check (true);
 insert into public.settings (id) values (1) on conflict (id) do nothing;
 
+-- 담당자 상세: 재직 기간 / 정산 비율 / 근무 요일·시간 / 연락처 / 메모
+alter table public.staff add column if not exists joined_on date;                 -- null = 제한 없음
+alter table public.staff add column if not exists left_on date;                   -- 퇴사일(그날까지 근무). 삭제 대신 사용
+alter table public.staff add column if not exists commission_pct int not null default 0
+  check (commission_pct between 0 and 100);                                        -- 결제 탭 정산액 = 매출 × 비율
+alter table public.staff add column if not exists work_days int[] not null default '{0,1,2,3,4,5,6}'; -- 0=일 … 6=토
+alter table public.staff add column if not exists work_open_min int;              -- null = 매장 운영시간과 같음
+alter table public.staff add column if not exists work_close_min int;
+alter table public.staff add column if not exists phone text not null default '';
+alter table public.staff add column if not exists memo text not null default '';
+
 -- 데모 시드 (비어 있을 때만)
 insert into public.staff (name, dot_color, sort_order)
 select * from (values

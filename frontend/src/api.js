@@ -17,24 +17,36 @@ const rows = ({ data, error }) => {
 const need = () => { if (!supabase) throw new Error('Supabase 미설정 (frontend/.env)'); };
 
 const RESV_COLS = 'id,staffId:staff_id,date,startMin:start_min,durationMin:duration_min,title,subtitle,price';
-const STAFF_COLS = 'id,name,dotColor:dot_color,sortOrder:sort_order';
+const STAFF_COLS = 'id,name,dotColor:dot_color,sortOrder:sort_order,joinedOn:joined_on,leftOn:left_on,'
+  + 'commissionPct:commission_pct,workDays:work_days,workOpenMin:work_open_min,workCloseMin:work_close_min,phone,memo';
 const MENU_COLS = 'id,name,durations,prices,sortOrder:sort_order';
+
+const staffRow = s => ({
+  name: s.name, dot_color: s.dotColor, sort_order: s.sortOrder ?? 0,
+  joined_on: s.joinedOn || null, left_on: s.leftOn || null,
+  commission_pct: s.commissionPct ?? 0,
+  work_days: s.workDays ?? [0, 1, 2, 3, 4, 5, 6],
+  work_open_min: s.workOpenMin ?? null, work_close_min: s.workCloseMin ?? null,
+  phone: s.phone ?? '', memo: s.memo ?? '',
+});
 
 export const api = {
   // ───── 담당자 ─────
-  staff: async () =>
-    supabase ? rows(await supabase.from('staff').select(STAFF_COLS).order('sort_order')) : [],
+  staff: async () => {
+    if (!supabase) return [];
+    const res = await supabase.from('staff').select(STAFF_COLS).order('sort_order');
+    if (res.error?.code === '42703') throw new Error('staff 테이블에 새 컬럼이 없어요 — supabase/setup.sql 최신 버전을 실행하세요');
+    return rows(res);
+  },
 
   createStaff: async s => {
     need();
-    return rows(await supabase.from('staff')
-      .insert({ name: s.name, dot_color: s.dotColor, sort_order: s.sortOrder ?? 0 }).select());
+    return rows(await supabase.from('staff').insert(staffRow(s)).select());
   },
 
   updateStaff: async (id, s) => {
     need();
-    return rows(await supabase.from('staff')
-      .update({ name: s.name, dot_color: s.dotColor, sort_order: s.sortOrder ?? 0 }).eq('id', id).select());
+    return rows(await supabase.from('staff').update(staffRow(s)).eq('id', id).select());
   },
 
   deleteStaff: async id => {
