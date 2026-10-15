@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import { DAYS, DUR_OPTIONS, PALETTE, minLabel } from '../lib/constants';
 import { BASE_FONT, FONT_SIZES, DENSITIES } from '../lib/display';
+import DatePicker from './DatePicker';
 import {
   BlurInput, Button, Checkbox, ChipGroup, ColorPicker, Field, FieldGroup, GripIcon,
   IconButton, SaveStatus, Select, TrashIcon, useDragSort,
@@ -68,6 +69,12 @@ export default function SettingsPage({ staff, menus, settings, display, onDispla
     if (s.commissionPct) parts.push(`${s.commissionPct}%`);
     if (s.leftOn) parts.push(`퇴사 ${s.leftOn}`);
     return parts.join(' · ');
+  };
+  const setTenure = (s, patch) => {
+    const joined = patch.joinedOn !== undefined ? patch.joinedOn : s.joinedOn;
+    const left = patch.leftOn !== undefined ? patch.leftOn : s.leftOn;
+    if (joined && left && left < joined) return fail('퇴사일은 입사일보다 같거나 늦어야 해요');
+    patchStaff(s, patch);
   };
   const saveStaffHours = (s, patch) => {
     const next = { workOpenMin: s.workOpenMin ?? openMin, workCloseMin: s.workCloseMin ?? closeMin, ...patch };
@@ -180,6 +187,16 @@ export default function SettingsPage({ staff, menus, settings, display, onDispla
                 </FieldGroup>
 
                 <div className="m-row">
+                  <FieldGroup label="입사일">
+                    <DatePicker value={sel.joinedOn} aria-label="입사일"
+                      onChange={v => setTenure(sel, { joinedOn: v })} />
+                  </FieldGroup>
+                  <FieldGroup label="퇴사일">
+                    <DatePicker value={sel.leftOn} placeholder="재직 중" aria-label="퇴사일"
+                      onChange={v => setTenure(sel, { leftOn: v })} />
+                  </FieldGroup>
+                </div>
+                <div className="m-row">
                   <Field label="정산 비율">
                     <div className="suffix">
                       <BlurInput value={sel.commissionPct || 0} inputMode="numeric" aria-label="정산 비율"
@@ -187,14 +204,7 @@ export default function SettingsPage({ staff, menus, settings, display, onDispla
                       <span>%</span>
                     </div>
                   </Field>
-                  <Field label="입사일">
-                    <input type="date" defaultValue={sel.joinedOn || ''}
-                      onChange={e => patchStaff(sel, { joinedOn: e.target.value || null })} />
-                  </Field>
-                  <Field label="퇴사일">
-                    <input type="date" defaultValue={sel.leftOn || ''}
-                      onChange={e => patchStaff(sel, { leftOn: e.target.value || null })} />
-                  </Field>
+                  <span className="field-spacer" aria-hidden="true" />
                 </div>
                 <span className="set-hint">퇴사일 다음 날부터 보드에서 사라지고, 예약·정산 기록은 남아요. 정산액 = 매출 × 비율.</span>
 
