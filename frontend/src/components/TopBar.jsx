@@ -3,6 +3,7 @@ import { DAYS } from '../lib/constants';
 
 const TABS = [
   ['reserve', '예약'],
+  ['now', '지금'],
   ['pay', '결제'],
   ['settings', '설정'],
 ];

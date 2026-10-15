@@ -1,7 +1,7 @@
 # 타임보드 (Timeboard)
 
 직원별 시간대 예약/일정을 한눈에 보는 스케줄 보드.
-가로축 = 직원, 세로축 = 시간. 네이버 예약 파트너 화면과 유사한 UI.
+가로축 = 직원, 세로축 = 시간. 빈 시간이 점선 칸으로 보이는 보드 + "지금" 현황판.
 
 ## 구조 (TraderNote 방식: 서버 없이 Supabase 직결)
 
@@ -11,9 +11,13 @@ frontend/   React (Vite) — 보드 UI, supabase-js로 DB 직접 접근
     App.jsx            상태·조립만
     api.js             데이터 접근 전부 (Supabase)
     lib/constants.js   시간 범위·요일·시간 포맷 등 공통 상수
+    lib/schedule.js    빈 시간·지금 상태·가장 빠른 가능 시각 계산
     components/
       ui.jsx           공용 프리미티브 (Modal/Button/Field, 토스 스타일)
-      TopBar.jsx  MiniCalendar.jsx  DateHeader.jsx  Board.jsx
+      TopBar.jsx  MiniCalendar.jsx  DateHeader.jsx
+      Board.jsx          예약 보드 (칸 = 담당자, 세로 = 시간, 빈 시간 점선 칸 눌러 예약)
+      DaySummary.jsx     보드 위 요약 (예약·완료 수, 시술 중, 바로 가능)
+      NowPage.jsx        지금 현황판 (담당자별 현재 상태 · 워크인 배정 · 다음 손님)
       ReservationModal.jsx  MenuModal.jsx
 supabase/   setup.sql — 테이블·RLS·시드 (SQL Editor에서 1회 실행)
 backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않음

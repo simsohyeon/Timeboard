@@ -10,8 +10,7 @@ import {
 
 const SECTIONS = [
   ['staff', '담당자'],
-  ['menu', '메뉴·가격'],
-  ['hours', '운영 시간'],
+  ['store', '매장 운영'],
   ['display', '화면'],
 ];
 const LEAVE_MSG = '저장하지 않은 변경이 있어요. 저장하지 않고 이동할까요?';
@@ -56,8 +55,8 @@ export default function SettingsPage({
       </nav>
       <div className="set-body">
         {sec === 'staff' && <StaffSection staff={staff} openMin={openMin} closeMin={closeMin} onSaved={onStaffChanged} onDirty={setDirty} />}
-        {sec === 'menu' && <MenuSection menus={menus} onSaved={onMenusChanged} onDirty={setDirty} />}
-        {sec === 'hours' && <HoursSection openMin={openMin} closeMin={closeMin} onSaved={onSettingsChanged} onDirty={setDirty} />}
+        {sec === 'store' && <StoreSection menus={menus} openMin={openMin} closeMin={closeMin}
+          onMenusSaved={onMenusChanged} onHoursSaved={onSettingsChanged} onDirty={setDirty} />}
         {sec === 'display' && <DisplaySection display={display} onDisplay={onDisplay} onDirty={setDirty} />}
       </div>
     </div>
@@ -223,32 +222,37 @@ function StaffSection({ staff, openMin, closeMin, onSaved, onDirty }) {
   </>);
 }
 
-// ───────────── 메뉴·가격 ─────────────
-// 초안 행: { id, name, sortOrder, cells: { [분]: '가격 숫자 문자열' } } — 키가 없으면 그 시간은 꺼짐
+// ───────────── 매장 운영 (운영 시간 + 메뉴·가격) ─────────────
+// 메뉴 초안 행: { id, name, sortOrder, cells: { [분]: '가격 숫자 문자열' } } — 키가 없으면 그 시간은 꺼짐
 const toRows = menus => menus.map(m => ({
   id: m.id, name: m.name, sortOrder: m.sortOrder,
   cells: Object.fromEntries(m.durations.map((d, i) => [d, String(m.prices?.[i] ?? 0)])),
 }));
 const fmtStr = s => (s === '' ? '' : Number(s).toLocaleString('ko-KR'));
 
-function MenuSection({ menus, onSaved, onDirty }) {
-  const source = useMemo(() => toRows(menus), [menus]);
-  const { draft, setDraft, dirty, reset } = useDraft(source);
+function StoreSection({ menus, openMin, closeMin, onMenusSaved, onHoursSaved, onDirty }) {
+  const hoursSrc = useMemo(() => ({ openMin, closeMin }), [openMin, closeMin]);
+  const menuSrc = useMemo(() => toRows(menus), [menus]);
+  const H = useDraft(hoursSrc);
+  const M = useDraft(menuSrc);
+  const dirty = H.dirty || M.dirty;
   useEffect(() => onDirty(dirty), [dirty]);
   const { status, setStatus, save, fail } = useSaver();
   const [focusKey, setFocusKey] = useState(null); // 방금 켠 가격 칸에 포커스
 
-  const setRow = (id, fn) => setDraft(rows => rows.map(r => (r.id === id ? fn(r) : r)));
+  const hours = H.draft;
+  const setRow = (id, fn) => M.setDraft(rows => rows.map(r => (r.id === id ? fn(r) : r)));
   const setCell = (id, d, v) => setRow(id, r => ({ ...r, cells: { ...r.cells, [d]: v } }));
   const offCell = (id, d) => setRow(id, r => { const cells = { ...r.cells }; delete cells[d]; return { ...r, cells }; });
-  const add = () => setDraft(rows => [...rows, {
+  const addMenu = () => M.setDraft(rows => [...rows, {
     id: tempId--, name: `메뉴 ${rows.length + 1}`,
     sortOrder: Math.max(-1, ...rows.map(r => r.sortOrder ?? 0)) + 1,
     cells: { 60: '0', 90: '0', 120: '0' },
   }]);
 
   const submit = () => {
-    const out = draft.map(r => {
+    if (hours.closeMin <= hours.openMin) return fail('운영 시간: 종료 시각은 시작보다 늦어야 해요');
+    const out = M.draft.map(r => {
       const durations = DUR_OPTIONS.filter(d => r.cells[d] !== undefined && r.cells[d] !== '');
       return { ...r, name: r.name.trim(), durations, prices: durations.map(d => Number(r.cells[d])) };
     });
@@ -256,100 +260,97 @@ function MenuSection({ menus, onSaved, onDirty }) {
       if (!m.name) return fail('메뉴 이름을 입력하세요');
       if (!m.durations.length) return fail(`${m.name}: 가격이 있는 시간이 최소 1개 필요해요`);
     }
-    const removed = menus.filter(m => !draft.some(r => r.id === m.id));
+    const removed = menus.filter(m => !M.draft.some(r => r.id === m.id));
+    const hoursChanged = H.dirty, menusChanged = M.dirty;
     save(() => Promise.all([
-      ...removed.map(m => api.deleteMenu(m.id)),
-      ...out.map(m => {
-        if (m.id < 0) return api.createMenu(m);
-        const orig = menus.find(o => o.id === m.id);
-        const same = orig.name === m.name
-          && JSON.stringify(orig.durations) === JSON.stringify(m.durations)
-          && JSON.stringify(orig.prices) === JSON.stringify(m.prices);
-        return same ? null : api.updateMenu(m.id, m);
-      }),
-    ]), onSaved);
+      hoursChanged ? api.updateSettings(hours) : null,
+      ...(menusChanged ? [
+        ...removed.map(m => api.deleteMenu(m.id)),
+        ...out.map(m => {
+          if (m.id < 0) return api.createMenu(m);
+          const orig = menus.find(o => o.id === m.id);
+          const same = orig.name === m.name
+            && JSON.stringify(orig.durations) === JSON.stringify(m.durations)
+            && JSON.stringify(orig.prices) === JSON.stringify(m.prices);
+          return same ? null : api.updateMenu(m.id, m);
+        }),
+      ] : []),
+    ]), () => { if (hoursChanged) onHoursSaved(); if (menusChanged) onMenusSaved(); });
   };
 
   return (<>
-    <SectionHead title="메뉴·가격" desc="가격이 있는 칸만 예약할 때 고를 수 있어요. 가격을 비우면 그 시간은 꺼져요.">
-      <Button variant="primary" className="set-add" onClick={add}>+ 메뉴 추가</Button>
-    </SectionHead>
-    <div className="set-card set-table-wrap">
-      <table className="price-table">
-        <thead>
-          <tr>
-            <th scope="col">메뉴</th>
-            {DUR_OPTIONS.map(d => <th scope="col" key={d}>{d}분</th>)}
-            <th scope="col"><span className="sr-only">삭제</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {draft.map(r => (
-            <tr key={r.id}>
-              <td>
-                <input className="inl" value={r.name} maxLength={10} aria-label="메뉴 이름"
-                  onChange={e => setRow(r.id, x => ({ ...x, name: e.target.value }))} />
-              </td>
-              {DUR_OPTIONS.map(d => (
-                <td key={d}>
-                  {r.cells[d] !== undefined ? (
-                    <input className="cell-price" value={fmtStr(r.cells[d])} inputMode="numeric"
-                      aria-label={`${r.name} ${d}분 가격`}
-                      onChange={e => setCell(r.id, d, e.target.value.replace(/\D/g, ''))}
-                      onBlur={e => e.target.value === '' && offCell(r.id, d)}
-                      autoFocus={focusKey === `${r.id}-${d}`} onFocus={e => e.target.select()} />
-                  ) : (
-                    <button type="button" className="cell-off" aria-label={`${r.name} ${d}분 켜기`}
-                      onClick={() => { setFocusKey(`${r.id}-${d}`); setCell(r.id, d, '0'); }}>+</button>
-                  )}
-                </td>
-              ))}
-              <td>
-                <IconButton label={`${r.name} 삭제`} danger
-                  onClick={() => setDraft(rows => rows.filter(x => x.id !== r.id))}><TrashIcon /></IconButton>
-              </td>
+    <SectionHead title="매장 운영" desc="예약 보드에 보이는 운영 시간과, 예약할 때 고르는 메뉴·가격이에요." />
+
+    <section className="store-block">
+      <div className="store-block-head">
+        <div><h2>운영 시간</h2><p>담당자별 근무 시간은 담당자에서 따로 정해요.</p></div>
+      </div>
+      <div className="set-card hours-card">
+        <div className="hours-row">
+          <Select value={hours.openMin} onChange={v => H.setDraft(d => ({ ...d, openMin: Number(v) }))} options={openOpts} />
+          <span className="hours-tilde">~</span>
+          <Select value={hours.closeMin} onChange={v => H.setDraft(d => ({ ...d, closeMin: Number(v) }))} options={closeOpts} />
+          <span className="set-hint hours-total">하루 {Math.max(0, hours.closeMin - hours.openMin) / 60}시간</span>
+        </div>
+        <div className="hours-bar">
+          <i style={{ left: `${hours.openMin / 14.4}%`, width: `${Math.max(0, hours.closeMin - hours.openMin) / 14.4}%` }} />
+        </div>
+        <div className="hours-ticks"><span>0시</span><span>6시</span><span>12시</span><span>18시</span><span>24시</span></div>
+      </div>
+    </section>
+
+    <section className="store-block">
+      <div className="store-block-head">
+        <div><h2>메뉴·가격</h2><p>가격이 있는 칸만 예약할 때 고를 수 있어요. 가격을 비우면 그 시간은 꺼져요.</p></div>
+        <Button variant="primary" className="set-add" onClick={addMenu}>+ 메뉴 추가</Button>
+      </div>
+      <div className="set-card set-table-wrap">
+        <table className="price-table">
+          <thead>
+            <tr>
+              <th scope="col">메뉴</th>
+              {DUR_OPTIONS.map(d => <th scope="col" key={d}>{d}분</th>)}
+              <th scope="col"><span className="sr-only">삭제</span></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-    <p className="set-legend">
-      <span><i className="lg-on" />가격 있음 = 예약 가능</span>
-      <span><i className="lg-off" />누르면 켜짐</span>
-    </p>
-    <FormBar dirty={dirty} status={status} onSave={submit}
-      onCancel={() => { reset(); setStatus({ kind: 'idle' }); }} />
-  </>);
-}
-
-// ───────────── 운영 시간 ─────────────
-function HoursSection({ openMin, closeMin, onSaved, onDirty }) {
-  const source = useMemo(() => ({ openMin, closeMin }), [openMin, closeMin]);
-  const { draft, setDraft, dirty, reset } = useDraft(source);
-  useEffect(() => onDirty(dirty), [dirty]);
-  const { status, setStatus, save, fail } = useSaver();
-
-  const submit = () => {
-    if (draft.closeMin <= draft.openMin) return fail('종료 시각은 시작보다 늦어야 해요');
-    save(() => api.updateSettings(draft), onSaved);
-  };
-
-  return (<>
-    <SectionHead title="운영 시간" desc="예약 보드에 보이는 시간 범위예요. 담당자별 근무 시간은 담당자에서 따로 정해요." />
-    <div className="set-card hours-card">
-      <div className="hours-row">
-        <Select value={draft.openMin} onChange={v => setDraft(d => ({ ...d, openMin: Number(v) }))} options={openOpts} />
-        <span className="hours-tilde">~</span>
-        <Select value={draft.closeMin} onChange={v => setDraft(d => ({ ...d, closeMin: Number(v) }))} options={closeOpts} />
+          </thead>
+          <tbody>
+            {M.draft.map(r => (
+              <tr key={r.id}>
+                <td>
+                  <input className="inl" value={r.name} maxLength={10} aria-label="메뉴 이름"
+                    onChange={e => setRow(r.id, x => ({ ...x, name: e.target.value }))} />
+                </td>
+                {DUR_OPTIONS.map(d => (
+                  <td key={d}>
+                    {r.cells[d] !== undefined ? (
+                      <input className="cell-price" value={fmtStr(r.cells[d])} inputMode="numeric"
+                        aria-label={`${r.name} ${d}분 가격`}
+                        onChange={e => setCell(r.id, d, e.target.value.replace(/\D/g, ''))}
+                        onBlur={e => e.target.value === '' && offCell(r.id, d)}
+                        autoFocus={focusKey === `${r.id}-${d}`} onFocus={e => e.target.select()} />
+                    ) : (
+                      <button type="button" className="cell-off" aria-label={`${r.name} ${d}분 켜기`}
+                        onClick={() => { setFocusKey(`${r.id}-${d}`); setCell(r.id, d, '0'); }}>+</button>
+                    )}
+                  </td>
+                ))}
+                <td>
+                  <IconButton label={`${r.name} 삭제`} danger
+                    onClick={() => M.setDraft(rows => rows.filter(x => x.id !== r.id))}><TrashIcon /></IconButton>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <div className="hours-bar">
-        <i style={{ left: `${draft.openMin / 14.4}%`, width: `${Math.max(0, draft.closeMin - draft.openMin) / 14.4}%` }} />
-      </div>
-      <div className="hours-ticks"><span>0시</span><span>6시</span><span>12시</span><span>18시</span><span>24시</span></div>
-      <span className="set-hint">하루 {Math.max(0, draft.closeMin - draft.openMin) / 60}시간 표시</span>
-    </div>
+      <p className="set-legend">
+        <span><i className="lg-on" />가격 있음 = 예약 가능</span>
+        <span><i className="lg-off" />누르면 켜짐</span>
+      </p>
+    </section>
+
     <FormBar dirty={dirty} status={status} onSave={submit}
-      onCancel={() => { reset(); setStatus({ kind: 'idle' }); }} />
+      onCancel={() => { H.reset(); M.reset(); setStatus({ kind: 'idle' }); }} />
   </>);
 }
 

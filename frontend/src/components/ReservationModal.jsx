@@ -9,11 +9,11 @@ const optionsOf = menus => menus.flatMap(m =>
 
 export default function ReservationModal({ init, staff, menus, date, startH = START_H, endH = END_H, hidePrice = false, onClose, onSaved }) {
   const options = optionsOf(menus);
-  // 수정이면 기존 subtitle("아로마 60분")에서 메뉴를 찾고, 새 예약이면 첫 번째 버튼
+  // 수정이면 기존 subtitle("아로마 60분")에서 메뉴를 찾고, 새 예약이면 preferDur 시간의 첫 버튼(없으면 첫 번째 버튼)
   const initMenu = menus.find(m => (init.subtitle || '').startsWith(m.name))?.name;
   const initOpt = init.id
     ? options.find(o => o.menu === initMenu && o.dur === init.durationMin)
-    : options[0];
+    : options.find(o => o.dur === init.preferDur) ?? options[0];
 
   // 예전 예약인데 지금 메뉴판에 없는 조합이면, 원래 값을 버튼 하나로 남겨 둔다
   const legacy = init.id && !initOpt
