@@ -1,6 +1,8 @@
 * { box-sizing: border-box; }
 :root { color-scheme: light; }
 html, body, #root { height: 100%; }
+/* 페이지 자체는 스크롤하지 않는다 (스크롤은 보드·설정 안쪽에서만). iOS 당겨서 튕기기도 끔 */
+html, body { overflow: hidden; overscroll-behavior: none; }
 button { padding: 0; }
 body {
   background: var(--surface, #fff);
