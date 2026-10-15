@@ -25,6 +25,8 @@
   --amber-soft: #fbebdd;
   --green: #1f7a45;     /* 비어 있음/가능 */
   --green-soft: #e7f6ec;
+  --leave: #6a4fb3;     /* 휴가·외출 */
+  --leave-soft: #efeafb;
 }
 
 /* 다크 모드 (설정 > 화면) */
@@ -49,6 +51,8 @@
   --amber-soft: #3a2a1c;
   --green: #7fd8a2;
   --green-soft: #16301f;
+  --leave: #b9a3f0;
+  --leave-soft: #2a2340;
   color-scheme: dark;
 }
 
@@ -425,6 +429,50 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 p.now-overdue { margin-top: 6px; color: var(--amber); font-weight: 600; }
 .q-overdue { display: flex; align-items: center; gap: 8px; }
 .q-overdue > button:first-child { flex: 1; min-width: 0; }
+
+/* ───── 휴가 (보드·요약·지금 탭·예약 창·설정) ───── */
+.ch-text small.ch-leave { color: var(--leave); font-weight: 600; }
+.off-label.leave { color: var(--leave); background: var(--leave-soft); font-size: 12px; padding: 3px 10px; }
+.leave-zone {
+  position: absolute; left: 0; right: 0; z-index: 0; cursor: default; overflow: hidden;
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 6px; box-sizing: border-box;
+  background: repeating-linear-gradient(135deg, var(--leave-soft) 0 8px, transparent 8px 14px);
+  border-top: 2px solid var(--leave); pointer-events: none;
+}
+.leave-zone span { font-size: 12px; font-weight: 700; color: var(--leave); background: var(--surface); border-radius: 99px; padding: 2px 8px; }
+.resv.warn { box-shadow: inset 0 0 0 2px var(--amber); background: var(--amber-soft); }
+.resv.warn small { color: var(--amber); }
+.ds-chip.leave { color: var(--leave); background: var(--leave-soft); font-weight: 600; }
+.rm-chip.st-leave small { color: var(--leave); }
+.rm-chip.st-leave { background: var(--hover); }
+.now-card.leave .now-badge { background: var(--leave-soft); color: var(--leave); }
+.now-card.leave { opacity: .75; }
+
+.leave-panel { display: flex; flex-direction: column; gap: 6px; }
+.leave-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px 6px 12px; border-radius: 10px; background: var(--leave-soft); }
+.leave-row.past { background: var(--line); opacity: .7; }
+.leave-when { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.leave-what { flex: 1; min-width: 0; font-size: 13px; color: var(--leave); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leave-row.past .leave-what { color: var(--sub); }
+.leave-past-btn { align-self: flex-start; font: inherit; font-size: 12px; color: var(--sub); background: none; border: none; padding: 4px 0; cursor: pointer; }
+.leave-add { align-self: flex-start; flex: none; font-size: 13px; padding: 9px 13px; border-radius: 10px; }
+.leave-err { margin: 0; padding: 9px 12px; border-radius: 10px; font-size: 13px; line-height: 1.5; color: var(--amber); background: var(--amber-soft); }
+.leave-form { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+.leave-form .chip-tg { flex: 0 0 auto; padding: 9px 14px; }
+.leave-sub { margin: -8px 0 14px; font-size: 13px; color: var(--sub); line-height: 1.5; }
+.lc-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; margin-bottom: 10px; }
+.lc-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: var(--line); }
+.lc-info { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lc-info b { font-size: 14px; }
+.lc-info span { font-size: 12.5px; color: var(--sub); }
+.lc-alts { display: flex; gap: 6px; flex-wrap: wrap; }
+.lc-alts button {
+  min-height: 40px; padding: 0 12px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  border: none; border-radius: 10px; background: var(--blue); color: #fff;
+}
+.lc-alts button:disabled { opacity: .5; }
+.lc-done { font-size: 13px; font-weight: 700; color: var(--green); }
+.lc-none { font-size: 13px; font-weight: 600; color: var(--amber); }
 
 /* ───── 모달 ───── */
 .modal-wrap { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; }

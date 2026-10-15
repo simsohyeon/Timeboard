@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { minLabel, worksOn } from '../lib/constants';
-import { staffNow, earliestStart, durLabel, nowMinutes, ceilTo } from '../lib/schedule';
+import { staffNow, earliestStart, durLabel, nowMinutes, ceilTo, leaveLabel } from '../lib/schedule';
 
 // 지금 현황판: 오늘 지금 이 순간 누가 뭘 하고 있는지 + 워크인 손님 배정 도우미 + 다음 손님
 const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')}`;
 
-export default function NowPage({ staff, list, openMin, closeMin, menus, onCreate, onOpen, onChanged }) {
+export default function NowPage({ staff, list, leaves = [], openMin, closeMin, menus, onCreate, onOpen, onChanged }) {
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 30000); return () => clearInterval(t); }, []);
   const today = new Date();
@@ -26,13 +26,13 @@ export default function NowPage({ staff, list, openMin, closeMin, menus, onCreat
     finally { setBusy(null); }
   };
 
-  const cards = staff.map(s => ({ s, st: staffNow(s, list, today, openMin, closeMin, nowMin) }));
+  const cards = staff.map(s => ({ s, st: staffNow(s, list, today, openMin, closeMin, nowMin, leaves) }));
   const from = ceilTo(nowMin);
   const walkIn = staff
-    .filter(s => worksOn(s, today.getDay()))
+    .filter(s => worksOn(s, today.getDay()) && !cards.find(c => c.s.id === s.id).st.lv.full)
     .map(s => {
       const st = cards.find(c => c.s.id === s.id).st;
-      return { s, at: earliestStart(st.mine, st.range, from, dur) };
+      return { s, at: earliestStart(st.blocks, st.range, from, dur) };
     })
     .filter(w => w.at != null)
     .sort((a, b) => a.at - b.at);
@@ -52,7 +52,7 @@ export default function NowPage({ staff, list, openMin, closeMin, menus, onCreat
               <i className="avatar" style={{ '--c': s.dotColor || 'var(--blue)' }}>{s.name.slice(0, 1)}</i>
               <b>{s.name}</b>
               <span className="now-badge">
-                {{ off: '휴무', before: '출근 전', after: '퇴근', busy: '시술 중', free: '비어 있음' }[st.kind]}
+                {{ off: '휴무', leave: st.until ? '외출' : '휴가', before: '출근 전', after: '퇴근', busy: '시술 중', free: '비어 있음' }[st.kind]}
               </span>
             </header>
 
@@ -70,6 +70,12 @@ export default function NowPage({ staff, list, openMin, closeMin, menus, onCreat
               <div className="now-main">
                 <strong>{durLabel(st.freeFor)} 비어요</strong>
                 <span>{short(st.until)} 전까지 받을 수 있어요</span>
+              </div>
+            )}
+            {st.kind === 'leave' && (
+              <div className="now-main">
+                <strong>{leaveLabel(st.leave)}</strong>
+                {st.until && <span>{short(st.until)}에 돌아와요</span>}
               </div>
             )}
             {st.kind === 'before' && (
@@ -132,7 +138,7 @@ export default function NowPage({ staff, list, openMin, closeMin, menus, onCreat
             </button>
           ))}
           {overdue.length > 0 && (<>
-            <p className="now-overdue">완료 처리 필요 {overdue.length}건</p>
+            <p className="now-overdue">미완료 {overdue.length}건</p>
             {overdue.map(r => (
               <div key={r.id} className="q-overdue">
                 <button type="button" onClick={() => onOpen(r)}>

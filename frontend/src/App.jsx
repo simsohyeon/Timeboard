@@ -21,6 +21,8 @@ export default function App() {
   const [eventDates, setEventDates] = useState(new Set());
   const [menus, setMenus] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [leaves, setLeaves] = useState([]);
+  const [leaveErr, setLeaveErr] = useState('');
   const [modal, setModal] = useState(null); // 예약 등록/수정 폼 초기값
   const [dbErr, setDbErr] = useState('');
   const [display, setDisplay] = useState(loadDisplay); // 적용 중인 값 (설정에서 미리보기 포함, 저장은 설정 화면이 함)
@@ -42,7 +44,9 @@ export default function App() {
     .catch(e => { setStaff([]); setDbErr(e.message || String(e)); });
   const loadMenus = () => api.menus().then(setMenus).catch(() => setMenus([]));
   const loadSettings = () => api.settings().then(setSettings).catch(() => {});
-  useEffect(() => { loadStaff(); loadMenus(); loadSettings(); }, []);
+  const loadLeaves = () => api.leaves().then(l => { setLeaves(l); setLeaveErr(''); })
+    .catch(e => { setLeaves([]); setLeaveErr(e.message || String(e)); });
+  useEffect(() => { loadStaff(); loadMenus(); loadSettings(); loadLeaves(); }, []);
 
   // 표시 설정 적용: 글자 크기(zoom + 높이 보정), 다크 모드
   useEffect(() => {
@@ -124,13 +128,13 @@ export default function App() {
           {dbErr && <p className="notice">{dbErr}</p>}
           {tab === 'reserve' && (<>
             {dateHead}
-            <DaySummary staff={activeStaff} list={list} date={date} openMin={startH * 60} closeMin={endH * 60} />
+            <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
-              hourPx={display.hourPx} halfLine={display.halfLine}
+              hourPx={display.hourPx} halfLine={display.halfLine} leaves={leaves}
               onCellClick={openCreate} onBlockClick={r => setModal(r)} />
           </>)}
           {tab === 'now' && (
-            <NowPage staff={activeStaff} list={list} menus={menus}
+            <NowPage staff={activeStaff} list={list} leaves={leaves} menus={menus}
               openMin={startH * 60} closeMin={endH * 60}
               onCreate={openCreate} onOpen={r => setModal(r)} onChanged={reload} />
           )}
@@ -141,6 +145,7 @@ export default function App() {
           {tab === 'settings' && (
             <SettingsPage staff={staff} menus={menus} settings={settings}
               onDirtyChange={setSettingsDirty}
+              leaves={leaves} leaveErr={leaveErr} onLeavesChanged={() => { loadLeaves(); reload(); }}
               display={display} onDisplay={setDisplay}
               onStaffChanged={() => { loadStaff(); reload(); }}
               onMenusChanged={loadMenus}
@@ -153,7 +158,7 @@ export default function App() {
           onClick={() => openCreate(activeStaff[0]?.id, 12 * 60)}>+</button>
       )}
       {modal && (
-        <ReservationModal init={modal} staff={modalStaff} list={list} menus={menus} date={date}
+        <ReservationModal init={modal} staff={modalStaff} list={list} leaves={leaves} menus={menus} date={date}
           startH={startH} endH={endH} hidePrice={display.hidePrice}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); reload(); }} />

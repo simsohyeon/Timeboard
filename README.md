@@ -16,7 +16,8 @@ frontend/   React (Vite) — 보드 UI, supabase-js로 DB 직접 접근
       ui.jsx           공용 프리미티브 (Modal/Button/Field, 토스 스타일)
       TopBar.jsx  MiniCalendar.jsx  DateHeader.jsx
       Board.jsx          예약 보드 (칸 = 담당자, 세로 = 시간, 빈 시간 점선 칸 눌러 예약)
-      DaySummary.jsx     보드 위 요약 (예약·완료 수, 시술 중, 바로 가능)
+      DaySummary.jsx     보드 위 요약 (예약·완료 수, 시술 중, 바로 가능, 휴가)
+      LeavePanel.jsx     설정 > 담당자 휴가 등록·삭제 + 겹친 예약 다른 담당자로 옮기기
       NowPage.jsx        지금 현황판 (담당자별 현재 상태 · 워크인 배정 · 다음 손님)
       ReservationModal.jsx  MenuModal.jsx
 supabase/   setup.sql — 테이블·RLS·시드 (SQL Editor에서 1회 실행)

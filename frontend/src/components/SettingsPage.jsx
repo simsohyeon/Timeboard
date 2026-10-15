@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../api';
+import { api, fmtDate } from '../api';
 import { DAYS, DUR_OPTIONS, PALETTE, minLabel } from '../lib/constants';
 import { BASE_FONT, FONT_SIZES, DENSITIES, loadDisplay, saveDisplay } from '../lib/display';
 import DatePicker from './DatePicker';
+import LeavePanel from './LeavePanel';
 import {
   Button, Checkbox, ChipGroup, ColorPicker, Field, FieldGroup, FormBar, GripIcon,
   IconButton, Select, TrashIcon, useDraft, useDragSort, useSaver,
@@ -26,7 +27,7 @@ let tempId = -1; // 아직 저장 안 한 새 항목의 임시 id (음수)
 
 // 설정: 섹션마다 초안을 편집하고 [저장]으로 한 번에 반영, [취소]로 되돌림
 export default function SettingsPage({
-  staff, menus, settings, display, onDisplay,
+  staff, menus, settings, display, onDisplay, leaves = [], leaveErr = '', onLeavesChanged,
   onStaffChanged, onMenusChanged, onSettingsChanged, onDirtyChange,
 }) {
   const [sec, setSec] = useState('staff');
@@ -54,7 +55,8 @@ export default function SettingsPage({
         ))}
       </nav>
       <div className="set-body">
-        {sec === 'staff' && <StaffSection staff={staff} openMin={openMin} closeMin={closeMin} onSaved={onStaffChanged} onDirty={setDirty} />}
+        {sec === 'staff' && <StaffSection staff={staff} openMin={openMin} closeMin={closeMin} onSaved={onStaffChanged} onDirty={setDirty}
+          leaves={leaves} leaveErr={leaveErr} onLeavesChanged={onLeavesChanged} />}
         {sec === 'store' && <StoreSection menus={menus} openMin={openMin} closeMin={closeMin}
           onMenusSaved={onMenusChanged} onHoursSaved={onSettingsChanged} onDirty={setDirty} />}
         {sec === 'display' && <DisplaySection display={display} onDisplay={onDisplay} onDirty={setDirty} />}
@@ -73,7 +75,7 @@ function SectionHead({ title, desc, children }) {
 }
 
 // ───────────── 담당자 ─────────────
-function StaffSection({ staff, openMin, closeMin, onSaved, onDirty }) {
+function StaffSection({ staff, openMin, closeMin, onSaved, onDirty, leaves, leaveErr, onLeavesChanged }) {
   const { draft, setDraft, dirty, reset } = useDraft(staff);
   useEffect(() => onDirty(dirty), [dirty]);
   const { status, setStatus, save, fail } = useSaver();
@@ -92,6 +94,9 @@ function StaffSection({ staff, openMin, closeMin, onSaved, onDirty }) {
     const parts = [days.length === 7 ? '매일' : days.length ? days.map(d => DAYS[d]).join('·') : '근무일 없음'];
     if (s.commissionPct) parts.push(`${s.commissionPct}%`);
     if (s.leftOn) parts.push(`퇴사 ${s.leftOn}`);
+    const today = fmtDate(new Date());
+    if (leaves.some(l => l.staffId === s.id && l.startDate <= today && today <= l.endDate)) parts.push('오늘 휴가');
+    else if (leaves.some(l => l.staffId === s.id && l.startDate > today)) parts.push('휴가 예정');
     if (s.id < 0) parts.push('새로 추가');
     return parts.join(' · ');
   };
@@ -183,6 +188,11 @@ function StaffSection({ staff, openMin, closeMin, onSaved, onDirty }) {
                 <Select value={sel.workCloseMin} onChange={v => patch({ workCloseMin: Number(v) })} options={closeOpts} />
               </div>
             )}
+          </FieldGroup>
+
+          <FieldGroup label="휴가 · 반차 · 외출">
+            <LeavePanel staff={sel} allStaff={staff} leaves={leaves} openMin={openMin} closeMin={closeMin}
+              error={leaveErr} onChanged={onLeavesChanged} />
           </FieldGroup>
 
           <div className="m-row">
