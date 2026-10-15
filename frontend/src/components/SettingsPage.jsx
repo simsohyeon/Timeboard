@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { api } from '../api';
-import { DUR_OPTIONS, PALETTE, minLabel } from '../lib/constants';
+import { DUR_OPTIONS, PALETTE, minLabel, SCALES, getScale, applyScale } from '../lib/constants';
 import { Button, Select } from './ui';
 
 const SECTIONS = [
   ['staff', '담당자'],
   ['menu', '메뉴·가격'],
   ['hours', '운영 시간'],
+  ['display', '화면'],
 ];
 const fmt = n => (n || 0).toLocaleString('ko-KR');
 const num = v => parseInt(String(v).replace(/\D/g, ''), 10) || 0;
@@ -20,6 +21,7 @@ const TrashIcon = () => (
 // 설정: 좌측 서브메뉴 + 섹션 하나씩. 변경은 blur/클릭 즉시 저장
 export default function SettingsPage({ staff, menus, settings, onStaffChanged, onMenusChanged, onSettingsChanged }) {
   const [sec, setSec] = useState('menu');
+  const [scale, setScale] = useState(getScale());
   const [status, setStatus] = useState({ kind: 'idle' }); // idle | saving | saved | error
   const [focusKey, setFocusKey] = useState(null);         // 방금 켠 가격 칸에 포커스
   const run = (fn, after) => {
@@ -208,6 +210,30 @@ export default function SettingsPage({ staff, menus, settings, onStaffChanged, o
             </div>
             <div className="hours-ticks"><span>0시</span><span>6시</span><span>12시</span><span>18시</span><span>24시</span></div>
             <span className="set-hint">하루 {(closeMin - openMin) / 60}시간 표시</span>
+          </div>
+        </>)}
+
+        {sec === 'display' && (<>
+          <header className="set-head">
+            <div>
+              <h1>화면</h1>
+              <p>이 기기에서만 적용돼요. 기기마다 따로 설정할 수 있어요.</p>
+            </div>
+            <div className="set-head-right">{statusEl}</div>
+          </header>
+          <div className="set-card display-card">
+            <span className="set-label">글자 크기</span>
+            <div className="scale-chips" role="group" aria-label="글자 크기">
+              {SCALES.map(({ label, v }, i) => (
+                <button key={v} type="button"
+                  className={'scale-chip' + (v === scale ? ' on' : '')}
+                  style={{ fontSize: 12 + i * 2 }}
+                  aria-pressed={v === scale}
+                  onClick={() => { applyScale(v); setScale(v); setStatus({ kind: 'saved' }); }}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
         </>)}
       </div>

@@ -22,7 +22,8 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
 
   return (
     <div className="board">
-      <div className="board-grid" style={{ gridTemplateColumns: `64px repeat(${staff.length || 1}, 1fr)` }}>
+      <div className="board-grid"
+        style={{ gridTemplateColumns: `var(--timecol, 80px) repeat(${staff.length || 1}, minmax(var(--colmin, 112px), 1fr))` }}>
         <div className="col-head corner" />
         {staff.map(s => (
           <div className="col-head" key={s.id}>
