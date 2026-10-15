@@ -24,6 +24,8 @@ export const getScale = () => {
 export const applyScale = v => {
   try { localStorage.setItem('tb-scale', String(v)); } catch { /* 저장 못 해도 적용은 한다 */ }
   document.body.style.zoom = v;
+  // zoom으로 커진 만큼 .app 높이(100vh)를 나눠서 화면이 잘리지 않게 보정
+  document.documentElement.style.setProperty('--scale', v);
 };
 
 export const hourLabel = h =>
