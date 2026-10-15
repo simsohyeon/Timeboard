@@ -187,25 +187,6 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .m-err { font-size: 12px; color: var(--red); margin: 0 0 10px; }
 .m-actions { display: flex; gap: 8px; margin-top: 8px; }
 
-/* 메뉴 관리 */
-.menu-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
-.menu-row > input {
-  width: 96px; flex: none; font: inherit; font-size: 14px; color: var(--fg);
-  background: var(--line); border: none; border-radius: 10px; padding: 10px 12px;
-}
-.dur-chips { display: flex; gap: 4px; flex: 1; flex-wrap: wrap; }
-.chip-dur {
-  font: inherit; font-size: 12px; font-weight: 500; padding: 6px 9px; cursor: pointer;
-  border: none; border-radius: 8px; background: var(--line); color: var(--muted);
-}
-.chip-dur.on { background: var(--blue-soft); color: var(--blue); font-weight: 700; }
-.menu-add {
-  width: 100%; font: inherit; font-size: 13px; font-weight: 600; padding: 11px; margin: 4px 0 10px;
-  border: 1px dashed var(--line-strong); border-radius: var(--radius); background: #fff;
-  color: var(--blue); cursor: pointer;
-}
-.menu-add:hover { background: var(--blue-soft); border-color: var(--blue); }
-
 /* ───── 결제 (담당자별 정산) ───── */
 .payroll { flex: 1; overflow: auto; padding: 18px 20px; }
 .pay-table { width: 100%; max-width: 520px; border-collapse: collapse; }
@@ -219,29 +200,97 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .pay-table tfoot td { font-weight: 700; border-bottom: none; }
 .pay-hint { font-size: 12px; color: var(--muted); margin-top: 12px; max-width: 520px; line-height: 1.5; }
 
-/* ───── 설정 ───── */
-.settings {
-  flex: 1; overflow: auto; padding: 18px 20px;
-  display: flex; flex-direction: column; gap: 14px; max-width: 580px;
+/* ───── 설정 (좌측 서브메뉴 + 섹션) ───── */
+.settings { flex: 1; display: flex; min-height: 0; }
+.set-nav {
+  flex: none; width: 200px; border-right: 1px solid var(--line-strong);
+  padding: 20px 10px; display: flex; flex-direction: column; gap: 2px;
 }
-.set-card { border: 1px solid var(--line-strong); border-radius: 16px; padding: 18px; }
-.set-card h3 { margin: 0 0 4px; font-size: 15px; }
-.set-hint { margin: 0 0 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.set-nav-title { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 12px 8px; }
+.set-nav-item {
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--sub); text-align: left;
+  background: none; border: none; border-radius: 10px; padding: 10px 12px; cursor: pointer;
+}
+.set-nav-item:hover { background: var(--line); }
+.set-nav-item.on { background: var(--blue-soft); color: var(--blue-dark); font-weight: 600; }
+.set-body { flex: 1; min-width: 0; overflow: auto; padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
+.set-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.set-head h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
+.set-head p { margin: 2px 0 0; font-size: 13px; color: var(--sub); }
+.set-head-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.set-add { flex: none; font-size: 13px; padding: 9px 13px; border-radius: 10px; }
+.set-status { font-size: 12px; color: var(--sub); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.set-status i { width: 6px; height: 6px; border-radius: 50%; background: #1f9d55; }
+.set-status i.saving { background: var(--muted); }
+.set-status.err { color: var(--red); }
+.set-card { border: 1px solid var(--line-strong); border-radius: 16px; }
+.set-hint { font-size: 12px; color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.inl {
+  font: inherit; font-size: 15px; font-weight: 600; color: var(--fg); background: none;
+  border: none; border-radius: 8px; padding: 8px 10px; min-width: 0; width: 100%;
+}
+.inl:hover { background: var(--line); }
+.inl:focus-visible { background: #fff; }
+.icon-btn {
+  background: none; border: none; color: #b0b8c1; cursor: pointer; width: 32px; height: 32px;
+  border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex: none;
+}
+.icon-btn:hover { background: var(--red-soft); color: var(--red); }
+
+/* 담당자 */
+.staff-row { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 14px; border-top: 1px solid var(--line); }
+.staff-row:first-child { border-top: none; }
+.staff-row .inl { max-width: 240px; }
+.pal-wrap { position: relative; flex: none; }
 .dot-btn {
-  background: var(--line); border: none; border-radius: 10px; cursor: pointer; flex: none;
-  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  background: var(--line); border: none; border-radius: 10px; cursor: pointer;
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
 }
-.dot-btn .dot { width: 12px; height: 12px; }
-.menu-card { border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 12px; }
-.menu-card:last-of-type { border-bottom: none; }
-.price-rows { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; padding-left: 2px; }
-.price-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.price-row input {
-  width: 88px; font: inherit; font-size: 13px; color: var(--fg); text-align: right;
-  background: var(--line); border: none; border-radius: 8px; padding: 7px 9px;
+.dot-btn .dot { width: 14px; height: 14px; }
+.pal {
+  position: absolute; top: 42px; left: 0; z-index: 5; display: none; gap: 8px; padding: 10px;
+  background: #fff; border-radius: 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
 }
-.hours-row { display: flex; align-items: center; gap: 10px; max-width: 340px; }
+.pal-wrap:hover .pal, .pal-wrap:focus-within .pal { display: flex; }
+.pal-c { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #fff; cursor: pointer; }
+.pal-c:hover { transform: scale(1.1); }
+.pal-c.on { border-color: var(--fg); }
+
+/* 메뉴 × 시간 가격표 */
+.set-table-wrap { overflow-x: auto; }
+.price-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.price-table th {
+  font-size: 12px; font-weight: 500; color: var(--sub); text-align: center; padding: 10px 6px;
+  border-bottom: 1px solid var(--line-strong); white-space: nowrap;
+}
+.price-table th:first-child { text-align: left; padding-left: 14px; min-width: 150px; }
+.price-table th:last-child { width: 44px; }
+.price-table td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: center; vertical-align: middle; }
+.price-table td:first-child { text-align: left; padding-left: 14px; }
+.price-table tr:last-child td { border-bottom: none; }
+.price-table tr:hover td { background: #fafbfc; }
+.cell-price, .cell-off { width: 100%; max-width: 104px; height: 40px; border-radius: 10px; font: inherit; }
+.cell-price {
+  font-size: 14px; font-weight: 500; color: var(--fg); text-align: right; padding: 0 12px;
+  background: var(--line); border: none; font-variant-numeric: tabular-nums;
+}
+.cell-price:focus-visible { background: #fff; }
+.cell-off { font-size: 16px; color: #b0b8c1; background: none; border: 1px dashed var(--line-strong); cursor: pointer; }
+.cell-off:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+.set-legend { margin: 0; display: flex; gap: 20px; flex-wrap: wrap; font-size: 12px; color: var(--sub); }
+.set-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.set-legend i { width: 22px; height: 14px; border-radius: 5px; }
+.lg-on { background: var(--line); }
+.lg-off { border: 1px dashed #d1d6db; }
+
+/* 운영 시간 */
+.hours-card { padding: 18px 16px; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
+.hours-row { display: flex; align-items: center; gap: 10px; }
 .hours-tilde { color: var(--muted); }
+.hours-bar { position: relative; height: 10px; border-radius: 99px; background: var(--line); }
+.hours-bar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: var(--blue); }
+.hours-ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -8px; font-variant-numeric: tabular-nums; }
 
 /* ───── 플로팅 ───── */
 .fab {
