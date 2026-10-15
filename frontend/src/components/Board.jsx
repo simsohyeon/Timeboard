@@ -39,9 +39,11 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
         {staff.map(s => (
           <div className="col" key={s.id} style={{ height: (endH - startH) * HOUR_PX }}
             onClick={e => {
-              // offsetY는 zoom 배율과 무관하게 요소 기준 좌표라 확대 상태에서도 정확하다
-              const y = e.nativeEvent.offsetY;
-              const slot = startH * 60 + Math.floor(y / (HOUR_PX / 2)) * 30;
+              // 좌표를 px로 다루면 zoom 배율에서 단위가 섞인다 →
+              // 같은 좌표계인 clientY와 rect로 "칸 안에서의 비율"을 구해 시간으로 환산
+              const rect = e.currentTarget.getBoundingClientRect();
+              const frac = (e.clientY - rect.top) / rect.height;
+              const slot = startH * 60 + Math.floor(frac * (endH - startH) * 2) * 30;
               onCellClick(s.id, Math.min(Math.max(slot, startH * 60), endH * 60 - 30));
             }}>
             {Array.from({ length: endH - startH - 1 }, (_, i) => (
