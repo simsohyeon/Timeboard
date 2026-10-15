@@ -41,6 +41,13 @@ export default function App() {
   const [calOpen, setCalOpen] = useState(false); // 모바일(또는 달력 접었을 때) 펼침 달력
   // 데스크톱 왼쪽 달력 접기 — 기기별로 기억
   const [sideHidden, setSideHidden] = useState(() => { try { return localStorage.getItem('tb-cal-hidden') === '1'; } catch { return false; } });
+  // 펼친 달력은 Esc로도 닫는다 (PC·태블릿 팝업은 바깥 가림막을 눌러 닫음 — 그 클릭이 보드까지 안 가게)
+  useEffect(() => {
+    if (!calOpen) return;
+    const esc = e => e.key === 'Escape' && setCalOpen(false);
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [calOpen]);
   const toggleSide = () => setSideHidden(h => {
     try { localStorage.setItem('tb-cal-hidden', h ? '0' : '1'); } catch { /* 저장 실패해도 적용은 */ }
     setCalOpen(false);
@@ -105,20 +112,21 @@ export default function App() {
     setModal({ staffId, startMin, durationMin: preferDur ?? 60, preferDur, title: '', subtitle: '' });
 
   // 예약·결제 공통 날짜 헤더 + 모바일 펼침 달력 (.cal-drop은 데스크톱에서 CSS로 숨김)
-  const dateHead = (<>
+  const dateHead = (<div className="date-wrap">
     <DateHeader date={date} onMove={moveDay}
       {...(tab === 'pay'
         ? { count: list.filter(r => r.done).length, countLabel: '완료' }
         : { count: list.length })}
       calOpen={calOpen} onDateClick={() => setCalOpen(o => !o)}
       sideHidden={sideHidden} onToggleSide={toggleSide} />
+    {calOpen && <div className="cal-scrim" onClick={() => setCalOpen(false)} />}
     {calOpen && (
       <div className="cal-drop">
         <MiniCalendar selected={date} eventDates={eventDates}
           onSelect={d => { setDate(d); setCalOpen(false); }} />
       </div>
     )}
-  </>);
+  </div>);
 
   return (
     <div className={'app' + (sideHidden ? ' side-hidden' : '')}>

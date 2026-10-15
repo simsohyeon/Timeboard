@@ -250,6 +250,8 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
 /* ───── 안내/헤더 ───── */
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.date-wrap { flex: none; position: relative; }
+.cal-scrim { display: none; }
 .notice {
   flex: none; margin: 10px 16px 0; padding: 10px 14px; border-radius: 10px;
   background: var(--blue-soft); color: var(--blue-dark); font-size: 13px;
@@ -287,6 +289,14 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   padding: 4px 8px 8px; background: var(--surface);
 }
 .app.side-hidden .cal-drop .minical { max-width: 320px; padding: 8px 4px; }
+/* PC·태블릿 가로: 내용을 밀지 않고 날짜 아래에 떠 있는 팝업으로 */
+@media (min-width: 901px) {
+  .app.side-hidden .cal-scrim { display: block; position: fixed; inset: 0; z-index: 29; }
+  .app.side-hidden .cal-drop {
+    position: absolute; top: calc(100% + 6px); left: 60px; z-index: 30; width: 300px; padding: 4px;
+    border: none; border-radius: 16px; box-shadow: 0 10px 32px rgba(0, 0, 0, .18);
+  }
+}
 .mh-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
 .dot { width: 7px; height: 7px; border-radius: 50%; }
