@@ -3,55 +3,58 @@
 직원별 시간대 예약/일정을 한눈에 보는 스케줄 보드.
 가로축 = 직원, 세로축 = 시간. 네이버 예약 파트너 화면과 유사한 UI.
 
-## 구조
+## 구조 (TraderNote 방식: 서버 없이 Supabase 직결)
 
 ```
-frontend/   React (Vite) — 예약 보드 UI
-backend/    Spring Boot 3 (Java 21, Gradle) — API 서버
+frontend/   React (Vite) — 보드 UI, supabase-js로 DB 직접 접근
+supabase/   setup.sql — 테이블·RLS·시드 (SQL Editor에서 1회 실행)
+backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않음
 ```
+
+프론트가 Supabase PostgreSQL에 직결하므로 서버·콜드스타트가 없다.
+데이터 접근은 전부 `frontend/src/api.js` 한 파일을 거친다.
+
+## 처음 설정 (1회)
+
+1. [supabase.com](https://supabase.com)에서 무료 프로젝트 생성
+2. 대시보드 → SQL Editor에 `supabase/setup.sql` 내용 붙여넣고 실행
+3. Project Settings → API에서 URL과 anon key 복사
+4. `frontend/.env.example`을 `frontend/.env`로 복사해 값 채우기
 
 ## 로컬 실행
 
 ```bash
-# 프론트 (http://localhost:5173)
-cd frontend && npm install && npm run dev
-
-# 백엔드 (http://localhost:8080)
-cd backend && ./gradlew bootRun
+cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
 
-프론트는 백엔드 API(`/api`)를 사용한다 (Vite 프록시 → `localhost:8080`).
-백엔드는 시작 시 H2 인메모리에 데모 데이터를 시드한다.
+## 무료 배포
 
-### API
+| 구성 | 서비스 | 무료 조건 |
+|------|--------|-----------|
+| 프론트 | Vercel 또는 Netlify (정적) | 제약 사실상 없음 |
+| DB | Supabase | DB 500MB, 항상 켜짐 (콜드스타트 없음) |
+
+배포 시 Vercel 프로젝트의 Environment Variables에 `VITE_SUPABASE_URL`,
+`VITE_SUPABASE_ANON_KEY`를 넣고 Root Directory를 `frontend`로 지정하면 끝.
+
+## DB 스키마
 
 ```
-GET    /api/staff                      직원 목록
-POST   /api/staff                      직원 등록
-PUT    /api/staff/{id}                 직원 수정
-DELETE /api/staff/{id}                 직원 삭제
-GET    /api/reservations?date=ISO      해당 날짜 예약 목록
-GET    /api/reservations/dates         예약 있는 날짜 목록 (달력 점)
-POST   /api/reservations               예약 등록
-PUT    /api/reservations/{id}          예약 수정
-DELETE /api/reservations/{id}          예약 삭제
+staff        id, name, dot_color, sort_order
+reservation  id, staff_id, date, start_min(0:00 기준 분), duration_min, title, subtitle
 ```
 
-## 무료 배포 플랜 (2026-10 조사)
-
-| 구성 | 서비스 | 무료 조건 | 비고 |
-|------|--------|-----------|------|
-| 프론트 | Vercel 또는 Netlify | 정적 사이트 무료 | 제약 사실상 없음 |
-| 백엔드 | Render (Docker) | 월 750시간, 512MB RAM | 15분 유휴 시 슬립 → 첫 요청 ~1분 지연 |
-| DB | Neon (PostgreSQL) | 0.5GB 저장, scale-to-zero | Render 무료 PG는 30일 만료라 제외 |
-
-- 백엔드는 `backend/Dockerfile`로 Render에 바로 배포 가능 (`PORT` 환경변수 대응 완료).
-- DB 연결은 Render 환경변수 `DATABASE_URL`에 Neon 접속 문자열을 넣으면 된다.
-- 대안: Supabase (DB 500MB + 인증/스토리지 포함, 항상 켜짐).
+지금은 로그인 없는 단일 매장 보드라 RLS를 anon 전체 허용으로 열어두었다.
+로그인을 붙일 때 `setup.sql`의 두 정책을 authenticated 전용으로 교체할 것.
 
 ## 다음 할 일
 
-- [x] 백엔드: Reservation / Staff 엔티티 + CRUD API
-- [x] 프론트: 목업 → API 연동
-- [ ] 프론트: 예약 등록 모달 (+ FAB)
-- [ ] 배포: Neon 프로젝트 생성 → Render/Vercel 연결
+- [ ] 예약 등록/수정 모달 (+ FAB, 빈 칸 클릭)
+- [ ] Vercel 배포 연결
+- [ ] (선택) 로그인 + RLS 강화
+
+## 참고: backend/ (보관용)
+
+Spring Boot CRUD API(`/api/staff`, `/api/reservations`)가 구현되어 있다.
+나중에 서버가 필요해지면(권한 로직, 외부 연동 등) `cd backend && ./gradlew bootRun`으로
+기동하고 `api.js`를 fetch 기반으로 되돌리면 된다. Render 배포용 Dockerfile 포함.

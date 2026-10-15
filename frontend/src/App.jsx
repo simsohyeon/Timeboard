@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api, fmtDate } from './api';
+import { api, fmtDate, configured } from './api';
 import './App.css';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -170,6 +170,9 @@ export default function App() {
           <button className="feedback">의견 보내기</button>
         </aside>
         <main className="main">
+          {!configured && (
+            <p className="notice">Supabase가 아직 연결되지 않았어요 — frontend/.env 를 채우면 데이터가 표시됩니다 (README 참고)</p>
+          )}
           <div className="main-head">
             <button className="mh-arrow" onClick={() => moveDay(-1)} aria-label="이전 날">‹</button>
             <span className="mh-date">{date.getDate()}일 ({DAYS[date.getDay()]})</span>
