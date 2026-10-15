@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, fmtDate } from '../api';
-import { START_H, END_H, minLabel, worksOn, workRange, isActiveOn } from '../lib/constants'; // startH/endH prop 기본값
-import { nowMinutes, leaveOn, hitsLeave, leaveLabel } from '../lib/schedule';
+import { START_H, END_H, minLabel, ampmOf, worksOn, workRange, isActiveOn } from '../lib/constants'; // startH/endH prop 기본값
+import { nowMinutes, bizToday, bizNow, leaveOn, hitsLeave, leaveLabel } from '../lib/schedule';
 import { Modal, Button } from './ui';
 import DatePicker from './DatePicker';
 
@@ -80,7 +80,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   // 못 쓰는 시각은 숨기지 않고 흐리게(지난 시각·근무 외) 또는 줄 긋기(겹침·휴가) — 그래도 누를 수는 있다
   const sel = staff.find(s => s.id === Number(form.staffId));
   const [wo, wc] = sel ? workRange(sel, open, close) : [open, close];
-  const isToday = dateStr === fmtDate(new Date());
+  const isToday = dateStr === bizToday();
   const nowMin = nowMinutes();
   // 그 시각 m의 상태: bad(겹침·휴가 — 무엇과 겹치는지) / dim(지났거나 근무 외)
   const badAt = m => sel && (clash(sel.id, m, dur) || (hitsLeave(lvOf(sel), m, dur) && { title: '휴가' }));
@@ -96,14 +96,17 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     if (!ms.length) return;
     set('startMin', ms.includes(h * 60 + curM) ? h * 60 + curM : ms[0]);
   };
-  // 오전/오후를 먼저 고르고, 그 반나절의 시만 보여 준다 (스크롤 없이 최대 두 줄)
-  const pm = curH >= 12;
-  const halves = [['오전', hours.filter(h => h < 12)], ['오후', hours.filter(h => h >= 12)]].filter(([, hs]) => hs.length);
-  const shownHours = hours.filter(h => (h >= 12) === pm);
-  const pickHalf = toPm => {
-    if (toPm === pm) return;
-    const hs = hours.filter(h => (h >= 12) === toPm);
-    const same = curH % 12 + (toPm ? 12 : 0); // 2시 ↔ 14시처럼 같은 숫자로
+  // 오전/오후(/새벽)를 먼저 고르고, 그 반나절의 시만 보여 준다 (스크롤 없이 최대 두 줄)
+  // 새벽 = 자정 넘어 영업하는 시간 (24시 이후, 다음날 새벽)
+  const halfOf = h => (h >= 24 ? 2 : h >= 12 ? 1 : 0);
+  const curHalf = halfOf(curH);
+  const halves = ['오전', '오후', '새벽'].map((label, i) => [label, i, hours.filter(h => halfOf(h) === i)])
+    .filter(([, , hs]) => hs.length);
+  const shownHours = hours.filter(h => halfOf(h) === curHalf);
+  const pickHalf = i => {
+    if (i === curHalf) return;
+    const hs = hours.filter(h => halfOf(h) === i);
+    const same = curH % 12 + i * 12; // 2시 ↔ 14시처럼 같은 숫자로
     pickHour(hs.includes(same) ? same : hs[0]);
   };
 
@@ -215,7 +218,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                     onChange={v => { if (v) { const [y, m, d] = v.split('-').map(Number); setDay(new Date(y, m - 1, d)); } }} />
                 </div>
                 {[0, 1, 2].map(n => {
-                  const d = new Date(); d.setDate(d.getDate() + n);
+                  const d = new Date(bizNow().date); d.setDate(d.getDate() + n);
                   const on = fmtDate(d) === dateStr;
                   return (
                     <button key={n} type="button" className={'rm-day' + (on ? ' on' : '')} aria-pressed={on}
@@ -226,12 +229,12 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
               {halves.length > 1 && (
                 <div className="rm-hm">
                   <span className="rm-hm-label" />
-                  <div className="rm-half" role="radiogroup" aria-label="오전 오후">
-                    {halves.map(([label]) => {
-                      const on = (label === '오후') === pm;
+                  <div className="rm-half" role="radiogroup" aria-label="오전 오후" style={{ gridTemplateColumns: `repeat(${halves.length}, 1fr)` }}>
+                    {halves.map(([label, i]) => {
+                      const on = i === curHalf;
                       return (
                         <button key={label} type="button" role="radio" aria-checked={on}
-                          className={on ? 'on' : ''} onClick={() => pickHalf(label === '오후')}>{label}</button>
+                          className={on ? 'on' : ''} onClick={() => pickHalf(i)}>{label}</button>
                       );
                     })}
                   </div>
@@ -245,7 +248,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                     const allLeave = minsOf(h).every(leaveAt);
                     return (
                       <button key={h} type="button" role="radio" aria-checked={h === curH} disabled={allLeave && h !== curH}
-                        aria-label={`${h < 12 ? '오전' : '오후'} ${((h + 11) % 12) + 1}시`}
+                        aria-label={`${ampmOf(h)} ${((h + 11) % 12) + 1}시`}
                         className={'rm-hour' + (h === curH ? ' on' : '') + (allBad ? ' dim' : '')}
                         onClick={() => pickHour(h)}>
                         {((h + 11) % 12) + 1}

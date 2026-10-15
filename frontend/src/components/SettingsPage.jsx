@@ -4,6 +4,7 @@ import { DAYS, DUR_OPTIONS, PALETTE, minLabel } from '../lib/constants';
 import { BASE_FONT, FONT_SIZES, DENSITIES, loadDisplay, saveDisplay } from '../lib/display';
 import DatePicker from './DatePicker';
 import LeavePanel from './LeavePanel';
+import { bizToday } from '../lib/schedule';
 import {
   Button, Checkbox, ChipGroup, ColorPicker, Field, FieldGroup, FormBar, GripIcon,
   IconButton, Select, TrashIcon, useDraft, useDragSort, useSaver,
@@ -19,9 +20,10 @@ const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 const DAY_OPTS = DAYS.map((d, i) => ({ value: i, label: d }));
 const num = v => parseInt(String(v).replace(/\D/g, ''), 10) || 0;
 const openOpts = Array.from({ length: 24 }, (_, h) => ({ value: h * 60, label: minLabel(h * 60) }));
-const closeOpts = Array.from({ length: 24 }, (_, i) => {
+// 마감은 자정 넘어 다음날 새벽 6시까지 고를 수 있다 (새벽 영업)
+const closeOpts = Array.from({ length: 30 }, (_, i) => {
   const h = i + 1;
-  return { value: h * 60, label: h === 24 ? '자정' : minLabel(h * 60) };
+  return { value: h * 60, label: h === 24 ? '자정' : h > 24 ? `다음날 새벽 ${h - 24}:00` : minLabel(h * 60) };
 });
 let tempId = -1; // 아직 저장 안 한 새 항목의 임시 id (음수)
 
@@ -94,7 +96,7 @@ function StaffSection({ staff, openMin, closeMin, onSaved, onDirty, leaves, leav
     const parts = [days.length === 7 ? '매일' : days.length ? days.map(d => DAYS[d]).join('·') : '근무일 없음'];
     if (s.commissionPct) parts.push(`${s.commissionPct}%`);
     if (s.leftOn) parts.push(`퇴사 ${s.leftOn}`);
-    const today = fmtDate(new Date());
+    const today = bizToday();
     if (leaves.some(l => l.staffId === s.id && l.startDate <= today && today <= l.endDate)) parts.push('오늘 휴가');
     else if (leaves.some(l => l.staffId === s.id && l.startDate > today)) parts.push('휴가 예정');
     if (s.id < 0) parts.push('새로 추가');
@@ -251,6 +253,8 @@ function StoreSection({ menus, openMin, closeMin, onMenusSaved, onHoursSaved, on
   const [focusKey, setFocusKey] = useState(null); // 방금 켠 가격 칸에 포커스
 
   const hours = H.draft;
+  // 운영시간 막대: 자정 넘어 영업하면 다음날 새벽 6시(30시간)까지 그린다
+  const span = hours.closeMin > 1440 ? 1800 : 1440;
   const setRow = (id, fn) => M.setDraft(rows => rows.map(r => (r.id === id ? fn(r) : r)));
   const setCell = (id, d, v) => setRow(id, r => ({ ...r, cells: { ...r.cells, [d]: v } }));
   const offCell = (id, d) => setRow(id, r => { const cells = { ...r.cells }; delete cells[d]; return { ...r, cells }; });
@@ -303,9 +307,11 @@ function StoreSection({ menus, openMin, closeMin, onMenusSaved, onHoursSaved, on
           <span className="set-hint hours-total">하루 {Math.max(0, hours.closeMin - hours.openMin) / 60}시간</span>
         </div>
         <div className="hours-bar">
-          <i style={{ left: `${hours.openMin / 14.4}%`, width: `${Math.max(0, hours.closeMin - hours.openMin) / 14.4}%` }} />
+          <i style={{ left: `${hours.openMin / span * 100}%`, width: `${Math.max(0, hours.closeMin - hours.openMin) / span * 100}%` }} />
         </div>
-        <div className="hours-ticks"><span>0시</span><span>6시</span><span>12시</span><span>18시</span><span>24시</span></div>
+        <div className="hours-ticks">
+          <span>0시</span><span>6시</span><span>12시</span><span>18시</span><span>24시</span>{span > 1440 && <span>새벽 6시</span>}
+        </div>
       </div>
     </section>
 

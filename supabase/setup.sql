@@ -12,7 +12,7 @@ create table if not exists public.reservation (
   id bigint generated always as identity primary key,
   staff_id bigint not null references public.staff (id) on delete cascade,
   date date not null,
-  start_min int not null check (start_min between 0 and 1439),  -- 0:00 기준 분
+  start_min int not null check (start_min between 0 and 2879),  -- 영업일 0:00 기준 분 (1440 이상 = 자정 넘은 새벽)
   duration_min int not null check (duration_min > 0),
   title text not null default '',
   subtitle text not null default ''
@@ -101,8 +101,8 @@ create table if not exists public.staff_leave (
   staff_id bigint not null references public.staff (id) on delete cascade,
   start_date date not null,
   end_date date not null check (end_date >= start_date),
-  start_min int check (start_min between 0 and 1440),   -- null = 종일
-  end_min int check (end_min between 0 and 1440),
+  start_min int check (start_min between 0 and 2880),   -- null = 종일
+  end_min int check (end_min between 0 and 2880),
   reason text not null default ''
 );
 create index if not exists staff_leave_dates_idx on public.staff_leave (start_date, end_date);
@@ -110,3 +110,12 @@ alter table public.staff_leave enable row level security;
 drop policy if exists "open staff_leave" on public.staff_leave;
 create policy "open staff_leave" on public.staff_leave
   for all to anon, authenticated using (true) with check (true);
+
+-- 자정 넘어 영업 (예: 새벽 3시 마감): 영업일 기준 분이 1440(24시)을 넘을 수 있게 제한을 넓힌다
+-- 새벽 1시 예약 = 그 전날 영업일의 1500분. 이미 만든 표에도 적용되도록 제약을 다시 건다
+alter table public.reservation drop constraint if exists reservation_start_min_check;
+alter table public.reservation add constraint reservation_start_min_check check (start_min between 0 and 2879);
+alter table public.staff_leave drop constraint if exists staff_leave_start_min_check;
+alter table public.staff_leave add constraint staff_leave_start_min_check check (start_min between 0 and 2880);
+alter table public.staff_leave drop constraint if exists staff_leave_end_min_check;
+alter table public.staff_leave add constraint staff_leave_end_min_check check (end_min between 0 and 2880);

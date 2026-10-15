@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { api, fmtDate } from '../api';
 import { DAYS, minLabel } from '../lib/constants';
-import { altStaff, leaveLabel } from '../lib/schedule';
+import { altStaff, leaveLabel, bizToday } from '../lib/schedule';
 import DatePicker from './DatePicker';
 import { Button, FieldGroup, IconButton, Modal, Select, TrashIcon } from './ui';
 
@@ -16,7 +16,7 @@ const leaveRange = l =>
 export default function LeavePanel({ staff, allStaff, leaves, openMin, closeMin, error, onChanged }) {
   const [adding, setAdding] = useState(false);
   const [showPast, setShowPast] = useState(false);
-  const today = fmtDate(new Date());
+  const today = bizToday();
   const mine = leaves.filter(l => l.staffId === staff.id);
   const current = mine.filter(l => l.endDate >= today);
   const past = mine.filter(l => l.endDate < today).reverse();
@@ -61,7 +61,7 @@ export default function LeavePanel({ staff, allStaff, leaves, openMin, closeMin,
 }
 
 function LeaveModal({ staff, allStaff, leaves, openMin, closeMin, onClose }) {
-  const today = fmtDate(new Date());
+  const today = bizToday();
   const [f, setF] = useState({ startDate: today, endDate: today, allDay: true, startMin: 840, endMin: 960, reason: '연차' });
   const set = p => setF(x => ({ ...x, ...p }));
   const [busy, setBusy] = useState(false);
