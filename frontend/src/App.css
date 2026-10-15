@@ -325,6 +325,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 }
 .menu-opt b { font-size: 14px; font-weight: 600; white-space: nowrap; }
 .menu-opt small { font-size: 12px; color: var(--muted); }
+.menu-opt small.blank { visibility: hidden; }
 .menu-opt:hover { background: var(--line-strong); }
 .menu-opt.on { background: var(--blue-soft); border-color: var(--blue); }
 .menu-opt.on b { color: var(--blue-dark); }

@@ -93,7 +93,10 @@ export default function ReservationModal({ init, staff, menus, date, startH = ST
                   <button key={o.key} type="button" role="radio" aria-checked={o.key === form.pick}
                     className={'menu-opt' + (o.key === form.pick ? ' on' : '')} onClick={() => pick(o)}>
                     <b>{o.menu} {o.dur}분</b>
-                    {!hidePrice && o.price > 0 && <small>{o.price.toLocaleString()}원</small>}
+                    {/* 가격이 없어도 같은 높이가 되도록 빈 줄 자리를 남긴다 */}
+                    {!hidePrice && (o.price > 0
+                      ? <small>{o.price.toLocaleString()}원</small>
+                      : <small className="blank" aria-hidden="true">0원</small>)}
                   </button>
                 ))}
               </div>
