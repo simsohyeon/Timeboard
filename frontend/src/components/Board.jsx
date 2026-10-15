@@ -22,7 +22,8 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
 
   return (
     <div className="board">
-      <div className="board-grid" style={{ gridTemplateColumns: `64px repeat(${staff.length || 1}, 1fr)` }}>
+      <div className="board-grid"
+        style={{ gridTemplateColumns: `var(--timecol, 80px) repeat(${staff.length || 1}, minmax(var(--colmin, 112px), 1fr))` }}>
         <div className="col-head corner" />
         {staff.map(s => (
           <div className="col-head" key={s.id}>
@@ -38,8 +39,12 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
         {staff.map(s => (
           <div className="col" key={s.id} style={{ height: (endH - startH) * HOUR_PX }}
             onClick={e => {
-              const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
-              onCellClick(s.id, startH * 60 + Math.floor(y / (HOUR_PX / 2)) * 30);
+              // 좌표를 px로 다루면 zoom 배율에서 단위가 섞인다 →
+              // 같은 좌표계인 clientY와 rect로 "칸 안에서의 비율"을 구해 시간으로 환산
+              const rect = e.currentTarget.getBoundingClientRect();
+              const frac = (e.clientY - rect.top) / rect.height;
+              const slot = startH * 60 + Math.floor(frac * (endH - startH) * 2) * 30;
+              onCellClick(s.id, Math.min(Math.max(slot, startH * 60), endH * 60 - 30));
             }}>
             {Array.from({ length: endH - startH - 1 }, (_, i) => (
               <i className="hline" key={i} style={{ top: (i + 1) * HOUR_PX }} />

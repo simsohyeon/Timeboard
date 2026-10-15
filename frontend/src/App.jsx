@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, fmtDate, configured } from './api';
-import { START_H, END_H } from './lib/constants';
+import { START_H, END_H, getScale, applyScale } from './lib/constants';
 import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
@@ -23,7 +23,7 @@ export default function App() {
   const loadStaff = () => api.staff().then(setStaff).catch(() => setStaff([]));
   const loadMenus = () => api.menus().then(setMenus).catch(() => setMenus([]));
   const loadSettings = () => api.settings().then(setSettings).catch(() => {});
-  useEffect(() => { loadStaff(); loadMenus(); loadSettings(); }, []);
+  useEffect(() => { applyScale(getScale()); loadStaff(); loadMenus(); loadSettings(); }, []);
 
   const reload = () => {
     api.reservations(fmtDate(date)).then(setList).catch(() => setList([]));

@@ -15,9 +15,13 @@
   --sat: #3182f6;
   --topbar-bg: #17181c;
   --radius: 12px;
+  /* 반응형 치수: 화면 폭에 따라 자동 조절 */
+  --timecol: clamp(74px, 8vw, 90px);  /* 보드 시간축 폭 */
+  --colmin: 112px;                    /* 담당자 열 최소 폭 */
 }
 
-.app { height: 100vh; display: flex; flex-direction: column; background: #fff; color: var(--fg); }
+/* 글자 크기(zoom) 배율만큼 높이를 나눠 확대해도 화면이 잘리지 않게 */
+.app { height: calc(100vh / var(--scale, 1)); display: flex; flex-direction: column; background: #fff; color: var(--fg); }
 
 /* ───── 공용 프리미티브 ───── */
 .btn {
@@ -144,7 +148,7 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
 /* ───── 스케줄 보드 ───── */
 .board { flex: 1; overflow: auto; min-height: 0; }
-.board-grid { display: grid; min-width: 640px; }
+.board-grid { display: grid; width: 100%; min-width: max-content; }
 .col-head {
   position: sticky; top: 0; z-index: 5; background: #fff; border-bottom: 1px solid var(--line);
   display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -154,11 +158,19 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; }
 .time-col { position: sticky; left: 0; z-index: 4; background: #fff; }
 .time-label {
-  position: absolute; right: 8px; transform: translateY(-50%);
+  position: absolute; right: 10px; transform: translateY(-50%);
   font-size: 13px; font-weight: 500; color: var(--sub); white-space: nowrap; font-variant-numeric: tabular-nums;
 }
+
+/* 좁은 화면: 사이드바·글자 축소, 담당자 열은 가로 스크롤 */
+@media (max-width: 760px) {
+  :root { --colmin: 100px; }
+  .sidebar { width: 164px; }
+  .minical { padding: 12px 5px; }
+  .time-label { font-size: 12px; }
+}
 .col { position: relative; border-left: 1px solid var(--line); }
-.hline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); }
+.hline { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); pointer-events: none; }
 .resv {
   position: absolute; left: 2px; right: 6px; background: var(--blue-soft);
   border-radius: 8px; padding: 6px 9px; overflow: hidden; cursor: pointer;
