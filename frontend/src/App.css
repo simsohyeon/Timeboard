@@ -346,21 +346,31 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .m-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 /* ───── 결제 (담당자별 정산) ───── */
-.payroll { flex: 1; overflow: auto; padding: 18px 20px; }
-.pay-table { width: 100%; max-width: 520px; border-collapse: collapse; }
+.payroll { flex: 1; overflow: auto; padding: 24px 28px; }
+.pay-inner { max-width: 1080px; display: flex; flex-direction: column; gap: 14px; }
+/* 요약 3칸 */
+.pay-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.pay-tile { background: var(--line); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pay-tile span { font-size: 13px; color: var(--sub); }
+.pay-tile b { font-size: 22px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pay-tile:last-child { background: var(--blue-soft); }
+.pay-tile:last-child b { color: var(--blue-dark); }
+/* 담당자별 표 */
+.pay-card { overflow-x: auto; position: relative; }
+.pay-table { width: 100%; border-collapse: collapse; }
 .pay-table th {
   font-size: 12px; font-weight: 500; color: var(--muted); text-align: left;
-  padding: 8px 10px; border-bottom: 1px solid var(--line-strong);
+  padding: 12px 18px; border-bottom: 1px solid var(--line-strong); white-space: nowrap;
 }
-.pay-table td { font-size: 14px; padding: 13px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-.pay-table th { white-space: nowrap; }
+.pay-table td { font-size: 14px; padding: 14px 18px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .pay-table th:not(:first-child), .pay-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
-.pay-table td .dot { display: inline-block; margin-right: 7px; }
-.pay-table tfoot td { font-weight: 700; border-bottom: none; }
+.pay-table td .dot { display: inline-block; margin-right: 8px; }
+.pay-table tbody tr:last-child td { border-bottom: 1px solid var(--line-strong); }
+.pay-table tfoot td { font-weight: 700; border-bottom: none; background: var(--hover); }
 .pay-table small { font-size: 12px; font-weight: 400; color: var(--muted); }
-.pay-hint { font-size: 12px; color: var(--muted); margin-top: 12px; max-width: 520px; line-height: 1.5; }
+.pay-hint { font-size: 12px; color: var(--muted); margin: 0; line-height: 1.5; }
 .pay-pending {
-  max-width: 520px; margin: 14px 0 0; padding: 10px 12px; border-radius: 10px;
+  margin: 0; padding: 10px 14px; border-radius: 10px;
   font-size: 13px; line-height: 1.5; color: #8a5300; background: #fff4e0;
 }
 :root[data-theme="dark"] .pay-pending { color: #f3c37a; background: #3a2c14; }
@@ -388,8 +398,10 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* 담당자: 목록 + 상세 패널 */
-.staff-layout { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-.staff-list { flex: 1 1 300px; min-width: 0; }
+/* stretch: 왼쪽 목록 카드와 오른쪽 상세 카드 높이를 맞춘다 */
+.staff-layout { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; }
+/* overflow: hidden — 선택된 줄 배경이 카드 둥근 모서리 밖으로 안 나가게 */
+.staff-list { flex: 1 1 300px; min-width: 0; overflow: hidden; align-self: stretch; }
 .staff-panel { flex: 1 1 380px; max-width: 480px; padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 14px; }
 .staff-row { display: flex; align-items: center; gap: 2px; padding: 0 8px 0 0; border-top: 1px solid var(--line); }
 .staff-row:first-child { border-top: none; }
@@ -451,8 +463,18 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .display-card .chip-tg { flex: 0 0 auto; padding: 8px 14px; }
 
 /* 운영 시간 */
-.hours-card { padding: 18px 16px; max-width: 420px; display: flex; flex-direction: column; gap: 14px; }
+.hours-card { padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
 .hours-row { display: flex; align-items: center; gap: 10px; }
+.hours-card .hours-row .select { max-width: 160px; }
+.hours-total { margin-left: auto; white-space: nowrap; }
+
+/* 매장 운영: 블록(운영 시간 / 메뉴·가격)마다 소제목 + 카드 */
+.store-block { display: flex; flex-direction: column; gap: 10px; }
+.store-block + .store-block { margin-top: 8px; }
+.store-block-head { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.store-block-head h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.store-block-head p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.store-block-head .set-add { margin-left: auto; }
 .hours-tilde { color: var(--muted); }
 .hours-bar { position: relative; height: 10px; border-radius: 99px; background: var(--line); }
 .hours-bar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: var(--blue); }
@@ -524,7 +546,12 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
   .staff-list, .staff-panel { flex-basis: 100%; max-width: none; min-width: 0; }
 
   .payroll { padding: 12px; }
-  .pay-table td { padding: 12px 6px; }
+  /* 폰: 요약을 세로 3줄(이름 ↔ 숫자)로 — 큰 금액도 안 잘리게 */
+  .pay-sum { grid-template-columns: 1fr; gap: 6px; }
+  .pay-tile { flex-direction: row; align-items: center; justify-content: space-between; padding: 11px 14px; border-radius: 12px; }
+  .pay-tile b { font-size: 17px; }
+  .pay-table th, .pay-table td { padding: 12px 10px; }
+  .staff-list { align-self: auto; }
 }
 @media (max-width: 400px) {
   .tb-clock-day { display: none; }   /* 아주 좁으면 시계는 시간만 */
