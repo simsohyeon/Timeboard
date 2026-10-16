@@ -973,3 +973,70 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
   display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; vertical-align: 1px;
   font-size: 11px; font-style: normal; font-weight: 700; color: var(--blue-dark); background: var(--blue-soft);
 }
+
+/* ───── 로그인 · 회원가입 · 매장 만들기 ───── */
+.auth-page {
+  min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px; background: var(--page); color: var(--fg);
+}
+.auth-card {
+  width: 400px; max-width: 100%; background: var(--surface); border-radius: 20px; padding: 28px 24px 22px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .06); display: flex; flex-direction: column; gap: 16px;
+}
+.auth-brand { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+.auth-seg { align-self: stretch; display: grid; grid-template-columns: 1fr 1fr; }
+.auth-h { margin: 0; font-size: 18px; }
+.auth-lead, .auth-note { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.auth-ok { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--green-soft); color: var(--green); font-size: 13px; line-height: 1.5; }
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-form .field input { padding: 12px 14px; font-size: 15px; }
+.auth-form .btn { padding: 13px 16px; font-size: 15px; margin-top: 4px; }
+.auth-form .m-err { margin: 0; font-size: 13px; }
+.auth-foot { margin: 0; text-align: center; font-size: 13px; color: var(--muted); }
+.auth-foot button { font: inherit; color: var(--blue); background: none; border: none; cursor: pointer; font-weight: 600; padding: 4px; }
+
+/* ───── 사장님 PIN ───── */
+.tb-tabs .lock-ic { margin-left: 3px; vertical-align: -1px; opacity: .7; }
+.tb-brand { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-lock {
+  display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 12px; font-weight: 600;
+  color: #fff; background: rgba(255, 255, 255, .14); border: none; border-radius: 8px; padding: 5px 9px; cursor: pointer;
+}
+.tb-lock:hover { background: rgba(255, 255, 255, .22); }
+.pin .modal { width: 340px; text-align: center; }
+.pin .modal h2 { margin-bottom: 6px; }
+.pin-desc { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
+.pin-dots { display: flex; justify-content: center; gap: 14px; margin: 6px 0 4px; }
+.pin-dots i { width: 14px; height: 14px; border-radius: 50%; background: var(--line-strong); transition: background .1s; }
+.pin-dots i.on { background: var(--blue); }
+.pin-dots.bad i { background: var(--red); }
+.pin-err { min-height: 18px; margin: 6px 0 10px; font-size: 13px; color: var(--red); }
+.pin-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pin-keys button {
+  font: inherit; font-size: 22px; font-weight: 600; color: var(--fg); background: var(--line);
+  border: none; border-radius: 14px; height: 58px; cursor: pointer;
+}
+.pin-keys button:active:not(:disabled) { background: var(--line-strong); }
+.pin-keys button.pin-sub { font-size: 15px; color: var(--sub); background: none; }
+.pin-keys button:disabled { opacity: .5; }
+
+/* 설정 > 계정 */
+.acc-email { margin-left: auto; font-size: 14px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; }
+.acc-pin { text-align: right; letter-spacing: .3em; }
+.acc-actions { justify-content: flex-end; }
+.acc-actions .btn { flex: none; }
+.set-note.ok { color: var(--green); }
+.set-note.bad { color: var(--red); }
+.tb-tabs button { white-space: nowrap; }
+/* 폰: 매장 이름은 짧게 자르고, 잠그기는 아이콘만 */
+@media (max-width: 600px) {
+  .tb-brand { max-width: 76px; font-size: 13px; }
+  .tb-tabs { margin-left: 4px; }
+  .tb-tabs button { padding: 10px 7px; }
+  .tb-tabs .lock-ic { margin-left: 2px; width: 10px; height: 10px; }
+  .tb-lock { padding: 6px; font-size: 0; gap: 0; }
+  .tb-lock .lock-ic { width: 14px; height: 14px; }
+}
+@media (max-width: 400px) {
+  .tb-brand { max-width: 56px; }
+}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../api';
+import { api, auth } from '../api';
 import { DAYS, DUR_OPTIONS, PALETTE, minLabel } from '../lib/constants';
 import { BASE_FONT, FONT_SIZES, DENSITIES, loadDisplay, saveDisplay } from '../lib/display';
 import DatePicker from './DatePicker';
@@ -13,6 +13,7 @@ const SECTIONS = [
   ['staff', '담당자', '담당자 한 명이 예약 보드의 세로 칸 하나예요.'],
   ['store', '매장 운영', ''], // 설명 없이 바로 운영 시간·메뉴 카드부터
   ['display', '화면', '이 기기에서만 적용돼요. 고르면 바로 바뀌고, 저장해야 유지돼요.'],
+  ['account', '계정', '이 계정의 매장 데이터는 다른 계정과 따로 저장돼요.'],
 ];
 const LEAVE_MSG = '저장하지 않은 변경이 있어요. 저장하지 않고 이동할까요?';
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -37,8 +38,9 @@ const daysLabel = d => {
 // 설정: 섹션마다 초안을 편집하고 [저장]으로 한 번에 반영, [되돌리기]로 원래대로
 export default function SettingsPage({
   staff, menus, settings, display, onDisplay, leaves = [], leaveErr = '', onLeavesChanged,
-  onStaffChanged, onMenusChanged, onSettingsChanged, onDirtyChange,
+  onStaffChanged, onMenusChanged, onSettingsChanged, onDirtyChange, account,
 }) {
+  const sections = SECTIONS.filter(([k]) => k !== 'account' || account);
   const [sec, setSec] = useState('staff');
   const [dirty, setDirty] = useState(false);
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty]);
@@ -59,7 +61,7 @@ export default function SettingsPage({
         <div className="set-top">
           <h1>설정</h1>
           <div className="seg" role="tablist" aria-label="설정 메뉴">
-            {SECTIONS.map(([k, label]) => (
+            {sections.map(([k, label]) => (
               <button key={k} type="button" role="tab" aria-selected={sec === k} className={sec === k ? 'on' : ''}
                 onClick={() => go(k)}>{label}</button>
             ))}
@@ -71,6 +73,7 @@ export default function SettingsPage({
         {sec === 'store' && <StoreSection menus={menus} openMin={openMin} closeMin={closeMin}
           onMenusSaved={onMenusChanged} onHoursSaved={onSettingsChanged} onDirty={setDirty} />}
         {sec === 'display' && <DisplaySection display={display} onDisplay={onDisplay} onDirty={setDirty} />}
+        {sec === 'account' && account && <AccountSection {...account} />}
       </div>
     </div>
   );
@@ -526,4 +529,72 @@ function DisplaySection({ display, onDisplay, onDirty }) {
       onSave={() => { saveDisplay(display); setSaved(display); setStatus({ kind: 'saved' }); }}
       onCancel={() => { onDisplay(saved); setStatus({ kind: 'idle' }); }} />
   </>);
+}
+
+// 계정: 매장 이름 · 사장님 PIN 바꾸기 · 로그아웃 (바로 반영 — 저장 바 없음)
+function AccountSection({ shop, email, onShopChanged }) {
+  const [name, setName] = useState(shop.name);
+  const [nameMsg, setNameMsg] = useState('');
+  const [pins, setPins] = useState({ cur: '', next: '', again: '' });
+  const [pinMsg, setPinMsg] = useState(null); // { ok, text }
+  const [busy, setBusy] = useState(false);
+  const digits = v => v.replace(/\D/g, '').slice(0, 4);
+  const setPin = k => e => { setPins(p => ({ ...p, [k]: digits(e.target.value) })); setPinMsg(null); };
+
+  const rename = async () => {
+    const n = name.trim();
+    if (!n || n === shop.name) { setName(shop.name); return; }
+    try { await api.renameShop(n); await onShopChanged(); setNameMsg('바꿨어요'); }
+    catch (e) { setNameMsg(e.message); }
+  };
+  const changePin = async e => {
+    e.preventDefault();
+    if (pins.cur.length !== 4 || pins.next.length !== 4) return setPinMsg({ ok: false, text: 'PIN은 숫자 4자리예요' });
+    if (pins.next !== pins.again) return setPinMsg({ ok: false, text: '새 PIN 확인이 달라요' });
+    setBusy(true);
+    try {
+      const ok = await api.setPin(pins.cur, pins.next);
+      setPinMsg(ok ? { ok: true, text: 'PIN을 바꿨어요' } : { ok: false, text: '지금 PIN이 맞지 않아요' });
+      if (ok) setPins({ cur: '', next: '', again: '' });
+    } catch (e2) { setPinMsg({ ok: false, text: e2.message }); }
+    setBusy(false);
+  };
+  const pinInput = (k, label) => (
+    <Row as="label" label={label}>
+      <input className="inl acc-pin" type="password" inputMode="numeric" pattern="[0-9]*" autoComplete="off"
+        value={pins[k]} onChange={setPin(k)} placeholder="••••" />
+    </Row>
+  );
+
+  return (
+    <div className="set-cols">
+      <div className="set-stack">
+        <Group title="매장">
+          <Row as="label" label="매장 이름">
+            <input className="inl" value={name} maxLength={30} onChange={e => { setName(e.target.value); setNameMsg(''); }}
+              onBlur={rename} onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()} />
+          </Row>
+          {nameMsg && <p className="set-note">{nameMsg}</p>}
+          <Row label="로그인 계정"><span className="acc-email">{email}</span></Row>
+        </Group>
+        <Group title="로그아웃">
+          <div className="set-row">
+            <span className="set-row-t"><b>이 기기에서 로그아웃</b><small>다시 쓰려면 이메일·비밀번호로 로그인해야 해요</small></span>
+            <button type="button" className="btn btn-danger" onClick={() => window.confirm('로그아웃할까요?') && auth.signOut()}>로그아웃</button>
+          </div>
+        </Group>
+      </div>
+      <Group title="사장님 PIN 바꾸기">
+        <form onSubmit={changePin}>
+          {pinInput('cur', '지금 PIN')}
+          {pinInput('next', '새 PIN')}
+          {pinInput('again', '새 PIN 확인')}
+          {pinMsg && <p className={'set-note' + (pinMsg.ok ? ' ok' : ' bad')}>{pinMsg.text}</p>}
+          <div className="set-row acc-actions">
+            <button type="submit" className="btn btn-primary" disabled={busy}>PIN 바꾸기</button>
+          </div>
+        </form>
+      </Group>
+    </div>
+  );
 }

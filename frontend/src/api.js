@@ -46,7 +46,55 @@ const staffRow = s => ({
   phone: s.phone ?? '', memo: s.memo ?? '',
 });
 
+const NO_SHOP_MSG = '계정·매장 표(shop)가 없어요 — supabase/accounts.sql 을 SQL Editor에서 실행하세요';
+let shopId = null; // 로그인한 계정의 매장 (myShop 이 채움)
+
+// 로그인 오류를 한국어로
+const AUTH_MSG = [
+  [/invalid login credentials/i, '이메일 또는 비밀번호가 맞지 않아요'],
+  [/email not confirmed/i, '메일 인증이 아직이에요 — 받은 메일의 링크를 먼저 눌러 주세요'],
+  [/already registered|already been registered/i, '이미 가입된 이메일이에요 — 로그인해 주세요'],
+  [/password should be at least/i, '비밀번호는 6자 이상이어야 해요'],
+  [/unable to validate email|invalid email|email address .* is invalid/i, '이메일 주소를 확인해 주세요'],
+  [/rate limit|too many/i, '잠시 뒤에 다시 해 주세요 (요청이 너무 많아요)'],
+];
+const authErr = e => {
+  const m = e?.message || String(e);
+  return new Error(AUTH_MSG.find(([re]) => re.test(m))?.[1] ?? m);
+};
+const authed = ({ data, error }) => { if (error) throw authErr(error); return data; };
+// rpc 오류: 함수 안에서 낸 한국어 메시지는 그대로, 함수가 없으면 SQL 안내
+const rpc = async (fn, args) => {
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) throw new Error(error.code === 'PGRST202' || error.code === '42883' ? NO_SHOP_MSG : error.message);
+  return data;
+};
+
+export const auth = {
+  session: async () => (supabase ? (await supabase.auth.getSession()).data.session : null),
+  onChange: cb => supabase?.auth.onAuthStateChange((_e, s) => cb(s)).data.subscription,
+  signIn: async (email, password) => authed(await supabase.auth.signInWithPassword({ email, password })),
+  // 메일 인증을 켜 둔 프로젝트면 session 이 비어서 온다 → 화면에서 '메일 확인' 안내
+  signUp: async (email, password) => authed(await supabase.auth.signUp({
+    email, password, options: { emailRedirectTo: window.location.origin },
+  })),
+  signOut: async () => { shopId = null; await supabase.auth.signOut(); },
+};
+
 export const api = {
+  // ───── 매장 (계정 1개 = 매장 1개) ─────
+  myShop: async () => {
+    const res = await supabase.from('shop').select('id,name').maybeSingle();
+    if (res.error && ['42P01', 'PGRST205'].includes(res.error.code)) throw new Error(NO_SHOP_MSG);
+    const s = rows(res);
+    shopId = s?.id ?? null;
+    return s;
+  },
+  createShop: (name, pin) => rpc('create_shop', { p_name: name, p_pin: pin }),
+  verifyPin: pin => rpc('verify_pin', { p_pin: pin }),
+  setPin: (oldPin, newPin) => rpc('set_pin', { p_old: oldPin, p_new: newPin }),
+  renameShop: name => rpc('rename_shop', { p_name: name }),
+
   // ───── 담당자 ─────
   staff: async () => {
     if (!supabase) return [];
@@ -171,13 +219,14 @@ export const api = {
   // ───── 설정 (업무시간) ─────
   settings: async () =>
     supabase
-      ? (rows(await supabase.from('settings').select('openMin:open_min,closeMin:close_min').eq('id', 1))[0] ?? null)
+      ? (rows(await supabase.from('settings').select('openMin:open_min,closeMin:close_min').limit(1))[0] ?? null)
       : null,
 
   updateSettings: async s => {
     need();
+    // 내 매장 줄 (다른 매장 줄은 DB 규칙상 보이지도 않음)
     const d = rows(await supabase.from('settings')
-      .update({ open_min: s.openMin, close_min: s.closeMin }).eq('id', 1).select());
+      .update({ open_min: s.openMin, close_min: s.closeMin }).eq('shop_id', shopId).select());
     if (!d.length) throw new Error('settings 테이블이 없어요 — supabase/setup.sql 최신 버전을 실행하세요');
     return d;
   },

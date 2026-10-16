@@ -8,7 +8,8 @@
 ```
 frontend/   React (Vite) — 보드 UI, supabase-js로 DB 직접 접근
   src/
-    App.jsx            상태·조립만
+    Root.jsx           로그인 → 매장 확인 → App (계정이 바뀌면 App 을 새로 띄움)
+    App.jsx            상태·조립만 (결제·설정 PIN 잠금 포함)
     api.js             데이터 접근 전부 (Supabase)
     lib/constants.js   시간 범위·요일·시간 포맷 등 공통 상수
     lib/schedule.js    빈 시간·지금 상태·가장 빠른 가능 시각 계산
@@ -20,7 +21,9 @@ frontend/   React (Vite) — 보드 UI, supabase-js로 DB 직접 접근
       LeavePanel.jsx     설정 > 담당자 휴가 등록·삭제 + 겹친 예약 다른 담당자로 옮기기
       NowPage.jsx        지금 현황판 (담당자별 현재 상태 · 워크인 배정 · 다음 손님)
       ReservationModal.jsx  MenuModal.jsx
-supabase/   setup.sql — 테이블·RLS·시드 (SQL Editor에서 1회 실행)
+      AuthPage.jsx       로그인·회원가입·매장 만들기
+      PinPad.jsx         사장님 PIN 입력
+supabase/   setup.sql — 테이블·시드 / accounts.sql — 계정별 매장 분리·PIN (setup.sql 다음에 실행)
 backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않음
 ```
 
@@ -33,8 +36,20 @@ backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않�
 
 1. [supabase.com](https://supabase.com)에서 무료 프로젝트 생성
 2. 대시보드 → SQL Editor에 `supabase/setup.sql` 내용 붙여넣고 실행
-3. Project Settings → API에서 URL과 anon key 복사
-4. `frontend/.env.example`을 `frontend/.env`로 복사해 값 채우기
+3. 이어서 `supabase/accounts.sql` 실행 (계정별 매장 분리 + 사장님 PIN)
+4. Authentication → URL Configuration 의 Site URL 을 배포 주소로 (인증 메일 링크가 그리로 감).
+   가입 즉시 쓰게 하려면 Authentication → Sign In / Providers → Email 의 Confirm email 을 끈다
+5. Project Settings → API에서 URL과 anon key 복사
+6. `frontend/.env.example`을 `frontend/.env`로 복사해 값 채우기
+
+## 계정 · 매장 · 사장님 PIN
+
+- 이메일·비밀번호로 가입 → 처음 한 번 매장 이름과 사장님 PIN(숫자 4자리)을 정한다. 계정 1개 = 매장 1개
+- 모든 표에 `shop_id` 가 있고, RLS 가 로그인한 계정의 매장 줄만 읽고 쓰게 한다 (로그인 안 하면 아무것도 안 보임)
+- 결제·설정 탭은 PIN 을 넣어야 열리고, 5분 동안 아무것도 안 누르면 다시 잠긴다 (상단 '잠그기'로 바로 잠금)
+- PIN 은 DB 에 bcrypt 로만 저장, 확인은 `verify_pin` 함수로. 5번 연속 틀리면 5분 잠금
+- PIN 은 화면 잠금이다: 같은 계정으로 로그인한 기기는 DB 규칙상 그 매장 데이터를 읽고 쓸 수 있다
+- 예전(계정 없던 때) 데이터는 `accounts.sql` 맨 아래 '기존 데이터 가져오기'로 내 매장에 붙인다
 
 ## 로컬 실행
 
@@ -72,19 +87,22 @@ staff        id, name, dot_color, sort_order,
              phone, memo
 reservation  id, staff_id, date, start_min(0:00 기준 분), duration_min, title, subtitle, price
 menu         id, name, durations[], prices[](같은 순서), sort_order
-settings     id=1, open_min, close_min
+settings     id, shop_id(매장마다 한 줄), open_min, close_min
+shop         id, name, pin_hash, pin_fails, pin_locked_until   (화면에서는 id·name 만 보임)
+shop_member  user_id(auth.users), shop_id, role
+앱 표(staff·reservation·menu·settings·staff_leave)마다 shop_id (기본값 = 로그인한 계정의 매장)
 
 컬럼이 늘어나면 setup.sql을 다시 실행하면 된다 (alter … add column if not exists).
 ```
 
-지금은 로그인 없는 단일 매장 보드라 RLS를 anon 전체 허용으로 열어두었다.
-로그인을 붙일 때 `setup.sql`의 두 정책을 authenticated 전용으로 교체할 것.
+`setup.sql` 만 실행한 상태는 로그인 없는 단일 매장(anon 전체 허용)이고,
+`accounts.sql` 이 그 정책을 지우고 '내 매장만' 정책으로 바꾼다.
 
 ## 다음 할 일
 
 - [x] 예약 등록/수정/삭제 모달 (빈 칸 클릭·블록 클릭·FAB, 메뉴 선택 시 소요시간 자동)
 - [ ] Vercel 배포 연결
-- [ ] (선택) 로그인 + RLS 강화
+- [x] 로그인 + 계정별 매장 분리(RLS) + 사장님 PIN
 
 ## 참고: backend/ (보관용)
 

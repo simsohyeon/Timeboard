@@ -13,10 +13,17 @@ import NowPage from './components/NowPage';
 import PayrollPage from './components/PayrollPage';
 import SettingsPage from './components/SettingsPage';
 import ReservationModal from './components/ReservationModal';
+import PinPad from './components/PinPad';
 import './App.css';
 
-export default function App() {
+// 결제·설정은 사장님 PIN을 넣어야 열린다. 열린 뒤 아무것도 안 누르고 5분이 지나면 다시 잠긴다
+const PIN_TABS = ['pay', 'settings'];
+const IDLE_LOCK_MS = 5 * 60 * 1000;
+
+export default function App({ shop, email, onShopChanged }) {
   const [tab, setTab] = useState('reserve');
+  const [unlocked, setUnlocked] = useState(!shop); // 매장(로그인) 없는 로컬 개발 모드는 잠금 없음
+  const [pinFor, setPinFor] = useState(null); // PIN 입력 뒤 열 탭
   const [date, setDate] = useState(new Date());
   const [staff, setStaff] = useState([]);
   const [list, setList] = useState([]);
@@ -31,9 +38,30 @@ export default function App() {
   const [settingsDirty, setSettingsDirty] = useState(false);
   const changeTab = t => {
     if (t !== tab && settingsDirty && !window.confirm('저장하지 않은 설정 변경이 있어요. 저장하지 않고 이동할까요?')) return;
+    if (PIN_TABS.includes(t) && !unlocked) { setPinFor(t); return; }
     if (t === 'now') { setDate(bizNow().date); setCalOpen(false); } // 현황판은 늘 오늘
     setTab(t);
   };
+  const lock = () => {
+    if (!shop) return;
+    if (settingsDirty && !window.confirm('저장하지 않은 설정 변경이 있어요. 저장하지 않고 잠글까요?')) return;
+    setSettingsDirty(false);
+    setUnlocked(false);
+    if (PIN_TABS.includes(tab)) setTab('reserve');
+  };
+  // 잠금 해제 중: 마지막으로 누른 뒤 5분 지나면 자동 잠금 (저장 안 한 설정이 있으면 기다림)
+  useEffect(() => {
+    if (!shop || !unlocked) return;
+    let last = Date.now();
+    const touch = () => { last = Date.now(); };
+    const t = setInterval(() => {
+      if (Date.now() - last < IDLE_LOCK_MS || settingsDirty) return;
+      setUnlocked(false);
+      setTab(cur => (PIN_TABS.includes(cur) ? 'reserve' : cur));
+    }, 15000);
+    ['pointerdown', 'keydown'].forEach(e => window.addEventListener(e, touch));
+    return () => { clearInterval(t); ['pointerdown', 'keydown'].forEach(e => window.removeEventListener(e, touch)); };
+  }, [shop, unlocked, settingsDirty]);
   useEffect(() => holdUpdate(settingsDirty), [settingsDirty]); // 저장 안 한 설정이 있으면 자동 새로고침 미룸
   useEffect(() => {
     if (!settingsDirty) return;
@@ -137,7 +165,7 @@ export default function App() {
 
   return (
     <div className={'app' + (sideHidden ? ' side-hidden' : '')}>
-      <TopBar tab={tab} onTab={changeTab} />
+      <TopBar tab={tab} onTab={changeTab} shopName={shop?.name} locked={!!shop && !unlocked} pinTabs={shop ? PIN_TABS : []} onLock={lock} />
       <div className="body">
         {(tab === 'reserve' || tab === 'pay') && !sideHidden && (
           <aside className="sidebar">
@@ -172,13 +200,24 @@ export default function App() {
               display={display} onDisplay={setDisplay}
               onStaffChanged={() => { loadStaff(); reload(); }}
               onMenusChanged={loadMenus}
-              onSettingsChanged={loadSettings} />
+              onSettingsChanged={loadSettings}
+              account={shop ? { shop, email, onShopChanged } : null} />
           )}
         </main>
       </div>
       {(tab === 'reserve' || tab === 'now') && (
         <button className="fab" aria-label="예약 추가"
           onClick={() => openCreate(activeStaff[0]?.id, 12 * 60)}>+</button>
+      )}
+      {pinFor && (
+        <PinPad desc={`${pinFor === 'pay' ? '결제(정산)' : '설정'} 화면은 사장님만 열 수 있어요.`}
+          onClose={() => setPinFor(null)}
+          onOk={() => {
+            const t = pinFor;
+            setPinFor(null);
+            setUnlocked(true);
+            setTab(t);
+          }} />
       )}
       {modal && (
         <ReservationModal init={modal} staff={staff} list={list} leaves={leaves} menus={menus} date={date}
