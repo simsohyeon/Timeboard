@@ -118,7 +118,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                   className={'resv short' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn}
                   style={{ top: top(r.startMin) + 1, height: h, '--c': s.dotColor || 'var(--blue)' }}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
-                  <small>{r.done && '✓ '}{warn && '⚠ '}{short(r.startMin)}</small><b>{r.title}</b>
+                  <small>{r.done && '✓ '}{warn && '⚠ '}{r.choice && '★ '}{short(r.startMin)}</small><b>{r.title}</b>
                 </button>
               );
               return (
@@ -127,7 +127,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                   style={{ top: top(r.startMin) + 1, height: h, '--c': s.dotColor || 'var(--blue)' }}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
                   <small>{r.done ? '✓ 완료 · ' : warn ? '⚠ 담당자 휴가 · ' : live ? '진행 중 · ' : ''}{short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
-                  <b>{r.title}</b>
+                  <b>{r.title}{r.choice && <em className="choice-tag">초이스</em>}</b>
                   <span>{r.subtitle}</span>
                 </button>
               );

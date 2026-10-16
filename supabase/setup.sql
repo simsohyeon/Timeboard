@@ -53,6 +53,7 @@ where not exists (select 1 from public.menu);
 alter table public.menu add column if not exists prices int[] not null default '{}';
 alter table public.reservation add column if not exists price int not null default 0;
 alter table public.reservation add column if not exists done boolean not null default false;  -- 시술 완료 표시
+alter table public.reservation add column if not exists choice boolean not null default false; -- 초이스: 손님이 담당자를 직접 고름 (인센 추가)
 
 -- 가게 설정 (단일 행): 업무시간
 create table if not exists public.settings (

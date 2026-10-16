@@ -17,8 +17,20 @@ const rows = ({ data, error }) => {
 const need = () => { if (!supabase) throw new Error('Supabase 미설정 (frontend/.env)'); };
 
 const RESV_BASE = 'id,staffId:staff_id,date,startMin:start_min,durationMin:duration_min,title,subtitle,price';
-const RESV_COLS = RESV_BASE + ',done';
+const RESV_COLS = RESV_BASE + ',done,choice';
 const NO_DONE_MSG = '완료 표시용 칸(reservation.done)이 없어요 — supabase/setup.sql 최신 버전을 실행하세요';
+const NO_CHOICE_MSG = '초이스 표시용 칸(reservation.choice)이 없어요 — supabase/setup.sql 최신 버전을 SQL Editor에서 실행하세요';
+let hasChoice = true; // reservation.choice 칸이 있는지 (읽어 보고 알게 됨)
+
+// 새 칸(done·choice)이 아직 없는 DB에서도 보드는 보이게: 없는 칸을 빼고 다시 읽는다
+const selectResv = async q => {
+  let res = await q(RESV_COLS);
+  if (res.error?.code !== '42703') { if (!res.error) hasChoice = true; return rows(res); }
+  hasChoice = false;
+  res = await q(RESV_BASE + ',done');
+  if (res.error?.code !== '42703') return rows(res).map(r => ({ ...r, choice: false }));
+  return rows(await q(RESV_BASE)).map(r => ({ ...r, done: false, choice: false }));
+};
 const STAFF_COLS = 'id,name,dotColor:dot_color,sortOrder:sort_order,joinedOn:joined_on,leftOn:left_on,'
   + 'commissionPct:commission_pct,workDays:work_days,workOpenMin:work_open_min,workCloseMin:work_close_min,phone,memo';
 const LEAVE_COLS = 'id,staffId:staff_id,startDate:start_date,endDate:end_date,startMin:start_min,endMin:end_min,reason';
@@ -87,11 +99,7 @@ export const api = {
   // ───── 예약 ─────
   reservations: async date => {
     if (!supabase) return [];
-    const q = cols => supabase.from('reservation').select(cols).eq('date', date).order('start_min');
-    const res = await q(RESV_COLS);
-    // setup.sql 을 아직 안 돌려 done 칸이 없으면, 완료 표시 없이라도 보드는 보이게
-    if (res.error?.code === '42703') return rows(await q(RESV_BASE)).map(r => ({ ...r, done: false }));
-    return rows(res);
+    return selectResv(cols => supabase.from('reservation').select(cols).eq('date', date).order('start_min'));
   },
 
   setReservationDone: async (id, done) => {
@@ -104,7 +112,7 @@ export const api = {
   // 기간 안의 예약 전부 (휴가 등록 시 겹치는 예약 찾기)
   reservationsRange: async (from, to) => {
     if (!supabase) return [];
-    return rows(await supabase.from('reservation').select(RESV_COLS)
+    return selectResv(cols => supabase.from('reservation').select(cols)
       .gte('date', from).lte('date', to).order('date').order('start_min'));
   },
 
@@ -146,12 +154,12 @@ export const api = {
 
   createReservation: async r => {
     need();
-    return rows(await supabase.from('reservation').insert(toRow(r)).select('id'));
+    return resvWrite(await supabase.from('reservation').insert(toRow(r)).select('id'));
   },
 
   updateReservation: async (id, r) => {
     need();
-    return rows(await supabase.from('reservation').update(toRow(r)).eq('id', id).select('id'));
+    return resvWrite(await supabase.from('reservation').update(toRow(r)).eq('id', id).select('id'));
   },
 
   deleteReservation: async id => {
@@ -175,8 +183,15 @@ export const api = {
   },
 };
 
+const resvWrite = res => {
+  if (res.error?.code === '42703' || res.error?.code === 'PGRST204') throw new Error(NO_CHOICE_MSG);
+  return rows(res);
+};
+
 // 카멜케이스 → DB 컬럼명
+// choice 칸이 없는 DB면 초이스가 아닐 때는 빼고 보내 저장은 되게 (초이스로 저장하려 할 때만 안내)
 const toRow = r => ({
+  ...(hasChoice || r.choice ? { choice: !!r.choice } : {}),
   staff_id: r.staffId,
   date: r.date,
   start_min: r.startMin,

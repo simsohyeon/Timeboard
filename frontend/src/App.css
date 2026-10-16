@@ -956,3 +956,20 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 @media (max-width: 400px) {
   .tb-clock-day { display: none; }   /* 아주 좁으면 시계는 시간만 */
 }
+
+/* 초이스 (손님이 담당자를 직접 고른 예약) */
+.rm-choice {
+  margin-top: 10px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+  font: inherit; color: var(--fg); text-align: left; cursor: pointer;
+}
+.rm-choice span { display: flex; flex-direction: column; gap: 2px; }
+.rm-choice b { font-size: 15px; }
+.rm-choice small { font-size: 12px; color: var(--muted); }
+.rm-choice.on { border-color: var(--blue); background: var(--blue-soft); }
+.rm-choice.on b { color: var(--blue-dark); }
+.rm-choice .switch { display: block; flex: none; }
+.choice-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; vertical-align: 1px;
+  font-size: 11px; font-style: normal; font-weight: 700; color: var(--blue-dark); background: var(--blue-soft);
+}
