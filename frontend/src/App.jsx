@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, fmtDate, configured } from './api';
+import { holdUpdate } from './lib/autoUpdate';
 import { START_H, END_H, isActiveOn } from './lib/constants';
 import { BASE_FONT, loadDisplay } from './lib/display';
 import { bizNow, setDayEnd } from './lib/schedule';
@@ -33,6 +34,7 @@ export default function App() {
     if (t === 'now') { setDate(bizNow().date); setCalOpen(false); } // 현황판은 늘 오늘
     setTab(t);
   };
+  useEffect(() => holdUpdate(settingsDirty), [settingsDirty]); // 저장 안 한 설정이 있으면 자동 새로고침 미룸
   useEffect(() => {
     if (!settingsDirty) return;
     const warn = e => { e.preventDefault(); e.returnValue = ''; };
