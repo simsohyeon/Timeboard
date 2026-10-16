@@ -28,3 +28,6 @@ export const minLabel = m => {
   const h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0');
   return `${ampmOf(h)} ${((h + 11) % 12) + 1}:${mm}`;
 };
+
+// 이름에 '님'을 붙인다 — '사장님'처럼 이미 '님'으로 끝나면 그대로
+export const nim = name => (name?.endsWith('님') ? name : `${name}님`);

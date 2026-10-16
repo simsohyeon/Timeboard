@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, fmtDate } from '../api';
-import { DAYS, minLabel } from '../lib/constants';
+import { DAYS, minLabel, nim } from '../lib/constants';
 import { altStaff, leaveLabel, bizToday } from '../lib/schedule';
 import DatePicker from './DatePicker';
 import { Button, FieldGroup, IconButton, Modal, Select, TrashIcon } from './ui';
@@ -105,7 +105,7 @@ function LeaveModal({ staff, allStaff, leaves, openMin, closeMin, onClose }) {
     const left = conflicts.filter(r => !moved[r.id]).length;
     return (
       <Modal className="leave-modal" title={`겹치는 예약 ${conflicts.length}건`} onClose={() => onClose(true)}>
-        <p className="leave-sub">휴가는 저장했어요. {staff.name}님 예약을 다른 담당자에게 옮길 수 있어요.</p>
+        <p className="leave-sub">휴가는 저장했어요. {nim(staff.name)} 예약을 다른 담당자에게 옮길 수 있어요.</p>
         <div className="lc-list">
           {conflicts.map(r => {
             const alts = altStaff(r, allStaff, allResv, newLeaves, openMin, closeMin);

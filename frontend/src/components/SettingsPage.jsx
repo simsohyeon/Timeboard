@@ -1,23 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, fmtDate } from '../api';
+import { api } from '../api';
 import { DAYS, DUR_OPTIONS, PALETTE, minLabel } from '../lib/constants';
 import { BASE_FONT, FONT_SIZES, DENSITIES, loadDisplay, saveDisplay } from '../lib/display';
 import DatePicker from './DatePicker';
 import LeavePanel from './LeavePanel';
 import { bizToday } from '../lib/schedule';
 import {
-  Button, Checkbox, ChipGroup, ColorPicker, Field, FieldGroup, FormBar, GripIcon,
-  IconButton, Select, TrashIcon, useDraft, useDragSort, useSaver,
+  FormBar, GripIcon, IconButton, Select, TrashIcon, countChanges, useDraft, useDragSort, useSaver,
 } from './ui';
 
 const SECTIONS = [
-  ['staff', '담당자'],
-  ['store', '매장 운영'],
-  ['display', '화면'],
+  ['staff', '담당자', '담당자 한 명이 예약 보드의 세로 칸 하나예요.'],
+  ['store', '매장 운영', ''], // 설명 없이 바로 운영 시간·메뉴 카드부터
+  ['display', '화면', '이 기기에서만 적용돼요. 고르면 바로 바뀌고, 저장해야 유지돼요.'],
 ];
 const LEAVE_MSG = '저장하지 않은 변경이 있어요. 저장하지 않고 이동할까요?';
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
-const DAY_OPTS = DAYS.map((d, i) => ({ value: i, label: d }));
 const num = v => parseInt(String(v).replace(/\D/g, ''), 10) || 0;
 const openOpts = Array.from({ length: 24 }, (_, h) => ({ value: h * 60, label: minLabel(h * 60) }));
 // 마감은 자정 넘어 다음날 새벽 6시까지 고를 수 있다 (새벽 영업)
@@ -27,7 +25,16 @@ const closeOpts = Array.from({ length: 30 }, (_, i) => {
 });
 let tempId = -1; // 아직 저장 안 한 새 항목의 임시 id (음수)
 
-// 설정: 섹션마다 초안을 편집하고 [저장]으로 한 번에 반영, [취소]로 되돌림
+const md = s => `${+s.slice(5, 7)}/${+s.slice(8, 10)}`;
+const daysLabel = d => {
+  if (d.length === 7) return '매일';
+  if (!d.length) return '근무일 없음';
+  if (d.length === 2 && d[0] === 0 && d[1] === 6) return '주말';
+  if (d.length >= 3 && d.every((x, i) => !i || x === d[i - 1] + 1)) return `${DAYS[d[0]]}–${DAYS[d[d.length - 1]]}`;
+  return d.map(x => DAYS[x]).join('·');
+};
+
+// 설정: 섹션마다 초안을 편집하고 [저장]으로 한 번에 반영, [되돌리기]로 원래대로
 export default function SettingsPage({
   staff, menus, settings, display, onDisplay, leaves = [], leaveErr = '', onLeavesChanged,
   onStaffChanged, onMenusChanged, onSettingsChanged, onDirtyChange,
@@ -48,15 +55,17 @@ export default function SettingsPage({
 
   return (
     <div className="settings">
-      <nav className="set-nav" aria-label="설정 메뉴">
-        {SECTIONS.map(([k, label]) => (
-          <button key={k} type="button" className={'set-nav-item' + (sec === k ? ' on' : '')}
-            aria-current={sec === k ? 'page' : undefined} onClick={() => go(k)}>
-            {label}
-          </button>
-        ))}
-      </nav>
-      <div className="set-body">
+      <div className="set-wrap">
+        <div className="set-top">
+          <h1>설정</h1>
+          <div className="seg" role="tablist" aria-label="설정 메뉴">
+            {SECTIONS.map(([k, label]) => (
+              <button key={k} type="button" role="tab" aria-selected={sec === k} className={sec === k ? 'on' : ''}
+                onClick={() => go(k)}>{label}</button>
+            ))}
+          </div>
+        </div>
+        {SECTIONS.find(s => s[0] === sec)[2] && <p className="set-lead">{SECTIONS.find(s => s[0] === sec)[2]}</p>}
         {sec === 'staff' && <StaffSection staff={staff} openMin={openMin} closeMin={closeMin} onSaved={onStaffChanged} onDirty={setDirty}
           leaves={leaves} leaveErr={leaveErr} onLeavesChanged={onLeavesChanged} />}
         {sec === 'store' && <StoreSection menus={menus} openMin={openMin} closeMin={closeMin}
@@ -67,22 +76,47 @@ export default function SettingsPage({
   );
 }
 
-function SectionHead({ title, desc, children }) {
+// 제목 + 흰 카드 묶음
+function Group({ title, action, className = '', children }) {
   return (
-    <header className="set-head">
-      <div><h1>{title}</h1><p>{desc}</p></div>
-      {children && <div className="set-head-right">{children}</div>}
-    </header>
+    <section className="set-grp">
+      <div className="set-grp-h"><h3>{title}</h3>{action}</div>
+      <div className={'set-box ' + className}>{children}</div>
+    </section>
   );
 }
 
+// 카드 안 한 줄: 왼쪽 라벨(+설명), 오른쪽 값·입력
+function Row({ label, desc, as: Tag = 'div', children }) {
+  return (
+    <Tag className="set-row">
+      {desc
+        ? <span className="set-row-t"><b>{label}</b><small>{desc}</small></span>
+        : <span className="set-row-l">{label}</span>}
+      {children}
+    </Tag>
+  );
+}
+
+function Switch({ on, label, disabled, onChange }) {
+  return (
+    <button type="button" role="switch" aria-checked={!!on} aria-label={label} disabled={disabled}
+      className={'switch' + (on ? ' on' : '')} onClick={() => onChange(!on)}><i /></button>
+  );
+}
+
+const Avatar = ({ s, lg }) => (
+  <i className={'avatar' + (lg ? ' lg' : '')} style={{ '--c': s.dotColor || 'var(--blue)' }}>{s.name.slice(0, 1)}</i>
+);
+
 // ───────────── 담당자 ─────────────
 function StaffSection({ staff, openMin, closeMin, onSaved, onDirty, leaves, leaveErr, onLeavesChanged }) {
-  const { draft, setDraft, dirty, reset } = useDraft(staff);
+  const { draft, setDraft, dirty, changes, reset } = useDraft(staff);
   useEffect(() => onDirty(dirty), [dirty]);
   const { status, setStatus, save, fail } = useSaver();
   const [selId, setSelId] = useState(null);
   const sel = draft.find(s => s.id === selId) ?? draft[0];
+  const today = bizToday();
 
   const patch = p => setDraft(d => d.map(s => (s.id === sel.id ? { ...s, ...p } : s)));
   const sort = useDragSort(draft, order => setDraft(d => order.map(id => d.find(s => s.id === id))));
@@ -91,16 +125,15 @@ function StaffSection({ staff, openMin, closeMin, onSaved, onDirty, leaves, leav
     const days = daysOf(sel);
     patch({ workDays: days.includes(day) ? days.filter(x => x !== day) : [...days, day].sort() });
   };
-  const summary = s => {
-    const days = daysOf(s);
-    const parts = [days.length === 7 ? '매일' : days.length ? days.map(d => DAYS[d]).join('·') : '근무일 없음'];
-    if (s.commissionPct) parts.push(`${s.commissionPct}%`);
-    if (s.leftOn) parts.push(`퇴사 ${s.leftOn}`);
-    const today = bizToday();
-    if (leaves.some(l => l.staffId === s.id && l.startDate <= today && today <= l.endDate)) parts.push('오늘 휴가');
-    else if (leaves.some(l => l.staffId === s.id && l.startDate > today)) parts.push('휴가 예정');
-    if (s.id < 0) parts.push('새로 추가');
-    return parts.join(' · ');
+  // [종류, 글자] — 목록·상세 머리에 붙는 상태 표시
+  const statusOf = s => {
+    if (s.leftOn) return ['warn', s.leftOn < today ? '퇴사' : `${md(s.leftOn)} 퇴사`];
+    const mine = leaves.filter(l => l.staffId === s.id);
+    if (mine.some(l => l.startDate <= today && today <= l.endDate)) return ['lv', '오늘 휴가'];
+    const next = mine.filter(l => l.startDate > today).sort((a, b) => (a.startDate < b.startDate ? -1 : 1))[0];
+    if (next) return ['lv', `${md(next.startDate)} 휴가`];
+    if (s.id < 0) return ['new', '새로 추가'];
+    return ['ok', '재직 중'];
   };
 
   const add = () => {
@@ -139,97 +172,140 @@ function StaffSection({ staff, openMin, closeMin, onSaved, onDirty, leaves, leav
     ]), onSaved);
   };
 
+  const [selKind, selText] = sel ? statusOf(sel) : [];
   return (<>
-    <SectionHead title="담당자" desc="보드의 세로 칸 하나가 담당자 한 명이에요. 왼쪽 ⠿ 를 끌어서 보드 칸 순서를 바꿀 수 있어요.">
-      <Button variant="primary" className="set-add" onClick={add}>+ 담당자 추가</Button>
-    </SectionHead>
     <div className="staff-layout">
-      <div className="set-card staff-list">
-        {sort.ordered.map(s => (
-          <div key={s.id} data-sort-id={s.id}
-            className={'staff-row' + (sel?.id === s.id ? ' on' : '') + (sort.dragId === s.id ? ' dragging' : '')}>
-            <span className="drag-handle" aria-label={`${s.name} 순서 끌어서 바꾸기`} title="끌어서 순서 바꾸기"
-              {...sort.handleProps(s.id)}><GripIcon /></span>
-            <button type="button" className="staff-pick" onClick={() => setSelId(s.id)}
-              aria-current={sel?.id === s.id ? 'true' : undefined}>
-              <i className="dot" style={{ background: s.dotColor || '#d1d6db' }} />
-              <span className="staff-name">{s.name || '(이름 없음)'}</span>
-              <span className="staff-sum">{summary(s)}</span>
-            </button>
-          </div>
-        ))}
-      </div>
+      <aside className="set-box staff-list">
+        <div className="staff-list-h">
+          <b>담당자<span>{draft.length}</span></b>
+          <button type="button" className="set-link" onClick={add}>+ 추가</button>
+        </div>
+        <div className="staff-items">
+          {sort.ordered.map(s => {
+            const [kind, text] = statusOf(s);
+            const days = daysOf(s);
+            return (
+              <div key={s.id} data-sort-id={s.id}
+                className={'staff-row' + (sel?.id === s.id ? ' on' : '') + (sort.dragId === s.id ? ' dragging' : '')
+                  + (s.leftOn && s.leftOn < today ? ' gone' : '')}>
+                <span className="drag-handle" aria-label={`${s.name} 순서 끌어서 바꾸기`} title="끌어서 순서 바꾸기"
+                  {...sort.handleProps(s.id)}><GripIcon /></span>
+                <button type="button" className="staff-pick" onClick={() => setSelId(s.id)}
+                  aria-current={sel?.id === s.id ? 'true' : undefined}>
+                  <Avatar s={s} />
+                  <span className="staff-t">
+                    <b>{s.name || '(이름 없음)'}</b>
+                    <span className="week" style={{ '--c': s.dotColor || 'var(--blue)' }} aria-label={`${daysLabel(days)} 근무`}>
+                      {ALL_DAYS.map(i => <i key={i} className={days.includes(i) ? 'on' : ''} />)}
+                    </span>
+                  </span>
+                  <span className="staff-m">
+                    {s.commissionPct || 0}%
+                    {kind !== 'ok' && <span className={'set-pill ' + kind}>{text}</span>}
+                  </span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <p className="staff-hint">순서가 보드 칸 순서예요. 이름 왼쪽 손잡이를 끌어서 바꿀 수 있어요.</p>
+      </aside>
 
       {sel && (
-        <div className="set-card staff-panel" key={sel.id}>
-          <div className="staff-panel-head">
-            <ColorPicker value={sel.dotColor} palette={PALETTE} label={`${sel.name} 색 바꾸기`}
-              onChange={c => patch({ dotColor: c })} />
-            <input className="inl" value={sel.name} maxLength={10} aria-label="담당자 이름"
-              onChange={e => patch({ name: e.target.value })} />
+        <div className="staff-detail" key={sel.id}>
+          <div className="set-box staff-prof">
+            <Avatar s={sel} lg />
+            <div className="staff-prof-t">
+              <h2>{sel.name || '(이름 없음)'} <span className={'set-pill ' + selKind}>{selText}</span></h2>
+              <p>
+                {daysLabel(daysOf(sel))} 근무 · {sel.workOpenMin == null
+                  ? '매장 시간과 같음' : `${minLabel(sel.workOpenMin)} ~ ${minLabel(sel.workCloseMin)}`} · 정산 {sel.commissionPct || 0}%
+              </p>
+            </div>
+            <div className="palette" role="group" aria-label="보드 색">
+              <span>보드 색</span>
+              {PALETTE.map(c => (
+                <button key={c} type="button" aria-pressed={c === sel.dotColor} aria-label={`색 ${c}`}
+                  style={{ '--c': c }} onClick={() => patch({ dotColor: c })}><i /></button>
+              ))}
+            </div>
           </div>
 
-          <Field label="연락처">
-            <input value={sel.phone || ''} inputMode="tel" placeholder="010-0000-0000" maxLength={20}
-              onChange={e => patch({ phone: e.target.value })} />
-          </Field>
+          <Group title="기본 정보">
+            <Row label="이름" as="label">
+              <input className="row-in strong" value={sel.name} maxLength={10} placeholder="이름"
+                onChange={e => patch({ name: e.target.value })} />
+            </Row>
+            <Row label="연락처" as="label">
+              <input className="row-in" value={sel.phone || ''} inputMode="tel" placeholder="010-0000-0000" maxLength={20}
+                onChange={e => patch({ phone: e.target.value })} />
+            </Row>
+          </Group>
 
-          <FieldGroup label="근무 요일">
-            <ChipGroup options={DAY_OPTS} selected={daysOf(sel)} onToggle={toggleDay} />
-          </FieldGroup>
-
-          <FieldGroup label="근무 시간">
-            <Checkbox label="매장 운영 시간과 같음" checked={sel.workOpenMin == null}
-              onChange={same => patch(same
-                ? { workOpenMin: null, workCloseMin: null }
-                : { workOpenMin: openMin, workCloseMin: closeMin })} />
-            {sel.workOpenMin != null && (
-              <div className="hours-row">
-                <Select value={sel.workOpenMin} onChange={v => patch({ workOpenMin: Number(v) })} options={openOpts} />
-                <span className="hours-tilde">~</span>
-                <Select value={sel.workCloseMin} onChange={v => patch({ workCloseMin: Number(v) })} options={closeOpts} />
+          <Group title="근무">
+            <Row label="근무 요일">
+              <div className="day-pick" role="group" aria-label="근무 요일">
+                {DAYS.map((d, i) => {
+                  const on = daysOf(sel).includes(i);
+                  return <button key={d} type="button" className={on ? 'on' : ''} aria-pressed={on} onClick={() => toggleDay(i)}>{d}</button>;
+                })}
               </div>
+            </Row>
+            <Row label="매장 운영 시간과 같음" desc={`${minLabel(openMin)} ~ ${minLabel(closeMin)}`}>
+              <Switch on={sel.workOpenMin == null} label="매장 운영 시간과 같음"
+                onChange={same => patch(same
+                  ? { workOpenMin: null, workCloseMin: null }
+                  : { workOpenMin: openMin, workCloseMin: closeMin })} />
+            </Row>
+            {sel.workOpenMin != null && (
+              <Row label="근무 시간">
+                <div className="row-ctl hours-row">
+                  <Select value={sel.workOpenMin} onChange={v => patch({ workOpenMin: Number(v) })} options={openOpts} />
+                  <span className="hours-tilde">~</span>
+                  <Select value={sel.workCloseMin} onChange={v => patch({ workCloseMin: Number(v) })} options={closeOpts} />
+                </div>
+              </Row>
             )}
-          </FieldGroup>
+          </Group>
 
-          <FieldGroup label="휴가 · 반차 · 외출">
+          <Group title="휴가 · 반차 · 외출" className="pad">
             <LeavePanel staff={sel} allStaff={staff} leaves={leaves} openMin={openMin} closeMin={closeMin}
               error={leaveErr} onChanged={onLeavesChanged} />
-          </FieldGroup>
+          </Group>
 
-          <div className="m-row">
-            <FieldGroup label="입사일">
-              <DatePicker value={sel.joinedOn} aria-label="입사일" onChange={v => patch({ joinedOn: v })} />
-            </FieldGroup>
-            <FieldGroup label="퇴사일">
-              <DatePicker value={sel.leftOn} placeholder="재직 중" aria-label="퇴사일" onChange={v => patch({ leftOn: v })} />
-            </FieldGroup>
-          </div>
-          <div className="m-row">
-            <Field label="정산 비율">
-              <div className="suffix">
-                <input value={sel.commissionPct || 0} inputMode="numeric" aria-label="정산 비율"
-                  onChange={e => patch({ commissionPct: Math.min(100, num(e.target.value)) })} />
-                <span>%</span>
+          <Group title="정산 · 재직">
+            <Row label="정산 비율" as="label">
+              <input className="row-in strong" value={sel.commissionPct || 0} inputMode="numeric"
+                onChange={e => patch({ commissionPct: Math.min(100, num(e.target.value)) })} />
+              <span className="row-unit">%</span>
+            </Row>
+            <p className="set-note">정산액 = 그 담당자 매출 × 비율</p>
+            <Row label="입사일">
+              <div className="row-ctl">
+                <DatePicker value={sel.joinedOn} placeholder="입력 안 함" aria-label="입사일" onChange={v => patch({ joinedOn: v })} />
               </div>
-            </Field>
-            <span className="field-spacer" aria-hidden="true" />
-          </div>
-          <span className="set-hint">퇴사일 다음 날부터 보드에서 사라지고, 예약·정산 기록은 남아요. 정산액 = 매출 × 비율.</span>
+            </Row>
+            <Row label="퇴사일">
+              <div className="row-ctl">
+                <DatePicker value={sel.leftOn} placeholder="재직 중" aria-label="퇴사일" onChange={v => patch({ leftOn: v })} />
+              </div>
+            </Row>
+            <p className="set-note">퇴사일 다음 날부터 보드에서 빠지고, 예약·정산 기록은 남아요.</p>
+          </Group>
 
-          <Field label="메모">
-            <textarea value={sel.memo || ''} rows={3} maxLength={300}
-              placeholder="특이사항, 가능한 메뉴 등" onChange={e => patch({ memo: e.target.value })} />
-          </Field>
+          <Group title="메모">
+            <textarea className="set-memo" value={sel.memo || ''} rows={3} maxLength={300} aria-label="메모"
+              placeholder="특이사항, 할 수 있는 메뉴 등" onChange={e => patch({ memo: e.target.value })} />
+          </Group>
 
-          <div className="staff-panel-foot">
-            <Button variant="danger" className="small" onClick={() => remove(sel)}>담당자 삭제</Button>
-            <span className="set-hint">저장하면 예약 기록까지 지워져요</span>
+          <div className="staff-danger">
+            <button type="button" onClick={() => remove(sel)}>담당자 삭제</button>
+            <p>저장하면 예약 기록까지 지워져요. 그만둔 직원은 삭제 대신 퇴사일을 넣어주세요.</p>
           </div>
         </div>
       )}
     </div>
-    <FormBar dirty={dirty} status={status} onSave={submit}
+    <FormBar dirty={dirty} changes={changes} status={status} onSave={submit}
       onCancel={() => { reset(); setSelId(null); setStatus({ kind: 'idle' }); }} />
   </>);
 }
@@ -255,6 +331,7 @@ function StoreSection({ menus, openMin, closeMin, onMenusSaved, onHoursSaved, on
   const hours = H.draft;
   // 운영시간 막대: 자정 넘어 영업하면 다음날 새벽 6시(30시간)까지 그린다
   const span = hours.closeMin > 1440 ? 1800 : 1440;
+  const len = Math.max(0, hours.closeMin - hours.openMin);
   const setRow = (id, fn) => M.setDraft(rows => rows.map(r => (r.id === id ? fn(r) : r)));
   const setCell = (id, d, v) => setRow(id, r => ({ ...r, cells: { ...r.cells, [d]: v } }));
   const offCell = (id, d) => setRow(id, r => { const cells = { ...r.cells }; delete cells[d]; return { ...r, cells }; });
@@ -293,91 +370,110 @@ function StoreSection({ menus, openMin, closeMin, onMenusSaved, onHoursSaved, on
   };
 
   return (<>
-    <SectionHead title="매장 운영" desc="예약 보드에 보이는 운영 시간과, 예약할 때 고르는 메뉴·가격이에요." />
-
-    <section className="store-block">
-      <div className="store-block-head">
-        <div><h2>운영 시간</h2><p>담당자별 근무 시간은 담당자에서 따로 정해요.</p></div>
-      </div>
-      <div className="set-card hours-card">
-        <div className="hours-row">
-          <Select value={hours.openMin} onChange={v => H.setDraft(d => ({ ...d, openMin: Number(v) }))} options={openOpts} />
-          <span className="hours-tilde">~</span>
-          <Select value={hours.closeMin} onChange={v => H.setDraft(d => ({ ...d, closeMin: Number(v) }))} options={closeOpts} />
-          <span className="set-hint hours-total">하루 {Math.max(0, hours.closeMin - hours.openMin) / 60}시간</span>
+    <div className="set-cols">
+      <Group title="운영 시간">
+        <Row label="여는 시간">
+          <div className="row-ctl">
+            <Select value={hours.openMin} onChange={v => H.setDraft(d => ({ ...d, openMin: Number(v) }))} options={openOpts} />
+          </div>
+        </Row>
+        <Row label="닫는 시간">
+          <div className="row-ctl">
+            <Select value={hours.closeMin} onChange={v => H.setDraft(d => ({ ...d, closeMin: Number(v) }))} options={closeOpts} />
+          </div>
+        </Row>
+        <div className="hours-viz">
+          <p>하루 {len / 60}시간 · 담당자별 근무 시간은 담당자에서 따로 정해요.</p>
+          <div className="hours-bar">
+            <i style={{ left: `${hours.openMin / span * 100}%`, width: `${len / span * 100}%` }} />
+          </div>
+          <div className="hours-ticks">
+            <span>0시</span><span>6시</span><span>12시</span><span>18시</span><span>24시</span>{span > 1440 && <span>새벽 6시</span>}
+          </div>
         </div>
-        <div className="hours-bar">
-          <i style={{ left: `${hours.openMin / span * 100}%`, width: `${Math.max(0, hours.closeMin - hours.openMin) / span * 100}%` }} />
-        </div>
-        <div className="hours-ticks">
-          <span>0시</span><span>6시</span><span>12시</span><span>18시</span><span>24시</span>{span > 1440 && <span>새벽 6시</span>}
-        </div>
-      </div>
-    </section>
+      </Group>
 
-    <section className="store-block">
-      <div className="store-block-head">
-        <div><h2>메뉴·가격</h2><p>가격이 있는 칸만 예약할 때 고를 수 있어요. 가격을 비우면 그 시간은 꺼져요.</p></div>
-        <Button variant="primary" className="set-add" onClick={addMenu}>+ 메뉴 추가</Button>
-      </div>
-      <div className="set-card set-table-wrap">
-        <table className="price-table">
-          <thead>
-            <tr>
-              <th scope="col">메뉴</th>
-              {DUR_OPTIONS.map(d => <th scope="col" key={d}>{d}분</th>)}
-              <th scope="col"><span className="sr-only">삭제</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {M.draft.map(r => (
-              <tr key={r.id}>
-                <td>
-                  <input className="inl" value={r.name} maxLength={10} aria-label="메뉴 이름"
-                    onChange={e => setRow(r.id, x => ({ ...x, name: e.target.value }))} />
-                </td>
-                {DUR_OPTIONS.map(d => (
-                  <td key={d}>
-                    {r.cells[d] !== undefined ? (
-                      <input className="cell-price" value={fmtStr(r.cells[d])} inputMode="numeric"
-                        aria-label={`${r.name} ${d}분 가격`}
-                        onChange={e => setCell(r.id, d, e.target.value.replace(/\D/g, ''))}
-                        onBlur={e => e.target.value === '' && offCell(r.id, d)}
-                        autoFocus={focusKey === `${r.id}-${d}`} onFocus={e => e.target.select()} />
-                    ) : (
-                      <button type="button" className="cell-off" aria-label={`${r.name} ${d}분 켜기`}
-                        onClick={() => { setFocusKey(`${r.id}-${d}`); setCell(r.id, d, '0'); }}>+</button>
-                    )}
-                  </td>
-                ))}
-                <td>
-                  <IconButton label={`${r.name} 삭제`} danger
-                    onClick={() => M.setDraft(rows => rows.filter(x => x.id !== r.id))}><TrashIcon /></IconButton>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="set-legend">
-        <span><i className="lg-on" />가격 있음 = 예약 가능</span>
-        <span><i className="lg-off" />누르면 켜짐</span>
-      </p>
-    </section>
+      <section className="set-grp">
+        <div className="set-grp-h">
+          <h3>메뉴 · 가격</h3>
+          <button type="button" className="set-link" onClick={addMenu}>+ 메뉴 추가</button>
+        </div>
+        {M.draft.map(r => (
+          <div className="set-box menu-card" key={r.id}>
+            <div className="menu-card-h">
+              <input className="inl" value={r.name} maxLength={10} aria-label="메뉴 이름"
+                onChange={e => setRow(r.id, x => ({ ...x, name: e.target.value }))} />
+              <IconButton label={`${r.name} 삭제`} danger
+                onClick={() => M.setDraft(rows => rows.filter(x => x.id !== r.id))}><TrashIcon /></IconButton>
+            </div>
+            <div className="price-cells">
+              {DUR_OPTIONS.map(d => (r.cells[d] !== undefined ? (
+                <label className="price-cell on" key={d}>
+                  <small>{d}분</small>
+                  <span>
+                    <input value={fmtStr(r.cells[d])} inputMode="numeric" aria-label={`${r.name} ${d}분 가격`}
+                      onChange={e => setCell(r.id, d, e.target.value.replace(/\D/g, ''))}
+                      onBlur={e => e.target.value === '' && offCell(r.id, d)}
+                      autoFocus={focusKey === `${r.id}-${d}`} onFocus={e => e.target.select()} />원
+                  </span>
+                </label>
+              ) : (
+                <button key={d} type="button" className="price-cell off" aria-label={`${r.name} ${d}분 켜기`}
+                  onClick={() => { setFocusKey(`${r.id}-${d}`); setCell(r.id, d, '0'); }}>+ {d}분</button>
+              )))}
+            </div>
+          </div>
+        ))}
+        <p className="set-legend">가격이 있는 시간만 예약할 때 고를 수 있어요. 가격을 지우면 그 시간은 꺼져요.</p>
+      </section>
+    </div>
 
-    <FormBar dirty={dirty} status={status} onSave={submit}
+    <FormBar dirty={dirty} changes={H.changes + M.changes} status={status} onSave={submit}
       onCancel={() => { H.reset(); M.reset(); setStatus({ kind: 'idle' }); }} />
   </>);
 }
 
 // ───────────── 화면 (이 기기에만 저장) ─────────────
 // 고르는 즉시 미리보기로 적용하고, [저장]해야 기기에 남는다. 저장 안 하고 나가면 원래대로.
-const TOGGLES = [
-  ['halfLine', '30분 보조선', '보드에 30분 단위 점선을 표시해요'],
-  ['hidePrice', '금액 숨기기', '예약 화면에서 금액을 감춰요 (결제 탭에는 표시)'],
+const BOARD_TOGGLES = [
+  ['halfLine', '30분 보조선', '보드에 30분마다 점선을 그어요'],
+  ['hidePrice', '금액 숨기기', '예약 화면에서 금액을 감춰요 (결제 탭에는 보여요)'],
+];
+const DEVICE_TOGGLES = [
   ['dark', '다크 모드', '어두운 배경으로 바꿔요'],
   ['keepAwake', '화면 항상 켜기', '앱이 떠 있는 동안 화면이 꺼지지 않아요'],
 ];
+// 밀도·보조선·금액 숨기기를 바로 확인하는 작은 보드 (오후 1~4시, 예시 예약 2건)
+const PV = [
+  { c: PALETTE[0], start: 810, dur: 60, what: '커트 60분', price: '25,000원' },
+  { c: PALETTE[1], start: 780, dur: 90, what: '펌 90분', price: '60,000원' },
+];
+const clock = m => minLabel(m).split(' ')[1];
+
+function BoardPreview({ d }) {
+  const h = Math.round(d.hourPx * 0.8);
+  const lines = [0, 1, 2].flatMap(i => [
+    <i key={i} className="hline" style={{ top: i * h }} />,
+    d.halfLine && <i key={`${i}h`} className="hline half" style={{ top: i * h + h / 2 }} />,
+  ]);
+  return (
+    <div className="pv" style={{ '--h': `${h}px` }} aria-hidden="true">
+      <span className="pv-h" />
+      {PV.map((p, i) => <span key={i} className="pv-h"><i className="dot" style={{ background: p.c }} />담당자 {i + 1}</span>)}
+      <div className="pv-t">{[13, 14, 15].map((x, i) => <span key={x} style={{ top: i * h }}>{minLabel(x * 60)}</span>)}</div>
+      {PV.map((p, i) => (
+        <div key={i} className="pv-col">
+          {lines}
+          <div className="resv" style={{ '--c': p.c, top: (p.start - 780) / 60 * h + 2, height: p.dur / 60 * h - 4 }}>
+            <small>{clock(p.start)} – {clock(p.start + p.dur)}</small>
+            <b>예시 손님</b>
+            <span>{p.what}{d.hidePrice ? '' : ` · ${p.price}`}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function DisplaySection({ display, onDisplay, onDirty }) {
   const [saved, setSaved] = useState(loadDisplay);
@@ -388,47 +484,45 @@ function DisplaySection({ display, onDisplay, onDirty }) {
   const { status, setStatus } = useSaver();
   const set = p => { onDisplay(d => ({ ...d, ...p })); setStatus({ kind: 'idle' }); };
   const wakeOk = 'wakeLock' in navigator;
+  const toggles = list => list.map(([key, label, desc]) => {
+    const off = key === 'keepAwake' && !wakeOk;
+    return (
+      <Row key={key} label={label} desc={desc + (off ? ' — 이 브라우저는 지원하지 않아요' : '')}>
+        <Switch on={display[key]} label={label} disabled={off} onChange={v => set({ [key]: v })} />
+      </Row>
+    );
+  });
 
   return (<>
-    <SectionHead title="화면" desc="이 기기에서만 적용돼요. 고르면 바로 미리보기로 바뀌고, 저장해야 유지돼요." />
-    <div className="set-card display-card">
-      <FieldGroup label="글자 크기">
-        <div className="chips" role="group" aria-label="글자 크기">
-          {FONT_SIZES.map(px => (
-            <button key={px} type="button" className={'chip-tg' + (px === display.fontPx ? ' on' : '')}
-              aria-pressed={px === display.fontPx} onClick={() => set({ fontPx: px })}>
-              {px}px{px === BASE_FONT ? ' (기본)' : ''}
-            </button>
-          ))}
-        </div>
-      </FieldGroup>
-      <FieldGroup label="보드 밀도">
-        <div className="chips" role="group" aria-label="보드 밀도">
-          {DENSITIES.map(({ label, v }) => (
-            <button key={v} type="button" className={'chip-tg' + (v === display.hourPx ? ' on' : '')}
-              aria-pressed={v === display.hourPx} onClick={() => set({ hourPx: v })}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </FieldGroup>
-      {TOGGLES.map(([key, label, desc]) => {
-        const off = key === 'keepAwake' && !wakeOk;
-        return (
-          <div className="disp-row toggle-row" key={key}>
-            <div>
-              <span className="set-label">{label}</span>
-              <p className="set-hint">{desc}{off ? ' — 이 브라우저는 지원하지 않아요' : ''}</p>
-            </div>
-            <button type="button" role="switch" aria-checked={!!display[key]} aria-label={label} disabled={off}
-              className={'switch' + (display[key] ? ' on' : '')} onClick={() => set({ [key]: !display[key] })}>
-              <i />
-            </button>
+    <div className="set-cols">
+      <Group title="글자 · 보드">
+        <Row label="글자 크기">
+          <div className="seg-chips" role="group" aria-label="글자 크기">
+            {FONT_SIZES.map(px => (
+              <button key={px} type="button" aria-pressed={px === display.fontPx} onClick={() => set({ fontPx: px })}>
+                {px}{px === BASE_FONT ? ' 기본' : ''}
+              </button>
+            ))}
           </div>
-        );
-      })}
+        </Row>
+        <Row label="보드 밀도">
+          <div className="seg-chips" role="group" aria-label="보드 밀도">
+            {DENSITIES.map(({ label, v }) => (
+              <button key={v} type="button" aria-pressed={v === display.hourPx} onClick={() => set({ hourPx: v })}>{label}</button>
+            ))}
+          </div>
+        </Row>
+        <div className="disp-preview">
+          <p>보드 미리보기</p>
+          <BoardPreview d={display} />
+        </div>
+      </Group>
+      <div className="set-stack">
+        <Group title="보드 표시">{toggles(BOARD_TOGGLES)}</Group>
+        <Group title="이 기기">{toggles(DEVICE_TOGGLES)}</Group>
+      </div>
     </div>
-    <FormBar dirty={dirty} status={status}
+    <FormBar dirty={dirty} changes={countChanges(display, saved)} status={status}
       onSave={() => { saveDisplay(display); setSaved(display); setStatus({ kind: 'saved' }); }}
       onCancel={() => { onDisplay(saved); setStatus({ kind: 'idle' }); }} />
   </>);
