@@ -11,7 +11,7 @@ import {
 
 const SECTIONS = [
   ['staff', '담당자', '담당자 한 명이 예약 보드의 세로 칸 하나예요.'],
-  ['store', '매장 운영', '예약 보드에 보이는 운영 시간과, 예약할 때 고르는 메뉴·가격이에요.'],
+  ['store', '매장 운영', ''], // 설명 없이 바로 운영 시간·메뉴 카드부터
   ['display', '화면', '이 기기에서만 적용돼요. 고르면 바로 바뀌고, 저장해야 유지돼요.'],
 ];
 const LEAVE_MSG = '저장하지 않은 변경이 있어요. 저장하지 않고 이동할까요?';
@@ -65,7 +65,7 @@ export default function SettingsPage({
             ))}
           </div>
         </div>
-        <p className="set-lead">{SECTIONS.find(s => s[0] === sec)[2]}</p>
+        {SECTIONS.find(s => s[0] === sec)[2] && <p className="set-lead">{SECTIONS.find(s => s[0] === sec)[2]}</p>}
         {sec === 'staff' && <StaffSection staff={staff} openMin={openMin} closeMin={closeMin} onSaved={onStaffChanged} onDirty={setDirty}
           leaves={leaves} leaveErr={leaveErr} onLeavesChanged={onLeavesChanged} />}
         {sec === 'store' && <StoreSection menus={menus} openMin={openMin} closeMin={closeMin}

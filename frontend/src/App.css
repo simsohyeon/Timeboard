@@ -665,7 +665,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 
 /* ───── 결제 (담당자별 정산) ───── */
 .payroll { flex: 1; overflow: auto; padding: 24px 28px; }
-.pay-inner { max-width: 1080px; display: flex; flex-direction: column; gap: 14px; }
+.pay-inner { display: flex; flex-direction: column; gap: 14px; }
 /* 요약 3칸 */
 .pay-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .pay-tile { background: var(--line); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -695,7 +695,8 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 
 /* ───── 설정: 회색 바탕 위 흰 카드 묶음, 위쪽 세그먼트로 섹션 전환 ───── */
 .settings { flex: 1; min-height: 0; overflow: auto; background: var(--page); }
-.set-wrap { max-width: 1060px; min-height: 100%; margin: 0 auto; padding: 24px 28px 20px; display: flex; flex-direction: column; }
+/* 다른 탭(예약·지금·결제)처럼 폭 제한 없이 화면을 꽉 채운다 */
+.set-wrap { min-height: 100%; padding: 24px 28px 20px; display: flex; flex-direction: column; }
 .set-top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .set-top h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -.03em; }
 .seg { display: inline-flex; padding: 4px; border-radius: 12px; background: var(--line-strong); }
