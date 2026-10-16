@@ -29,15 +29,6 @@ export function Chevron({ dir = 'down', size = 14 }) {
   );
 }
 
-export function Field({ label, children, className = '' }) {
-  return (
-    <label className={`field ${className}`}>
-      <span className="field-label">{label}</span>
-      {children}
-    </label>
-  );
-}
-
 // 버튼 여러 개를 품는 필드 (label 대신 div — 칩/체크박스 묶음용)
 export function FieldGroup({ label, children, className = '' }) {
   return (
@@ -73,48 +64,6 @@ export function BlurInput({ value, onCommit, format = v => v ?? '', parse = v =>
   return (
     <Tag key={String(value)} className={className} defaultValue={format(value)}
       onBlur={e => { const v = parse(e.target.value); if (v !== value) onCommit(v); }} {...props} />
-  );
-}
-
-// 여러 개 고르는 칩 묶음 (요일, 시간 옵션 등)
-export function ChipGroup({ options, selected, onToggle, className = '' }) {
-  return (
-    <div className={`chips ${className}`}>
-      {options.map(o => {
-        const on = selected.includes(o.value);
-        return (
-          <button key={o.value} type="button" className={'chip-tg' + (on ? ' on' : '')}
-            aria-pressed={on} onClick={() => onToggle(o.value)}>{o.label}</button>
-        );
-      })}
-    </div>
-  );
-}
-
-export function Checkbox({ label, checked, onChange }) {
-  return (
-    <label className="chk">
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
-      {label}
-    </label>
-  );
-}
-
-// 색 점 — 올리거나 포커스하면 팔레트가 떠서 바로 고른다
-export function ColorPicker({ value, palette, onChange, label = '색 바꾸기' }) {
-  return (
-    <div className="pal-wrap">
-      <button type="button" className="dot-btn" aria-label={label}>
-        <i className="dot" style={{ background: value || '#d1d6db' }} />
-      </button>
-      <div className="pal" role="group" aria-label="색 고르기">
-        {palette.map(c => (
-          <button key={c} type="button" className={'pal-c' + (c === value ? ' on' : '')}
-            style={{ background: c }} aria-label={c} aria-pressed={c === value}
-            onClick={() => c !== value && onChange(c)} />
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -178,12 +127,17 @@ export function useDragSort(items, onDrop) {
   return { ordered, dragId: drag?.id ?? null, handleProps };
 }
 
-// 저장 상태 표시: { kind: 'idle' | 'dirty' | 'saving' | 'saved' | 'error', msg }
-export function SaveStatus({ status }) {
-  if (status.kind === 'error') return <span className="save-status err">{status.msg}</span>;
-  const text = { dirty: '저장하지 않은 변경이 있어요', saving: '저장 중', saved: '저장됨' }[status.kind];
-  if (!text) return <span className="save-status" />;
-  return <span className={'save-status ' + status.kind}><i />{text}</span>;
+// 바뀐 값 개수 — id 가 있는 목록은 id 로 맞춰 비교한다 (순서 바꾸기·삭제로 수가 부풀지 않게)
+export function countChanges(a, b) {
+  if (a === b) return 0;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return 1;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    const byId = arr => (arr.every(x => x?.id !== undefined) ? Object.fromEntries(arr.map(x => [x.id, x])) : null);
+    const ia = byId(a), ib = byId(b);
+    if (ia && ib) return countChanges(ia, ib);
+    return JSON.stringify(a) === JSON.stringify(b) ? 0 : 1;
+  }
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])].reduce((n, k) => n + countChanges(a[k], b[k]), 0);
 }
 
 // 편집 초안 — source(서버 값)가 바뀌면(저장 후 다시 불러오면) 초안도 새로 시작한다
@@ -192,7 +146,9 @@ export function useDraft(source) {
   const [draft, setDraft] = useState(source);
   if (source !== base) { setBase(source); setDraft(source); }
   const dirty = JSON.stringify(draft) !== JSON.stringify(base);
-  return { draft, setDraft, dirty, reset: () => setDraft(base) };
+  // 순서만 바뀌면 값 비교로는 0개라서 최소 1개로 센다
+  const changes = dirty ? Math.max(1, countChanges(draft, base)) : 0;
+  return { draft, setDraft, dirty, changes, reset: () => setDraft(base) };
 }
 
 // 저장 실행 + 상태(저장 중/저장됨/오류) 관리
@@ -207,17 +163,21 @@ export function useSaver() {
   return { status, setStatus, save, fail };
 }
 
-// 화면 아래에 붙는 [취소] [저장] 바 — 바뀐 게 없으면 둘 다 비활성
-export function FormBar({ dirty, status, onCancel, onSave }) {
+// 바뀐 게 있을 때만 아래에 떠오르는 [되돌리기] [저장] 바. 저장 직후엔 '저장했어요'를 잠깐 보여준다
+// status: { kind: 'idle' | 'saving' | 'saved' | 'error', msg }
+export function FormBar({ dirty, changes, status, onCancel, onSave }) {
   const saving = status.kind === 'saving';
-  const shown = dirty && status.kind !== 'error' && !saving ? { kind: 'dirty' } : status;
+  if (status.kind === 'saved' && !dirty) return <div className="form-bar saved" role="status">저장했어요</div>;
+  if (!dirty && !saving && status.kind !== 'error') return null;
   return (
-    <div className="form-bar">
-      <SaveStatus status={shown} />
-      <div className="form-bar-btns">
-        <Button onClick={onCancel} disabled={!dirty || saving}>취소</Button>
-        <Button variant="primary" onClick={onSave} disabled={!dirty || saving}>{saving ? '저장 중…' : '저장'}</Button>
-      </div>
+    <div className="form-bar" role="region" aria-label="저장">
+      {status.kind === 'error'
+        ? <span className="form-bar-msg err" role="alert">{status.msg}</span>
+        : <span className="form-bar-msg">저장하지 않은 변경 <b>{changes}개</b></span>}
+      {(dirty || saving) && (<>
+        <Button onClick={onCancel} disabled={saving}>되돌리기</Button>
+        <Button variant="primary" onClick={onSave} disabled={saving}>{saving ? '저장 중…' : '저장'}</Button>
+      </>)}
     </div>
   );
 }
