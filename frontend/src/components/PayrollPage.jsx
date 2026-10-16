@@ -1,4 +1,4 @@
-// 결제: 선택한 날짜의 '완료 처리된' 예약만 담당자별 건수·매출·정산액(매출 × 정산 비율)
+// 결제: 선택한 날짜의 '완료 처리된' 예약만 담당자별 건수·초이스 건수·매출·정산액(매출 × 정산 비율)
 export default function PayrollPage({ staff, list }) {
   const done = list.filter(r => r.done);
   const pending = list.length - done.length;
@@ -6,8 +6,9 @@ export default function PayrollPage({ staff, list }) {
     const rs = done.filter(r => r.staffId === s.id);
     const sum = rs.reduce((a, r) => a + (r.price || 0), 0);
     const pct = s.commissionPct || 0;
-    return { ...s, count: rs.length, sum, pct, share: Math.round(sum * pct / 100) };
+    return { ...s, count: rs.length, choice: rs.filter(r => r.choice).length, sum, pct, share: Math.round(sum * pct / 100) };
   });
+  const totalChoice = byStaff.reduce((a, s) => a + s.choice, 0);
   const total = byStaff.reduce((a, s) => a + s.sum, 0);
   const totalShare = byStaff.reduce((a, s) => a + s.share, 0);
   const won = n => `${n.toLocaleString()}원`;
@@ -28,13 +29,14 @@ export default function PayrollPage({ staff, list }) {
         <div className="set-card pay-card">
           <table className="pay-table">
             <thead>
-              <tr><th>담당자</th><th>완료</th><th>매출</th><th>정산 비율</th><th>정산액</th></tr>
+              <tr><th>담당자</th><th>완료</th><th>초이스</th><th>매출</th><th>정산 비율</th><th>정산액</th></tr>
             </thead>
             <tbody>
               {byStaff.map(s => (
                 <tr key={s.id}>
                   <td>{s.dotColor && <i className="dot" style={{ background: s.dotColor }} />}{s.name}</td>
                   <td>{s.count}건</td>
+                  <td>{s.choice ? `${s.choice}건` : <small>-</small>}</td>
                   <td>{won(s.sum)}</td>
                   <td>{s.pct ? `${s.pct}%` : <small>없음</small>}</td>
                   <td>{s.pct ? won(s.share) : <small>-</small>}</td>
@@ -42,7 +44,7 @@ export default function PayrollPage({ staff, list }) {
               ))}
             </tbody>
             <tfoot>
-              <tr><td>합계</td><td>{done.length}건</td><td>{won(total)}</td><td /><td>{won(totalShare)}</td></tr>
+              <tr><td>합계</td><td>{done.length}건</td><td>{totalChoice}건</td><td>{won(total)}</td><td /><td>{won(totalShare)}</td></tr>
             </tfoot>
           </table>
         </div>

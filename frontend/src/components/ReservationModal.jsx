@@ -38,6 +38,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     dur: initOpt?.dur ?? init.durationMin ?? 60,
     // 저장된 금액이 없으면(새 예약·과거 0원 예약) 메뉴 가격으로
     price: init.price || initOpt?.price || 0,
+    choice: !!init.choice,
   }));
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -142,6 +143,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     title: form.title?.trim() || '고객 등록 필요',
     subtitle: picked ? `${picked.menu} ${picked.dur}분` : (legacy?.label ?? `${form.dur}분`),
     price: Number(form.price) || 0,
+    choice: !!form.choice,
   });
 
   const act = async fn => {
@@ -193,6 +195,12 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                   );
                 })}
               </div>
+              {/* 손님이 담당자를 직접 고른 예약 — 담당자 인센이 더 붙어서 따로 기록 */}
+              <button type="button" role="switch" aria-checked={!!form.choice}
+                className={'rm-choice' + (form.choice ? ' on' : '')} onClick={() => set('choice', !form.choice)}>
+                <span><b>초이스</b><small>손님이 {sel ? nim(sel.name) : '담당자'}을 직접 골랐어요</small></span>
+                <i className={'switch' + (form.choice ? ' on' : '')} aria-hidden="true"><i /></i>
+              </button>
             </section>
 
             <section className="rm-sec">
@@ -308,7 +316,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
         <div className="rm-foot">
           {err && <p className="m-err">{err}</p>}
           <div className="rm-summary">
-            <span>{sel?.name ?? '담당자 미선택'} · {minLabel(start)}–{short(endMin)}</span>
+            <span>{sel?.name ?? '담당자 미선택'}{form.choice && <em className="choice-tag">초이스</em>} · {minLabel(start)}–{short(endMin)}</span>
             {!hidePrice && Number(form.price) > 0 && <b>{Number(form.price).toLocaleString()}원</b>}
           </div>
           {form.id && (
