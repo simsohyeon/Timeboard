@@ -29,7 +29,7 @@ export default function PayrollPage({ staff, list }) {
         <div className="set-card pay-card">
           <table className="pay-table">
             <thead>
-              <tr><th>담당자</th><th>완료</th><th>초이스</th><th>매출</th><th>정산 비율</th><th>정산액</th></tr>
+              <tr><th>담당자</th><th>완료</th><th>초이스</th><th>매출</th><th className="pay-pct">정산 비율</th><th>정산액</th></tr>
             </thead>
             <tbody>
               {byStaff.map(s => (
@@ -38,13 +38,13 @@ export default function PayrollPage({ staff, list }) {
                   <td>{s.count}건</td>
                   <td>{s.choice ? `${s.choice}건` : <small>-</small>}</td>
                   <td>{won(s.sum)}</td>
-                  <td>{s.pct ? `${s.pct}%` : <small>없음</small>}</td>
+                  <td className="pay-pct">{s.pct ? `${s.pct}%` : <small>없음</small>}</td>
                   <td>{s.pct ? won(s.share) : <small>-</small>}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr><td>합계</td><td>{done.length}건</td><td>{totalChoice}건</td><td>{won(total)}</td><td /><td>{won(totalShare)}</td></tr>
+              <tr><td>합계</td><td>{done.length}건</td><td>{totalChoice}건</td><td>{won(total)}</td><td className="pay-pct" /><td>{won(totalShare)}</td></tr>
             </tfoot>
           </table>
         </div>

@@ -78,23 +78,31 @@ function LeaveModal({ staff, allStaff, leaves, openMin, closeMin, onClose }) {
     if (f.endDate < f.startDate) return setErr('끝나는 날이 시작하는 날보다 빨라요');
     if (!f.allDay && f.endMin <= f.startMin) return setErr('끝나는 시각이 시작보다 늦어야 해요');
     setBusy(true); setErr('');
+    let leave;
     try {
-      const leave = await api.createLeave({
+      leave = await api.createLeave({
         staffId: staff.id, startDate: f.startDate, endDate: f.endDate,
         startMin: f.allDay ? null : f.startMin, endMin: f.allDay ? null : f.endMin, reason: f.reason,
       });
+    } catch (e) { setErr(e.message || String(e)); setBusy(false); return; }
+    // 여기부터는 휴가가 이미 저장됨 — 실패해도 다시 저장하면 휴가가 두 번 생기므로 닫고 알린다
+    try {
       const rs = await api.reservationsRange(f.startDate, f.endDate);
       const hit = rs.filter(r => r.staffId === staff.id && !r.done
         && (f.allDay || (r.startMin < f.endMin && f.startMin < r.startMin + r.durationMin)));
       if (!hit.length) return onClose(true);
       setAllResv(rs); setNewLeaves([...leaves, leave]); setConflicts(hit); setBusy(false);
-    } catch (e) { setErr(e.message || String(e)); setBusy(false); }
+    } catch (e) {
+      window.alert(`휴가는 저장했어요. 다만 겹치는 예약을 확인하지 못했어요 (${e.message || e}) — 예약 보드에서 ⚠ 표시를 확인해 주세요.`);
+      onClose(true);
+    }
   };
 
   const move = async (r, to) => {
     setBusy(true);
     try {
-      await api.updateReservation(r.id, { ...r, staffId: to.id });
+      // 손님이 고른 담당자가 아니게 되므로 초이스는 푼다
+      await api.updateReservation(r.id, { ...r, staffId: to.id, choice: false });
       setAllResv(rs => rs.map(x => (x.id === r.id ? { ...x, staffId: to.id } : x)));
       setMoved(m => ({ ...m, [r.id]: to.name }));
     } catch (e) { setErr(e.message || String(e)); }

@@ -66,7 +66,9 @@ const authed = ({ data, error }) => { if (error) throw authErr(error); return da
 // rpc 오류: 함수 안에서 낸 한국어 메시지는 그대로, 함수가 없으면 SQL 안내
 const rpc = async (fn, args) => {
   const { data, error } = await supabase.rpc(fn, args);
-  if (error) throw new Error(error.code === 'PGRST202' || error.code === '42883' ? NO_SHOP_MSG : error.message);
+  if (error) throw new Error(error.code === 'PGRST202' || error.code === '42883'
+    ? (fn === 'reset_pin' ? 'PIN 다시 정하기 함수가 없어요 — supabase/hardening.sql 을 SQL Editor에서 실행하세요' : NO_SHOP_MSG)
+    : error.message);
   return data;
 };
 
@@ -94,6 +96,11 @@ export const api = {
   verifyPin: pin => rpc('verify_pin', { p_pin: pin }),
   setPin: (oldPin, newPin) => rpc('set_pin', { p_old: oldPin, p_new: newPin }),
   renameShop: name => rpc('rename_shop', { p_name: name }),
+  // PIN을 잊었을 때: 비밀번호로 다시 로그인한 직후에만 DB가 새 PIN을 받아 준다
+  resetPin: async (email, password, pin) => {
+    await auth.signIn(email, password);
+    return rpc('reset_pin', { p_new: pin });
+  },
 
   // ───── 담당자 ─────
   staff: async () => {

@@ -23,7 +23,7 @@ frontend/   React (Vite) — 보드 UI, supabase-js로 DB 직접 접근
       ReservationModal.jsx  MenuModal.jsx
       AuthPage.jsx       로그인·회원가입·매장 만들기
       PinPad.jsx         사장님 PIN 입력
-supabase/   setup.sql — 테이블·시드 / accounts.sql — 계정별 매장 분리·PIN (setup.sql 다음에 실행)
+supabase/   setup.sql — 테이블·시드 / accounts.sql — 계정별 매장 분리·PIN / hardening.sql — 보안 보강 (이 순서로 실행)
 backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않음
 ```
 
@@ -37,6 +37,7 @@ backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않�
 1. [supabase.com](https://supabase.com)에서 무료 프로젝트 생성
 2. 대시보드 → SQL Editor에 `supabase/setup.sql` 내용 붙여넣고 실행
 3. 이어서 `supabase/accounts.sql` 실행 (계정별 매장 분리 + 사장님 PIN)
+   → 예전 데이터가 있으면 accounts.sql 맨 아래 '기존 데이터 가져오기' → 마지막으로 `supabase/hardening.sql` (보안 보강)
 4. Authentication → URL Configuration 의 Site URL 을 배포 주소로 (인증 메일 링크가 그리로 감).
    가입 즉시 쓰게 하려면 Authentication → Sign In / Providers → Email 의 Confirm email 을 끈다
 5. Project Settings → API에서 URL과 anon key 복사
@@ -48,6 +49,9 @@ backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않�
 - 모든 표에 `shop_id` 가 있고, RLS 가 로그인한 계정의 매장 줄만 읽고 쓰게 한다 (로그인 안 하면 아무것도 안 보임)
 - 결제·설정 탭은 PIN 을 넣어야 열리고, 5분 동안 아무것도 안 누르면 다시 잠긴다 (상단 '잠그기'로 바로 잠금)
 - PIN 은 DB 에 bcrypt 로만 저장, 확인은 `verify_pin` 함수로. 5번 연속 틀리면 5분 잠금
+- PIN 을 잊으면 PIN 창의 'PIN을 잊었어요' → 로그인 비밀번호 확인 → 새 PIN (`reset_pin`: 10분 안에 비밀번호로 로그인한 토큰만)
+- 예약·휴가의 담당자는 (직원 id, 매장) 으로 묶여 다른 매장 직원을 가리킬 수 없다 (hardening.sql)
+- public 스키마에 새 표를 만들면 Supabase 는 anon 에 열어 둔다 → 새 표마다 RLS 켜고 anon 권한 회수
 - PIN 은 화면 잠금이다: 같은 계정으로 로그인한 기기는 DB 규칙상 그 매장 데이터를 읽고 쓸 수 있다
 - 예전(계정 없던 때) 데이터는 `accounts.sql` 맨 아래 '기존 데이터 가져오기'로 내 매장에 붙인다
 

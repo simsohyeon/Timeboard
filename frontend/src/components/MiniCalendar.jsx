@@ -1,13 +1,20 @@
 import { useMemo, useState } from 'react';
 import { fmtDate } from '../api';
 import { DAYS } from '../lib/constants';
+import { bizNow } from '../lib/schedule';
 import { Chevron } from './ui';
 
 // selected 가 null 이면 이번 달을 보여주고 선택 표시는 없음 (DatePicker 의 빈 값)
 export default function MiniCalendar({ selected, onSelect, eventDates = new Set() }) {
-  const today = new Date();
-  const base = selected ?? today;
+  const base = selected ?? new Date();
   const [view, setView] = useState(new Date(base.getFullYear(), base.getMonth(), 1));
+  // 밖에서 고른 날짜가 다른 달로 넘어가면(다음 날 ▶ 로 10/31 → 11/1) 달력도 그 달로
+  const selMonth = selected ? `${selected.getFullYear()}-${selected.getMonth()}` : null;
+  const [seenMonth, setSeenMonth] = useState(selMonth);
+  if (selMonth !== seenMonth) {
+    setSeenMonth(selMonth);
+    if (selected) setView(new Date(selected.getFullYear(), selected.getMonth(), 1));
+  }
 
   const weeks = useMemo(() => {
     const first = new Date(view.getFullYear(), view.getMonth(), 1);
@@ -31,7 +38,11 @@ export default function MiniCalendar({ selected, onSelect, eventDates = new Set(
       <div className="mc-head">
         <button type="button" className="mc-arrow" onClick={() => move(-1)} aria-label="이전 달"><Chevron dir="left" size={13} /></button>
         <span className="mc-title">{view.getFullYear()}년 {view.getMonth() + 1}월</span>
-        <button type="button" className="mc-today" onClick={() => { setView(new Date(today.getFullYear(), today.getMonth(), 1)); onSelect(today); }}>오늘</button>
+        <button type="button" className="mc-today" onClick={() => {
+          const today = bizNow().date; // 새벽 영업이면 전날 영업일
+          setView(new Date(today.getFullYear(), today.getMonth(), 1));
+          onSelect(today);
+        }}>오늘</button>
         <button type="button" className="mc-arrow" onClick={() => move(1)} aria-label="다음 달"><Chevron dir="right" size={13} /></button>
       </div>
       <div className="mc-grid mc-dow">

@@ -6,7 +6,7 @@ import DatePicker from './DatePicker';
 import LeavePanel from './LeavePanel';
 import { bizToday } from '../lib/schedule';
 import {
-  FormBar, GripIcon, IconButton, Select, TrashIcon, countChanges, useDraft, useDragSort, useSaver,
+  FormBar, GripIcon, IconButton, Select, TrashIcon, allSaved, countChanges, useDraft, useDragSort, useSaver,
 } from './ui';
 
 const SECTIONS = [
@@ -118,7 +118,9 @@ function StaffSection({ staff, openMin, closeMin, onSaved, onDirty, leaves, leav
   useEffect(() => onDirty(dirty), [dirty]);
   const { status, setStatus, save, fail } = useSaver();
   const [selId, setSelId] = useState(null);
-  const sel = draft.find(s => s.id === selId) ?? draft[0];
+  // 새로 추가한 담당자를 저장하면 임시 id 가 진짜 id 로 바뀐다 → 목록 순서(자리)로 이어서 고른다
+  const [selIdx, setSelIdx] = useState(null);
+  const sel = draft.find(s => s.id === selId) ?? (selIdx != null ? draft[selIdx] : null) ?? draft[0];
   const today = bizToday();
 
   const patch = p => setDraft(d => d.map(s => (s.id === sel.id ? { ...s, ...p } : s)));
@@ -164,7 +166,8 @@ function StaffSection({ staff, openMin, closeMin, onSaved, onDirty, leaves, leav
     if (removed.length && !window.confirm(
       `${removed.map(s => `'${s.name}'`).join(', ')} 담당자와 그 예약 기록이 모두 삭제돼요. 퇴사한 직원은 삭제 대신 퇴사일을 넣으세요.\n저장할까요?`,
     )) return;
-    save(() => Promise.all([
+    setSelIdx(sel ? draft.indexOf(sel) : null);
+    save(() => allSaved([
       ...removed.map(s => api.deleteStaff(s.id)),
       ...draft.map((s, i) => {
         const row = { ...s, name: s.name.trim(), sortOrder: i };
@@ -356,7 +359,7 @@ function StoreSection({ menus, openMin, closeMin, onMenusSaved, onHoursSaved, on
     }
     const removed = menus.filter(m => !M.draft.some(r => r.id === m.id));
     const hoursChanged = H.dirty, menusChanged = M.dirty;
-    save(() => Promise.all([
+    save(() => allSaved([
       hoursChanged ? api.updateSettings(hours) : null,
       ...(menusChanged ? [
         ...removed.map(m => api.deleteMenu(m.id)),
@@ -448,8 +451,8 @@ const DEVICE_TOGGLES = [
 ];
 // 밀도·보조선·금액 숨기기를 바로 확인하는 작은 보드 (오후 1~4시, 예시 예약 2건)
 const PV = [
-  { c: PALETTE[0], start: 810, dur: 60, what: '커트 60분', price: '25,000원' },
-  { c: PALETTE[1], start: 780, dur: 90, what: '펌 90분', price: '60,000원' },
+  { c: PALETTE[0], start: 810, dur: 60, what: '타이 60분', price: '50,000원' },
+  { c: PALETTE[1], start: 780, dur: 90, what: '아로마 90분', price: '80,000원' },
 ];
 const clock = m => minLabel(m).split(' ')[1];
 

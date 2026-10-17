@@ -80,7 +80,10 @@ export default function NowPage({ staff, list, leaves = [], openMin, closeMin, m
             {st.kind === 'before' && (
               <div className="now-main"><strong>{short(st.range[0])} 출근</strong></div>
             )}
-            {(st.kind === 'off' || st.kind === 'after') && (
+            {st.kind === 'off' && st.mine.some(r => !r.done) && (
+              <div className="now-main"><strong className="now-warn">⚠ 휴무인데 예약 {st.mine.filter(r => !r.done).length}건이 있어요</strong></div>
+            )}
+            {((st.kind === 'off' && !st.mine.some(r => !r.done)) || st.kind === 'after') && (
               <div className="now-main"><span>오늘은 더 이상 예약이 없어요</span></div>
             )}
 

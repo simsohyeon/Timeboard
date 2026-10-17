@@ -7,6 +7,28 @@ import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, le
 // 30분 이상 빈 시간은 점선 칸으로 보여 주고, 누르면 그 시각으로 바로 예약 등록.
 const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')}`;
 
+// 시간이 겹치는 예약은 칸을 나눠 나란히: { id: [몇 번째 줄, 그 묶음의 줄 수] }
+function lanesOf(rs) {
+  const out = {};
+  const sorted = [...rs].sort((a, b) => a.startMin - b.startMin || b.durationMin - a.durationMin);
+  let group = [], ends = [], groupEnd = -1;
+  const flush = () => { group.forEach(id => { out[id][1] = ends.length; }); group = []; ends = []; };
+  for (const r of sorted) {
+    if (r.startMin >= groupEnd) flush();
+    let lane = ends.findIndex(e => e <= r.startMin);
+    if (lane < 0) { lane = ends.length; ends.push(0); }
+    ends[lane] = r.startMin + r.durationMin;
+    groupEnd = Math.max(groupEnd, ends[lane]);
+    out[r.id] = [lane, 0];
+    group.push(r.id);
+  }
+  flush();
+  return out;
+}
+const laneStyle = ([i, n] = [0, 1]) => (n > 1
+  ? { left: `calc(4px + (100% - 8px) * ${i} / ${n})`, width: `calc((100% - 8px) / ${n} - 2px)`, right: 'auto' }
+  : {});
+
 export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick }) {
   const dateStr = fmtDate(date);
   const isToday = dateStr === bizToday();
@@ -66,6 +88,8 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           const off = !worksOn(s, date.getDay()) || !!lv.full;
           const [wo, wc] = workRange(s, open, close);
           const mine = list.filter(r => r.staffId === s.id);
+          const lanes = lanesOf(mine);
+          const dayOff = !worksOn(s, date.getDay());
           // 오늘이면 지금 이후의 빈 시간만
           const from = isToday ? Math.max(wo, ceilTo(nowMin)) : wo;
           const gaps = off ? [] : freeGaps([...mine, ...leaveBlocks(lv.parts)], [wo, wc], from).filter(([a, b]) => b - a >= 30);
@@ -111,12 +135,14 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             {mine.map(r => {
               const live = showNow && !r.done && r.startMin <= nowMin && nowMin < r.startMin + r.durationMin;
               const h = r.durationMin / 60 * hourPx - 3;
-              // 담당자 휴가와 겹친 예약: 다른 담당자로 옮기거나 손님께 연락해야 함
-              const warn = !r.done && hitsLeave(lv, r.startMin, r.durationMin) ? ' warn' : '';
+              // 담당자 휴가·휴무와 겹친 예약: 다른 담당자로 옮기거나 손님께 연락해야 함
+              const why = r.done ? '' : hitsLeave(lv, r.startMin, r.durationMin) ? '담당자 휴가' : dayOff ? '담당자 휴무' : '';
+              const warn = why ? ' warn' : '';
+              const pos = { top: top(r.startMin) + 1, height: h, '--c': s.dotColor || 'var(--blue)', ...laneStyle(lanes[r.id]) };
               if (h < 52) return ( // 짧은 예약(30분 등)은 한 줄로
                 <button type="button" key={r.id}
                   className={'resv short' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn}
-                  style={{ top: top(r.startMin) + 1, height: h, '--c': s.dotColor || 'var(--blue)' }}
+                  style={pos} title={why || undefined}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
                   <small>{r.done && '✓ '}{warn && '⚠ '}{r.choice && '★ '}{short(r.startMin)}</small><b>{r.title}</b>
                 </button>
@@ -124,9 +150,9 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
               return (
                 <button type="button" key={r.id}
                   className={'resv' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn}
-                  style={{ top: top(r.startMin) + 1, height: h, '--c': s.dotColor || 'var(--blue)' }}
+                  style={pos}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
-                  <small>{r.done ? '✓ 완료 · ' : warn ? '⚠ 담당자 휴가 · ' : live ? '진행 중 · ' : ''}{short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
+                  <small>{r.done ? '✓ 완료 · ' : why ? `⚠ ${why} · ` : live ? '진행 중 · ' : ''}{short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
                   <b>{r.title}{r.choice && <em className="choice-tag">초이스</em>}</b>
                   <span>{r.subtitle}</span>
                 </button>

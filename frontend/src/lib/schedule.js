@@ -71,7 +71,8 @@ export function staffNow(s, list, date, openMin, closeMin, nowMin, leaves = []) 
   const lv = leaveOn(leaves, s.id, fmtDate(date));
   const blocks = [...mine, ...leaveBlocks(lv.parts)];
   const next = mine.find(r => !r.done && r.startMin > nowMin) || null;
-  if (!worksOn(s, date.getDay())) return { kind: 'off', next: null, mine, blocks, range, lv };
+  // 휴무 요일이어도 잡힌 예약이 있으면 '다음'으로 보여 준다 (화면에서 휴무 경고)
+  if (!worksOn(s, date.getDay())) return { kind: 'off', next, mine, blocks, range, lv };
   if (lv.full) return { kind: 'leave', leave: lv.full, next, mine, blocks, range, lv };
   const base = { next, mine, blocks, range, lv };
   if (nowMin < wo) return { kind: 'before', ...base };

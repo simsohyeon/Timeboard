@@ -17,7 +17,10 @@ const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).pad
 export default function ReservationModal({ init, staff: allStaff, list = [], leaves = [], menus, date: boardDate, startH = START_H, endH = END_H, hidePrice = false, onClose, onSaved }) {
   const options = optionsOf(menus);
   // 수정이면 기존 subtitle("아로마 60분")에서 메뉴를 찾고, 새 예약이면 preferDur 시간의 첫 버튼(없으면 첫 번째 버튼)
-  const initMenu = menus.find(m => (init.subtitle || '').startsWith(m.name))?.name;
+  // '타이'와 '타이스톤'처럼 앞이 같은 메뉴가 있어도 헷갈리지 않게: 정확히 같은 이름 → 가장 긴 앞부분 순
+  const subtitle = (init.subtitle || '').trim();
+  const initMenu = options.find(o => subtitle === `${o.menu} ${o.dur}분`)?.menu
+    ?? [...menus].sort((a, b) => b.name.length - a.name.length).find(m => subtitle.startsWith(m.name))?.name;
   const initOpt = init.id
     ? options.find(o => o.menu === initMenu && o.dur === init.durationMin)
     : options.find(o => o.dur === init.preferDur) ?? options[0];
@@ -50,11 +53,11 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   const [dayList, setDayList] = useState(list);
   const dateStr = fmtDate(date);
   useEffect(() => {
-    if (dateStr === fmtDate(boardDate)) { setDayList(list); return; }
+    if (dateStr === fmtDate(boardDate)) { setDayList(list); return; } // 보드가 새로 불러오면 겹침 검사도 따라감
     let alive = true;
     api.reservations(dateStr).then(r => alive && setDayList(r)).catch(() => alive && setDayList([]));
     return () => { alive = false; };
-  }, [dateStr]);
+  }, [dateStr, list]);
   const staff = allStaff.filter(s => isActiveOn(s, dateStr) || s.id === Number(init.staffId));
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const pick = o => setForm(f => ({ ...f, pick: o.key, dur: o.dur, price: o.price }));
@@ -112,12 +115,15 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
 
   // 고른 시각이 되는지 한 줄로: ok(초록) / warn(주황, 저장은 됨) / block(휴가 — 저장 막음)
   const hit = sel && clash(sel.id, start, dur);
+  // 수정인데 날짜·시각을 그대로 두었으면 '지난 시각' 안내는 하지 않는다
+  const moved = !form.id || dateStr !== init.date || start !== init.startMin;
   const status = !sel ? { kind: 'warn', text: '담당자를 골라 주세요' }
+    : (start < open || start >= close) ? { kind: 'block', text: `영업시간(${short(open)}–${short(close)}) 밖이라 보드에 보이지 않아요 — 시각을 바꿔 주세요` }
     : !worksOn(sel, date.getDay()) ? { kind: 'warn', text: `${nim(sel.name)}은 이 날 휴무예요` }
     : leaveAt(start) ? { kind: 'block', text: `${nim(sel.name)} 휴가(${leaveLabel(lvOf(sel).full ?? lvOf(sel).parts.find(p => start < p.b && p.a < endMin).leave)}) 시간이라 예약할 수 없어요` }
     : hit ? { kind: 'warn', text: `${short(hit.startMin)} ${hit.title} 예약과 겹쳐요` }
     : (start < wo || endMin > wc) ? { kind: 'warn', text: `${nim(sel.name)} 근무 시간(${short(wo)}–${short(wc)}) 밖이에요` }
-    : isToday && start + 10 <= nowMin && !form.id ? { kind: 'warn', text: '이미 지난 시각이에요' }
+    : isToday && start + 10 <= nowMin && moved ? { kind: 'warn', text: '이미 지난 시각이에요' }
     : { kind: 'ok', text: `${short(start)}–${short(endMin)} ${nim(sel.name)} 비어 있어요` };
 
   // '빈 시간 보기': 고른 담당자·코스로 바로 넣을 수 있는 시작 시각 (30분 간격 + 지금)
@@ -159,6 +165,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     if (!form.pick) return setErr('메뉴를 골라 주세요');
     if (!form.staffId) return setErr('담당자를 골라 주세요');
     if (status.kind === 'block') return setErr(status.text);
+    if (hit && !window.confirm(`${short(hit.startMin)} ${hit.title} 예약과 시간이 겹쳐요. 그래도 저장할까요?`)) return;
     act(() => (form.id ? api.updateReservation(form.id, payload()) : api.createReservation(payload())));
   };
   // 완료 처리: 고친 내용이 있으면 같이 저장하고 완료 표시 / 완료 취소: 상태만 되돌림
@@ -189,7 +196,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                     <button key={s.id} type="button" role="radio" aria-checked={on} disabled={!!full && !on}
                       className={'rm-chip' + (on ? ' on' : '') + ' st-' + st}
                       onClick={() => set('staffId', s.id)}>
-                      <b><i className="dot" style={{ background: s.dotColor || 'var(--blue)' }} />{s.name}</b>
+                      <b><i className="dot" style={{ background: s.dotColor || 'var(--blue)' }} /><span className="rm-chip-name">{s.name}</span></b>
                       <small>{full ? (full.reason || '휴가') : STATE_LABEL[st]}</small>
                     </button>
                   );

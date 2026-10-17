@@ -143,13 +143,14 @@ notify pgrst, 'reload schema';
 --
 -- do $$
 -- declare sid uuid := (select m.shop_id from public.shop_member m join auth.users u on u.id = m.user_id
---                      where u.email = '내이메일@example.com');
+--                      where u.email = '내이메일@example.com' and u.email_confirmed_at is not null);
 -- begin
---   if sid is null then raise exception '그 이메일로 만든 매장이 없어요'; end if;
+--   if sid is null then raise exception '그 이메일로 만든 매장이 없어요 (메일 인증 전이면 인증부터)'; end if;
 --   -- 가입 때 자동으로 생긴 것만 지움 (예약 없는 '사장님', 가격 안 넣은 기본 메뉴). 직접 추가한 건 그대로
 --   if exists (select 1 from public.staff where shop_id is null) then
 --     delete from public.staff s where s.shop_id = sid and s.name = '사장님'
---       and not exists (select 1 from public.reservation r where r.staff_id = s.id);
+--       and not exists (select 1 from public.reservation r where r.staff_id = s.id)
+--       and not exists (select 1 from public.staff_leave l where l.staff_id = s.id);
 --   end if;
 --   if exists (select 1 from public.menu where shop_id is null) then
 --     delete from public.menu where shop_id = sid and name in ('타이', '아로마') and coalesce(array_length(prices, 1), 0) = 0;

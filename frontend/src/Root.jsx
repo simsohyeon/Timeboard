@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
 import { api, auth, configured } from './api';
 import App from './App';
+import { setDayEnd } from './lib/schedule';
 import { AuthPage, ShopSetup } from './components/AuthPage';
 import './App.css';
+import { loadDisplay } from './lib/display';
+
+// 로그인 화면에서도 저장해 둔 다크 모드를 따른다 (App 이 뜨면 App 이 다시 적용)
+document.documentElement.dataset.theme = loadDisplay().dark ? 'dark' : 'light';
 
 // 로그인 → 매장 확인 → 보드. 매장이 바뀌면(다른 계정) App 을 새로 띄워 이전 매장 값이 남지 않게
 export default function Root() {
@@ -22,9 +27,11 @@ export default function Root() {
     setErr('');
     return api.myShop().then(setShop).catch(e => { setShop(null); setErr(e.message); });
   };
+  // 계정이 바뀌면(로그아웃·다른 계정) 이전 매장 화면·값을 먼저 비운다
   useEffect(() => {
-    if (!uid) { setShop(undefined); return; }
-    loadShop();
+    setShop(undefined);
+    setDayEnd(0);
+    if (uid) loadShop();
   }, [uid]);
 
   // Supabase 미연결(로컬 개발): 로그인 없이 안내 배너와 함께 보드

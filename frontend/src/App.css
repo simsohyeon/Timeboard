@@ -19,7 +19,7 @@
   --faint: #c9ced4;     /* 흐린 요소 (지난달 날짜, + 버튼) */
   --radius: 12px;
   /* 반응형 치수: 화면 폭에 따라 자동 조절 */
-  --timecol: clamp(74px, 8vw, 90px);  /* 보드 시간축 폭 */
+  --timecol: clamp(80px, 8vw, 90px);  /* 보드 시간축 폭 ('오전 11:00' 이 안 잘리게 최소 80) */
   --colmin: 120px;                    /* 담당자 열 최소 폭 */
   --amber: #b85c1a;     /* 진행 중(시술 중) */
   --amber-soft: #fbebdd;
@@ -897,6 +897,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
   position: fixed; right: 22px; bottom: 22px; width: 48px; height: 48px; border-radius: 50%;
   background: var(--blue); color: #fff; border: none; font-size: 26px; line-height: 1;
   cursor: pointer; box-shadow: 0 6px 16px rgba(49, 130, 246, .38);
+  z-index: 20; /* 예약 칸(z1~5) 위, 상단바(40)·창(50) 아래 */
 }
 .fab:hover { background: var(--blue-dark); }
 
@@ -1040,3 +1041,68 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 @media (max-width: 400px) {
   .tb-brand { max-width: 56px; }
 }
+.now-warn { color: var(--amber); }
+
+/* ───── QA 레이아웃 수정 ───── */
+/* 한국어는 단어(어절) 단위로 줄바꿈 — '저장해/야' 처럼 끊기지 않게 */
+body { word-break: keep-all; overflow-wrap: anywhere; }
+.time-label { right: 6px; }
+
+/* 설정 카드 안의 날짜 선택 달력이 카드 밖으로 펼쳐지게 */
+.set-grp > .set-box:has(.datepick) { overflow: visible; }
+
+/* 상단바: 매장 이름·시계가 0폭으로 사라지지 않게, 글자 크게일 때는 시계 날짜 숨김 */
+.tb-brand { flex-shrink: 0; min-width: 3em; }
+.tb-right { flex-shrink: 0; }
+.tb-tabs { min-width: 0; }
+:root[data-zoomed] .tb-clock-day { display: none; }
+/* 폰 + 글자 크게: 상단바 폭이 모자라 매장 이름·시계는 빼고 탭만 */
+@media (max-width: 600px) { :root[data-zoomed] .tb-brand, :root[data-zoomed] .tb-clock { display: none; } }
+
+/* 예약 창 담당자 이름: 글자 단위로 깨지지 않게 한 줄 말줄임 */
+.rm-chip b { max-width: 100%; min-width: 0; }
+.rm-chip-name, .rm-chip small { min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: keep-all; }
+.rm-chip .dot { flex: none; }
+
+/* 보드 위 요약 칩: 넘치면 말줄임 (폰은 한 줄 가로 스크롤) */
+.ds-chip { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) {
+  .day-sum { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .day-sum::-webkit-scrollbar { display: none; }
+  .ds-chip { flex: none; max-width: 80vw; }
+}
+
+/* 결제 표: 폰에서는 정산 비율을 빼고 이름은 말줄임 → 정산액이 화면 안에 */
+@media (max-width: 600px) {
+  .pay-table .pay-pct { display: none; }
+  .pay-table td:first-child { max-width: 6em; overflow: hidden; text-overflow: ellipsis; }
+  .pay-table th, .pay-table td { padding: 11px 6px; font-size: 13px; }
+  .pay-table th:first-child, .pay-table td:first-child { padding-left: 12px; }
+  .pay-table th:last-child, .pay-table td:last-child { padding-right: 12px; }
+  .pay-table td .dot { margin-right: 5px; }
+}
+
+/* 설정 > 화면 글자 크기 칩: 좁은 화면에서는 한 줄에 고르게 */
+@media (max-width: 600px) {
+  .seg-chips { flex-wrap: nowrap; }
+  .seg-chips button { flex: 1; min-width: 0; padding-left: 4px; padding-right: 4px; }
+}
+
+/* 다크 모드에서 창 테두리가 배경에 묻히지 않게 */
+:root[data-theme="dark"] .modal { border: 1px solid var(--line-strong); }
+
+/* 터치 기기: 작은 버튼의 누를 수 있는 영역을 넓힘 (보이는 크기는 거의 그대로) */
+@media (pointer: coarse) {
+  .mh-arrow { min-width: 40px; min-height: 40px; }
+  .mc-arrow { min-width: 36px; min-height: 36px; }
+  .mc-day { min-height: 36px; }
+  .set-link { padding: 10px 8px; margin: -6px -4px; }
+  .tb-lock { min-height: 32px; min-width: 32px; justify-content: center; }
+  .now-next { min-height: 36px; }
+  .switch { position: relative; }
+  .switch::before { content: ''; position: absolute; inset: -8px; }
+}
+.pin-forgot { margin-top: 14px; font: inherit; font-size: 13px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 8px; }
+.pin-forgot:hover { color: var(--blue); }
+.pin-reset .modal { text-align: left; }
+.pin-reset .m-actions { display: flex; gap: 8px; margin-top: 4px; }

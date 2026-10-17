@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, fmtDate, configured } from './api';
 import { holdUpdate } from './lib/autoUpdate';
 import { START_H, END_H, isActiveOn } from './lib/constants';
 import { BASE_FONT, loadDisplay } from './lib/display';
-import { bizNow, setDayEnd } from './lib/schedule';
+import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo } from './lib/schedule';
 import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
@@ -50,17 +50,28 @@ export default function App({ shop, email, onShopChanged }) {
     if (PIN_TABS.includes(tab)) setTab('reserve');
   };
   // 잠금 해제 중: 마지막으로 누른 뒤 5분 지나면 자동 잠금 (저장 안 한 설정이 있으면 기다림)
+  // (기기가 잠들었다 깨도 지난 시간으로 판단: 화면 복귀·터치 때도 확인)
+  const lastTouch = useRef(0); // 잠금 해제할 때 지금 시각으로 채움
   useEffect(() => {
     if (!shop || !unlocked) return;
-    let last = Date.now();
-    const touch = () => { last = Date.now(); };
-    const t = setInterval(() => {
-      if (Date.now() - last < IDLE_LOCK_MS || settingsDirty) return;
+    lastTouch.current = Date.now();
+    const expired = () => Date.now() - lastTouch.current >= IDLE_LOCK_MS && !settingsDirty;
+    const relock = () => {
       setUnlocked(false);
+      setPinFor(null);
       setTab(cur => (PIN_TABS.includes(cur) ? 'reserve' : cur));
-    }, 15000);
-    ['pointerdown', 'keydown'].forEach(e => window.addEventListener(e, touch));
-    return () => { clearInterval(t); ['pointerdown', 'keydown'].forEach(e => window.removeEventListener(e, touch)); };
+    };
+    const check = () => { if (expired()) relock(); };
+    const touch = () => { if (expired()) relock(); else lastTouch.current = Date.now(); };
+    const onVisible = () => document.visibilityState === 'visible' && check();
+    const t = setInterval(check, 15000);
+    ['pointerdown', 'keydown'].forEach(e => window.addEventListener(e, touch, true));
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(t);
+      ['pointerdown', 'keydown'].forEach(e => window.removeEventListener(e, touch, true));
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [shop, unlocked, settingsDirty]);
   useEffect(() => holdUpdate(settingsDirty), [settingsDirty]); // 저장 안 한 설정이 있으면 자동 새로고침 미룸
   useEffect(() => {
@@ -103,6 +114,7 @@ export default function App({ shop, email, onShopChanged }) {
     const scale = display.fontPx / BASE_FONT;
     document.body.style.zoom = scale;
     document.documentElement.style.setProperty('--scale', scale);
+    document.documentElement.toggleAttribute('data-zoomed', scale > 1.05); // 글자 크게: 좁은 화면 상단바 줄이기
     document.documentElement.dataset.theme = display.dark ? 'dark' : 'light';
   }, [display]);
 
@@ -121,15 +133,31 @@ export default function App({ shop, email, onShopChanged }) {
     };
   }, [display.keepAwake]);
 
+  const [listErr, setListErr] = useState('');
+  const reqSeq = useRef(0);
+  const listDay = useRef(null); // 지금 list 가 어느 날 것인지
   const reload = () => {
-    api.reservations(fmtDate(date)).then(setList).catch(() => setList([]));
+    const seq = ++reqSeq.current;
+    const day = fmtDate(date);
+    api.reservations(day)
+      .then(l => { if (seq === reqSeq.current) { setList(l); listDay.current = day; setListErr(''); } })
+      // 같은 날 다시 불러오다 실패하면 보드를 비우지 않는다 — 빈 보드를 보고 겹치기 예약을 잡지 않게
+      .catch(e => {
+        if (seq !== reqSeq.current) return;
+        if (listDay.current !== day) { setList([]); listDay.current = day; }
+        setListErr(`예약을 불러오지 못했어요 (${e.message || e}) — 화면이 최신이 아닐 수 있어요`);
+      });
     api.reservationDates().then(d => setEventDates(new Set(d))).catch(() => {});
   };
   useEffect(reload, [date]);
   // 현황판은 다른 기기에서 바뀐 예약도 보이게 1분마다 새로 불러온다
+  // 영업일이 바뀌면(밤새 켜 둔 태블릿) 오늘로 넘긴다
   useEffect(() => {
     if (tab !== 'now') return;
-    const t = setInterval(reload, 60000);
+    const t = setInterval(() => {
+      const today = bizNow().date;
+      if (fmtDate(today) !== fmtDate(date)) setDate(today); else reload();
+    }, 60000);
     return () => clearInterval(t);
   }, [tab, date]);
 
@@ -177,6 +205,7 @@ export default function App({ shop, email, onShopChanged }) {
             <p className="notice">Supabase가 아직 연결되지 않았어요 — frontend/.env 를 채우면 데이터가 표시됩니다 (README 참고)</p>
           )}
           {dbErr && <p className="notice">{dbErr}</p>}
+          {listErr && <p className="notice">{listErr}</p>}
           {tab === 'reserve' && (<>
             {dateHead}
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
@@ -207,10 +236,14 @@ export default function App({ shop, email, onShopChanged }) {
       </div>
       {(tab === 'reserve' || tab === 'now') && (
         <button className="fab" aria-label="예약 추가"
-          onClick={() => openCreate(activeStaff[0]?.id, 12 * 60)}>+</button>
+          onClick={() => {
+            const isToday = dateStr === bizToday();
+            const want = isToday ? ceilTo(nowMinutes(), 10) : 12 * 60;
+            openCreate(activeStaff[0]?.id, Math.min(Math.max(want, startH * 60), endH * 60 - 30));
+          }}>+</button>
       )}
       {pinFor && (
-        <PinPad desc={`${pinFor === 'pay' ? '결제(정산)' : '설정'} 화면은 사장님만 열 수 있어요.`}
+        <PinPad email={email} desc={`${pinFor === 'pay' ? '결제(정산)' : '설정'} 화면은 사장님만 열 수 있어요.`}
           onClose={() => setPinFor(null)}
           onOk={() => {
             const t = pinFor;
@@ -226,7 +259,8 @@ export default function App({ shop, email, onShopChanged }) {
           onSaved={d => {
             setModal(null);
             // 다른 날로 저장했으면 보드를 그 날로 옮긴다 (날짜가 바뀌면 자동으로 다시 불러옴)
-            if (d && d !== dateStr) { const [y, m, dd] = d.split('-').map(Number); setDate(new Date(y, m - 1, dd)); }
+            // (지금 탭은 늘 오늘이라 그대로 두고 다시 불러오기만)
+            if (d && d !== dateStr && tab !== 'now') { const [y, m, dd] = d.split('-').map(Number); setDate(new Date(y, m - 1, dd)); }
             else reload();
           }} />
       )}
