@@ -123,7 +123,7 @@ end $$;
 create or replace function public.verify_pin(p_pin text) returns boolean
   language plpgsql security definer set search_path = '' as
 $$
-declare s public.shop; ok boolean;
+declare s public.shop; ok boolean; fails int;
 begin
   select * into s from public.shop where id = public.my_shop_id() for update;
   if s.id is null then raise exception '로그인이 필요해요'; end if;
@@ -132,8 +132,10 @@ begin
       ceil(extract(epoch from s.pin_locked_until - now()) / 60) || '분';
   end if;
   ok := s.pin_hash is not null and s.pin_hash = extensions.crypt(coalesce(p_pin, ''), s.pin_hash);
-  update public.shop set pin_fails = case when ok then 0 else pin_fails + 1 end,
-                         pin_locked_until = case when not ok and pin_fails + 1 >= 5 then now() + interval '5 minutes' end
+  -- 잠금이 풀렸으면 틀린 횟수도 새로 센다 (풀린 뒤 한 번 틀렸다고 바로 다시 잠기지 않게)
+  fails := case when s.pin_locked_until is not null and s.pin_locked_until <= now() then 0 else s.pin_fails end;
+  update public.shop set pin_fails = case when ok then 0 else fails + 1 end,
+                         pin_locked_until = case when not ok and fails + 1 >= 5 then now() + interval '5 minutes' end
     where id = s.id;
   return ok;
 end $$;

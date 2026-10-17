@@ -35,10 +35,26 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(req)
       .then(res => {
-        if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy));
+          if (url.pathname === '/') e.waitUntil(pruneAssets(res.clone()));
+        }
         return res;
       })
       .catch(() => caches.match(req).then(hit =>
         hit || (req.mode === 'navigate' ? caches.match('/') : Response.error()))),
   );
 });
+
+// 새 화면(index.html)이 쓰지 않는 옛 빌드 파일(/assets/*)은 캐시에서 지운다 — 배포할 때마다 쌓이지 않게
+async function pruneAssets(res) {
+  const html = await res.text();
+  const keep = new Set([...html.matchAll(/\/assets\/[\w.-]+/g)].map(m => m[0]));
+  if (!keep.size) return;
+  const c = await caches.open(CACHE);
+  for (const req of await c.keys()) {
+    const p = new URL(req.url).pathname;
+    if (p.startsWith('/assets/') && !keep.has(p)) await c.delete(req);
+  }
+}

@@ -137,30 +137,6 @@ grant execute on function public.create_shop(text, text), public.verify_pin(text
 notify pgrst, 'reload schema';
 
 
--- ───── 기존 데이터 가져오기 (가입하고 매장을 만든 뒤 한 번) ─────
--- 아래 주석을 풀고 이메일을 내 계정으로 바꿔 실행하면, 매장 칸이 비어 있는(예전) 데이터가 전부 내 매장으로 들어온다.
--- 가입할 때 자동으로 생긴 기본 메뉴·'사장님'·운영시간은 예전 것으로 바꾼다 (가입 뒤 직접 추가한 건 남김).
---
--- do $$
--- declare sid uuid := (select m.shop_id from public.shop_member m join auth.users u on u.id = m.user_id
---                      where u.email = '내이메일@example.com' and u.email_confirmed_at is not null);
--- begin
---   if sid is null then raise exception '그 이메일로 만든 매장이 없어요 (메일 인증 전이면 인증부터)'; end if;
---   -- 가입 때 자동으로 생긴 것만 지움 (예약 없는 '사장님', 가격 안 넣은 기본 메뉴). 직접 추가한 건 그대로
---   if exists (select 1 from public.staff where shop_id is null) then
---     delete from public.staff s where s.shop_id = sid and s.name = '사장님'
---       and not exists (select 1 from public.reservation r where r.staff_id = s.id)
---       and not exists (select 1 from public.staff_leave l where l.staff_id = s.id);
---   end if;
---   if exists (select 1 from public.menu where shop_id is null) then
---     delete from public.menu where shop_id = sid and name in ('타이', '아로마') and coalesce(array_length(prices, 1), 0) = 0;
---   end if;
---   if exists (select 1 from public.settings where shop_id is null) then
---     delete from public.settings where shop_id = sid;
---   end if;
---   update public.staff set shop_id = sid where shop_id is null;
---   update public.reservation set shop_id = sid where shop_id is null;
---   update public.menu set shop_id = sid where shop_id is null;
---   update public.settings set shop_id = sid where shop_id is null;
---   update public.staff_leave set shop_id = sid where shop_id is null;
--- end $$;
+-- ───── 기존 데이터 가져오기 ─────
+-- 계정 없던 때의 데이터가 있으면: 사이트에서 가입하고 매장을 만든 뒤 supabase/claim.sql 실행
+-- 그다음 supabase/hardening.sql (보안 보강) 실행

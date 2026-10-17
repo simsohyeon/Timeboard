@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, fmtDate, configured } from './api';
 import { holdUpdate } from './lib/autoUpdate';
-import { START_H, END_H, isActiveOn } from './lib/constants';
+import { START_H, END_H, isActiveOn, worksOn } from './lib/constants';
 import { BASE_FONT, loadDisplay } from './lib/display';
-import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo } from './lib/schedule';
+import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo, leaveOn, hitsLeave } from './lib/schedule';
 import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
@@ -19,6 +19,7 @@ import './App.css';
 // 결제·설정은 사장님 PIN을 넣어야 열린다. 열린 뒤 아무것도 안 누르고 5분이 지나면 다시 잠긴다
 const PIN_TABS = ['pay', 'settings'];
 const IDLE_LOCK_MS = 5 * 60 * 1000;
+const DIRTY_LOCK_MS = 15 * 60 * 1000; // 저장 안 한 설정이 있어도 이만큼 안 누르면 잠근다 (변경은 버림)
 
 export default function App({ shop, email, onShopChanged }) {
   const [tab, setTab] = useState('reserve');
@@ -26,7 +27,8 @@ export default function App({ shop, email, onShopChanged }) {
   const [pinFor, setPinFor] = useState(null); // PIN 입력 뒤 열 탭
   const [date, setDate] = useState(new Date());
   const [staff, setStaff] = useState([]);
-  const [list, setList] = useState([]);
+  const [rawList, setList] = useState([]);
+  const [listDate, setListDate] = useState(null); // rawList 가 어느 날 것인지
   const [eventDates, setEventDates] = useState(new Set());
   const [menus, setMenus] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -55,7 +57,10 @@ export default function App({ shop, email, onShopChanged }) {
   useEffect(() => {
     if (!shop || !unlocked) return;
     lastTouch.current = Date.now();
-    const expired = () => Date.now() - lastTouch.current >= IDLE_LOCK_MS && !settingsDirty;
+    const expired = () => {
+      const idle = Date.now() - lastTouch.current;
+      return idle >= IDLE_LOCK_MS && (!settingsDirty || idle >= DIRTY_LOCK_MS);
+    };
     const relock = () => {
       setUnlocked(false);
       setPinFor(null);
@@ -135,19 +140,19 @@ export default function App({ shop, email, onShopChanged }) {
 
   const [listErr, setListErr] = useState('');
   const reqSeq = useRef(0);
-  const listDay = useRef(null); // 지금 list 가 어느 날 것인지
   const reload = () => {
     const seq = ++reqSeq.current;
     const day = fmtDate(date);
     api.reservations(day)
-      .then(l => { if (seq === reqSeq.current) { setList(l); listDay.current = day; setListErr(''); } })
+      .then(l => { if (seq === reqSeq.current) { setList(l); setListDate(day); setListErr(''); } })
       // 같은 날 다시 불러오다 실패하면 보드를 비우지 않는다 — 빈 보드를 보고 겹치기 예약을 잡지 않게
       .catch(e => {
         if (seq !== reqSeq.current) return;
-        if (listDay.current !== day) { setList([]); listDay.current = day; }
+        if (listDate !== day) { setList([]); setListDate(day); }
         setListErr(`예약을 불러오지 못했어요 (${e.message || e}) — 화면이 최신이 아닐 수 있어요`);
       });
-    api.reservationDates().then(d => setEventDates(new Set(d))).catch(() => {});
+    const around = n => { const x = new Date(date); x.setDate(x.getDate() + n); return fmtDate(x); };
+    api.reservationDates(around(-62), around(62)).then(d => setEventDates(new Set(d))).catch(() => {});
   };
   useEffect(reload, [date]);
   // 현황판은 다른 기기에서 바뀐 예약도 보이게 1분마다 새로 불러온다
@@ -166,6 +171,14 @@ export default function App({ shop, email, onShopChanged }) {
 
   // 보드/모달은 그 날짜 재직자만, 결제는 그 날 예약이 있는 퇴사자도 포함
   const dateStr = fmtDate(date);
+  // 날짜를 바꾼 직후 새 날 예약이 오기 전에는 이전 날 예약을 보여 주지 않는다 (엉뚱한 날 예약을 누르지 않게)
+  const list = listDate === dateStr ? rawList : [];
+  const listLoading = listDate !== dateStr;
+  // 새 매장: 처음 할 일 안내 (다 하면 사라짐)
+  const setupTodo = [
+    !menus.some(m => (m.prices || []).some(p => p > 0)) && '메뉴 가격 정하기',
+    staff.length <= 1 && '담당자 추가하기',
+  ].filter(Boolean);
   const activeStaff = staff.filter(s => isActiveOn(s, dateStr));
   const payStaff = staff.filter(s => isActiveOn(s, dateStr) || list.some(r => r.staffId === s.id));
 
@@ -208,19 +221,32 @@ export default function App({ shop, email, onShopChanged }) {
           {listErr && <p className="notice">{listErr}</p>}
           {tab === 'reserve' && (<>
             {dateHead}
+            {setupTodo.length > 0 && (
+              <div className="setup-hint" role="note">
+                <b>처음 설정</b>
+                <span>{setupTodo.join(' · ')}</span>
+                <button type="button" onClick={() => changeTab('settings')}>설정 열기</button>
+              </div>
+            )}
+            <div className={listLoading ? 'is-loading' : undefined} style={{ display: 'contents' }}>
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
               hourPx={display.hourPx} halfLine={display.halfLine} leaves={leaves}
               onCellClick={openCreate} onBlockClick={r => setModal(r)} />
+            </div>
           </>)}
           {tab === 'now' && (
+            <div className={listLoading ? 'is-loading' : undefined} style={{ display: 'contents' }}>
             <NowPage staff={activeStaff} list={list} leaves={leaves} menus={menus}
               openMin={startH * 60} closeMin={endH * 60}
               onCreate={openCreate} onOpen={r => setModal(r)} onChanged={reload} />
+            </div>
           )}
           {tab === 'pay' && (<>
             {dateHead}
-            <PayrollPage staff={payStaff} list={list} />
+            <div className={listLoading ? 'is-loading' : undefined} style={{ display: 'contents' }}>
+              <PayrollPage staff={payStaff} list={list} />
+            </div>
           </>)}
           {tab === 'settings' && (
             <SettingsPage staff={staff} menus={menus} settings={settings}
@@ -234,12 +260,17 @@ export default function App({ shop, email, onShopChanged }) {
           )}
         </main>
       </div>
-      {(tab === 'reserve' || tab === 'now') && (
-        <button className="fab" aria-label="예약 추가"
+      {tab === 'reserve' && (
+        <button className="fab" aria-label="예약 추가" disabled={listLoading}
           onClick={() => {
             const isToday = dateStr === bizToday();
             const want = isToday ? ceilTo(nowMinutes(), 10) : 12 * 60;
-            openCreate(activeStaff[0]?.id, Math.min(Math.max(want, startH * 60), endH * 60 - 30));
+            const at = Math.min(Math.max(want, startH * 60), endH * 60 - 30);
+            // 그 날 일하고, 종일 휴가가 아니고, 그 시각 1시간이 비어 있는 첫 담당자 (없으면 일하는 첫 사람)
+            const works = activeStaff.filter(s => worksOn(s, date.getDay()) && !leaveOn(leaves, s.id, dateStr).full);
+            const free = works.find(s => !list.some(r => r.staffId === s.id && at < r.startMin + r.durationMin && r.startMin < at + 60)
+              && !hitsLeave(leaveOn(leaves, s.id, dateStr), at, 60));
+            openCreate((free ?? works[0] ?? activeStaff[0])?.id, at);
           }}>+</button>
       )}
       {pinFor && (

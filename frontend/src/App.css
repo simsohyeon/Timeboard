@@ -918,8 +918,8 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 
 /* 폰: 칸·글자 축소, 설정은 여백을 줄이고 세그먼트를 꽉 채운다 */
 @media (max-width: 760px) {
-  :root { --colmin: 100px; --timecol: 64px; }
-  .time-label { font-size: 12px; right: 8px; }
+  :root { --colmin: 100px; --timecol: 70px; }
+  .time-label { font-size: 11.5px; right: 4px; }
   .col-head .avatar { display: none; }
   .day-sum { padding: 8px 10px; gap: 6px; }
 
@@ -1108,3 +1108,72 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 .pin-reset .m-actions { display: flex; gap: 8px; margin-top: 4px; }
 .auth-bad { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--red-soft); color: var(--red); font-size: 13px; line-height: 1.5; }
 .auth-form .btn-secondary { padding: 12px 16px; }
+
+/* ───── QA 2차 ───── */
+/* 날짜를 바꿔 새 예약을 불러오는 동안: 흐리게 + 누르지 못하게 */
+.is-loading .board, .is-loading .day-sum, .is-loading .now, .is-loading .payroll { opacity: .45; pointer-events: none; transition: opacity .1s; }
+.fab:disabled { opacity: .5; cursor: default; }
+/* 새 매장 처음 설정 안내 */
+.setup-hint {
+  flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 10px 16px 0; padding: 10px 14px; border-radius: 12px; background: var(--blue-soft); color: var(--blue-dark); font-size: 13px;
+}
+.setup-hint b { font-weight: 700; }
+.setup-hint span { flex: 1; min-width: 0; }
+.setup-hint button {
+  font: inherit; font-weight: 600; color: #fff; background: var(--blue); border: none; border-radius: 8px;
+  padding: 8px 12px; min-height: 36px; cursor: pointer;
+}
+
+/* 글자 크게(zoom): 화면 폭 기준 최대 폭을 배율로 나눠야 창·달력이 화면 밖으로 안 나감 */
+.modal { max-width: calc(100vw / var(--scale, 1) - 32px); max-height: calc(100dvh / var(--scale, 1) - 24px); overflow-y: auto; }
+.rm .modal { overflow: hidden; } /* 예약 창은 안쪽(본문)만 스크롤 */
+.modal-wrap { align-items: safe center; }
+.datepick-pop { max-width: calc(100vw / var(--scale, 1) - 16px); }
+@media (max-width: 600px) { .ds-chip { max-width: calc(80vw / var(--scale, 1)); } }
+
+/* 겹친 예약이 좁은 칸일 때: 손님 이름만 (시간·메뉴 줄 숨김) */
+.resv.narrow { padding: 5px 5px; }
+.resv.narrow span { display: none; }
+.resv.narrow small { font-size: 10.5px; }
+.resv.narrow b { font-size: 12.5px; white-space: normal; word-break: break-all; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.resv.narrow .choice-tag { display: none; }
+
+/* 지금 탭: 긴 담당자 이름이 손님 이름을 밀어내지 않게 */
+.q-staff { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q-body { min-width: 0; }
+.q-body b, .q-body small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.now-badge { white-space: nowrap; flex: none; }
+
+/* 이름이 끝만 다른 경우를 구분하게 두 줄까지 */
+.rm-chip-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; line-height: 1.2; }
+@media (max-width: 600px) {
+  .pay-table td:first-child { white-space: normal; word-break: break-all; max-width: 6.5em; }
+}
+/* 글자 크게 + 폰: 결제 표에서 초이스도 빼서 정산액이 보이게, 설정 칩은 여러 줄 허용 */
+@media (max-width: 600px) {
+  :root[data-zoomed] .pay-table th:nth-child(3), :root[data-zoomed] .pay-table td:nth-child(3) { display: none; }
+  :root[data-zoomed] .seg-chips { flex-wrap: wrap; }
+  :root[data-zoomed] .seg-chips button { flex: 1 0 auto; min-width: auto; white-space: nowrap; }
+}
+
+/* 가격 미정 메뉴 버튼 */
+.menu-opt .no-price { color: var(--amber); font-weight: 600; }
+
+/* 다크 모드 대비: 파란 바탕 흰 글씨 버튼은 조금 더 진한 파랑, 지금 시각 표시는 어두운 글씨 */
+:root[data-theme="dark"] .btn-primary, :root[data-theme="dark"] .fab, :root[data-theme="dark"] .setup-hint button { background: #2f6fd6; }
+
+:root[data-theme="dark"] .btn-primary:hover:not(:disabled) { background: #2a62bf; }
+:root[data-theme="dark"] .now-pill { color: #1a1a1a; }
+:root[data-theme="dark"] .done-btn:not(.is-done) { background: #1d3a2a; color: #9fe0b8; }
+
+/* 터치: 더 작은 버튼들 */
+@media (pointer: coarse) {
+  .mh-date { min-height: 40px; }
+  .mc-today { min-height: 32px; padding: 6px 10px; }
+  .rm-status button, .rm-recent button { min-height: 36px; }
+  .pin-forgot { min-height: 40px; }
+  .seg button { min-height: 38px; }
+  .now-who { min-height: 36px; }
+}

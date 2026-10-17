@@ -123,6 +123,7 @@ export function NewPassword({ email, onDone }) {
         {err && <p className="m-err" role="alert">{err}</p>}
         <Button variant="primary" type="submit" disabled={busy}>비밀번호 저장</Button>
       </form>
+      <p className="auth-foot"><button type="button" onClick={onDone}>지금 비밀번호 그대로 쓸게요</button></p>
     </AuthShell>
   );
 }

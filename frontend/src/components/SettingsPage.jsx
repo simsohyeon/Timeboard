@@ -353,6 +353,7 @@ function StoreSection({ menus, openMin, closeMin, onMenusSaved, onHoursSaved, on
       const durations = DUR_OPTIONS.filter(d => r.cells[d] !== undefined && r.cells[d] !== '');
       return { ...r, name: r.name.trim(), durations, prices: durations.map(d => Number(r.cells[d])) };
     });
+    if (!out.length) return fail('메뉴는 최소 1개 필요해요');
     for (const m of out) {
       if (!m.name) return fail('메뉴 이름을 입력하세요');
       if (!m.durations.length) return fail(`${m.name}: 가격이 있는 시간이 최소 1개 필요해요`);

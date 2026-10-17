@@ -7,27 +7,40 @@ import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, le
 // 30분 이상 빈 시간은 점선 칸으로 보여 주고, 누르면 그 시각으로 바로 예약 등록.
 const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')}`;
 
-// 시간이 겹치는 예약은 칸을 나눠 나란히: { id: [몇 번째 줄, 그 묶음의 줄 수] }
+// 시간이 겹치는 예약은 칸을 나눠 나란히: { id: [몇 번째 줄, 묶음의 줄 수, 오른쪽으로 넓힐 수 있는 줄 수] }
+// 옆 줄이 그 시간에 비어 있으면 그만큼 넓게 (4건이 잠깐 겹쳐도 나머지 시간엔 넓게 보이게)
 function lanesOf(rs) {
   const out = {};
-  const sorted = [...rs].sort((a, b) => a.startMin - b.startMin || b.durationMin - a.durationMin);
+  const sorted = [...rs].sort((a, b) => a.startMin - b.startMin || b.durationMin - a.durationMin || a.id - b.id);
   let group = [], ends = [], groupEnd = -1;
-  const flush = () => { group.forEach(id => { out[id][1] = ends.length; }); group = []; ends = []; };
+  const overlap = (a, b) => a.startMin < b.startMin + b.durationMin && b.startMin < a.startMin + a.durationMin;
+  const flush = () => {
+    const n = ends.length;
+    for (const r of group) {
+      const lane = out[r.id][0];
+      let span = 1;
+      while (lane + span < n && !group.some(o => out[o.id][0] === lane + span && overlap(o, r))) span++;
+      out[r.id] = [lane, n, span];
+    }
+    group = []; ends = [];
+  };
   for (const r of sorted) {
     if (r.startMin >= groupEnd) flush();
     let lane = ends.findIndex(e => e <= r.startMin);
     if (lane < 0) { lane = ends.length; ends.push(0); }
     ends[lane] = r.startMin + r.durationMin;
     groupEnd = Math.max(groupEnd, ends[lane]);
-    out[r.id] = [lane, 0];
-    group.push(r.id);
+    out[r.id] = [lane];
+    group.push(r);
   }
   flush();
   return out;
 }
-const laneStyle = ([i, n] = [0, 1]) => (n > 1
-  ? { left: `calc(4px + (100% - 8px) * ${i} / ${n})`, width: `calc((100% - 8px) / ${n} - 2px)`, right: 'auto' }
-  : {});
+const laneStyle = ([i, n, span] = [0, 1, 1]) => (n > 1 && span < n
+  ? { left: `calc(4px + (100% - 8px) * ${i} / ${n})`, width: `calc((100% - 8px) * ${span} / ${n} - 2px)`, right: 'auto' }
+  : n > 1 ? { left: `calc(4px + (100% - 8px) * ${i} / ${n})`, right: '4px' } : {});
+// 한 칸의 1/3 이하로 좁으면 손님 이름만 크게 (메뉴·시간 줄은 숨김)
+const isNarrow = ([, n, span] = [0, 1, 1]) => n / span >= 3;
 
 export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick }) {
   const dateStr = fmtDate(date);
@@ -141,7 +154,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
               const pos = { top: top(r.startMin) + 1, height: h, '--c': s.dotColor || 'var(--blue)', ...laneStyle(lanes[r.id]) };
               if (h < 52) return ( // 짧은 예약(30분 등)은 한 줄로
                 <button type="button" key={r.id}
-                  className={'resv short' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn}
+                  className={'resv short' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn + (isNarrow(lanes[r.id]) ? ' narrow' : '')}
                   style={pos} title={why || undefined}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
                   <small>{r.done && '✓ '}{warn && '⚠ '}{r.choice && '★ '}{short(r.startMin)}</small><b>{r.title}</b>
@@ -149,7 +162,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
               );
               return (
                 <button type="button" key={r.id}
-                  className={'resv' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn}
+                  className={'resv' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn + (isNarrow(lanes[r.id]) ? ' narrow' : '')}
                   style={pos}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
                   <small>{r.done ? '✓ 완료 · ' : why ? `⚠ ${why} · ` : live ? '진행 중 · ' : ''}{short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>

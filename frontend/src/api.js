@@ -10,6 +10,8 @@ export const authLink = {
   error: linkHash.get('error_description') || linkHash.get('error') || '',
   errorCode: linkHash.get('error_code') || '',
 };
+// 오류 링크는 supabase 가 주소를 안 지워서, 새로고침할 때마다 같은 안내가 다시 뜬다 → 읽었으니 지움
+if (authLink.error) window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -229,9 +231,10 @@ export const api = {
     return [...new Set(data.map(r => (r.title || '').trim()).filter(t => t && t !== '고객 등록 필요'))];
   },
 
-  reservationDates: async () =>
+  // 달력 점: 보는 날 앞뒤 두 달만 (전체를 읽으면 쌓일수록 느려지고 1000줄에서 잘림)
+  reservationDates: async (from, to) =>
     supabase
-      ? [...new Set(rows(await supabase.from('reservation').select('date')).map(r => r.date))]
+      ? [...new Set(rows(await supabase.from('reservation').select('date').gte('date', from).lte('date', to)).map(r => r.date))]
       : [],
 
   createReservation: async r => {

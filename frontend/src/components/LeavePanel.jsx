@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { api, fmtDate } from '../api';
+import { api } from '../api';
 import { DAYS, minLabel, nim } from '../lib/constants';
-import { altStaff, leaveLabel, bizToday } from '../lib/schedule';
+import { altStaff, leaveLabel, bizToday, nowMinutes } from '../lib/schedule';
 import DatePicker from './DatePicker';
 import { Button, FieldGroup, IconButton, Modal, Select, TrashIcon } from './ui';
 
@@ -88,7 +88,10 @@ function LeaveModal({ staff, allStaff, leaves, openMin, closeMin, onClose }) {
     // 여기부터는 휴가가 이미 저장됨 — 실패해도 다시 저장하면 휴가가 두 번 생기므로 닫고 알린다
     try {
       const rs = await api.reservationsRange(f.startDate, f.endDate);
+      // 오늘 이미 끝난 예약은 옮길 필요 없음
+      const nowMin = nowMinutes();
       const hit = rs.filter(r => r.staffId === staff.id && !r.done
+        && !(r.date === bizToday() && r.startMin + r.durationMin <= nowMin)
         && (f.allDay || (r.startMin < f.endMin && f.startMin < r.startMin + r.durationMin)));
       if (!hit.length) return onClose(true);
       setAllResv(rs); setNewLeaves([...leaves, leave]); setConflicts(hit); setBusy(false);

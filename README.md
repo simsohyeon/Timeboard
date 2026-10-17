@@ -23,7 +23,7 @@ frontend/   React (Vite) — 보드 UI, supabase-js로 DB 직접 접근
       ReservationModal.jsx  MenuModal.jsx
       AuthPage.jsx       로그인·회원가입·매장 만들기
       PinPad.jsx         사장님 PIN 입력
-supabase/   setup.sql — 테이블·시드 / accounts.sql — 계정별 매장 분리·PIN / hardening.sql — 보안 보강 (이 순서로 실행)
+supabase/   setup.sql — 표 / accounts.sql — 계정별 매장·PIN / hardening.sql — 보안 보강 (이 순서) / claim.sql — 예전 데이터 가져오기
 backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않음
 ```
 
@@ -35,13 +35,20 @@ backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않�
 ## 처음 설정 (1회)
 
 1. [supabase.com](https://supabase.com)에서 무료 프로젝트 생성
-2. 대시보드 → SQL Editor에 `supabase/setup.sql` 내용 붙여넣고 실행
-3. 이어서 `supabase/accounts.sql` 실행 (계정별 매장 분리 + 사장님 PIN)
-   → 예전 데이터가 있으면 `supabase/claim.sql` (가입·매장 만든 뒤) → 마지막으로 `supabase/hardening.sql` (보안 보강)
-4. Authentication → URL Configuration 의 Site URL 을 배포 주소로 (인증 메일 링크가 그리로 감).
-   가입 즉시 쓰게 하려면 Authentication → Sign In / Providers → Email 의 Confirm email 을 끈다
+2. SQL Editor 에서 차례로 실행: `supabase/setup.sql` → `supabase/accounts.sql` → `supabase/hardening.sql`
+   (새 프로젝트는 이 셋이면 끝. 계정 없던 예전 데이터가 있을 때만 accounts 다음에 가입·매장 만들기 → `claim.sql` → hardening)
+3. Authentication → URL Configuration
+   - Site URL: 배포 주소 (예: `https://timeboard-five.vercel.app`) — 인증·비밀번호 재설정 메일 링크가 여기로 온다
+   - Redirect URLs: 쓰는 주소를 모두 (배포 주소, 직접 연결한 도메인, `http://localhost:5173`)
+4. **메일 (중요)**: Supabase 기본 메일 서버는 *프로젝트 팀원에게만*, 한 시간에 몇 통만 보낸다 → 실제 손님(매장주)에게는 가입 인증·비밀번호 찾기 메일이 안 간다
+   - Authentication → Emails → SMTP Settings 에 메일 서비스(Resend, Gmail SMTP 등)를 연결하고, Rate Limits 에서 메일 한도를 올린다
+   - SMTP 없이 쓰려면 Sign In / Providers → Email 의 Confirm email 을 끈다 (가입 즉시 사용). 이 경우 비밀번호 찾기 메일은 여전히 안 간다
+   - (선택) Emails → Templates 에서 메일 문구를 한국어로
 5. Project Settings → API에서 URL과 anon key 복사
-6. `frontend/.env.example`을 `frontend/.env`로 복사해 값 채우기
+6. 로컬: `frontend/.env.example`을 `frontend/.env`로 복사해 값 채우기. 배포: Vercel 환경 변수에 넣는다
+   (Vite 는 빌드할 때 값을 넣으므로 바꾼 뒤에는 **다시 배포**해야 적용)
+
+**업데이트로 칸이 늘어났을 때**: `setup.sql` 을 다시 실행한다 (계정 적용 뒤에도 안전 — 보안 규칙은 건드리지 않음)
 
 ## 계정 · 매장 · 사장님 PIN
 
@@ -53,7 +60,7 @@ backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않�
 - 예약·휴가의 담당자는 (직원 id, 매장) 으로 묶여 다른 매장 직원을 가리킬 수 없다 (hardening.sql)
 - public 스키마에 새 표를 만들면 Supabase 는 anon 에 열어 둔다 → 새 표마다 RLS 켜고 anon 권한 회수
 - PIN 은 화면 잠금이다: 같은 계정으로 로그인한 기기는 DB 규칙상 그 매장 데이터를 읽고 쓸 수 있다
-- 예전(계정 없던 때) 데이터는 `accounts.sql` 맨 아래 '기존 데이터 가져오기'로 내 매장에 붙인다
+- 예전(계정 없던 때) 데이터는 가입·매장 만들기 뒤 `claim.sql` 로 내 매장에 붙인다 (매장이 하나면 이메일 없이)
 
 ## 로컬 실행
 
@@ -89,7 +96,7 @@ staff        id, name, dot_color, sort_order,
              joined_on, left_on(퇴사일: 다음 날부터 보드에서 숨김, 기록 유지),
              commission_pct(정산 비율), work_days(0=일…6=토), work_open_min/close_min(null=매장과 같음),
              phone, memo
-reservation  id, staff_id, date, start_min(0:00 기준 분), duration_min, title, subtitle, price
+reservation  id, staff_id, date, start_min(영업일 0:00 기준 분, 1440 이상 = 새벽), duration_min, title, subtitle, price, done(완료), choice(초이스)
 menu         id, name, durations[], prices[](같은 순서), sort_order
 settings     id, shop_id(매장마다 한 줄), open_min, close_min
 shop         id, name, pin_hash, pin_fails, pin_locked_until   (화면에서는 id·name 만 보임)
