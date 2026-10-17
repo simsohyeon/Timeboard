@@ -15,7 +15,7 @@ begin
     if n > 0 then leftover := leftover || format(' %s(%s건)', t, n); end if;
   end loop;
   if leftover <> '' then
-    raise exception '매장이 정해지지 않은 예전 데이터가 있어요:% — accounts.sql 맨 아래 ''기존 데이터 가져오기''를 먼저 실행하세요 (안 쓸 데이터면 지워도 돼요)', leftover;
+    raise exception '매장이 정해지지 않은 예전 데이터가 있어요:% — supabase/claim.sql(기존 데이터 가져오기)을 먼저 실행하세요 (안 쓸 데이터면 지워도 돼요)', leftover;
   end if;
 
   foreach t in array array['staff', 'reservation', 'menu', 'settings', 'staff_leave'] loop

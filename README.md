@@ -37,7 +37,7 @@ backend/    Spring Boot (Java 21) — 보관용. 배포에는 사용하지 않�
 1. [supabase.com](https://supabase.com)에서 무료 프로젝트 생성
 2. 대시보드 → SQL Editor에 `supabase/setup.sql` 내용 붙여넣고 실행
 3. 이어서 `supabase/accounts.sql` 실행 (계정별 매장 분리 + 사장님 PIN)
-   → 예전 데이터가 있으면 accounts.sql 맨 아래 '기존 데이터 가져오기' → 마지막으로 `supabase/hardening.sql` (보안 보강)
+   → 예전 데이터가 있으면 `supabase/claim.sql` (가입·매장 만든 뒤) → 마지막으로 `supabase/hardening.sql` (보안 보강)
 4. Authentication → URL Configuration 의 Site URL 을 배포 주소로 (인증 메일 링크가 그리로 감).
    가입 즉시 쓰게 하려면 Authentication → Sign In / Providers → Email 의 Confirm email 을 끈다
 5. Project Settings → API에서 URL과 anon key 복사
