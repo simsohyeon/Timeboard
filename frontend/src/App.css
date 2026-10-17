@@ -1106,3 +1106,5 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 .pin-forgot:hover { color: var(--blue); }
 .pin-reset .modal { text-align: left; }
 .pin-reset .m-actions { display: flex; gap: 8px; margin-top: 4px; }
+.auth-bad { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--red-soft); color: var(--red); font-size: 13px; line-height: 1.5; }
+.auth-form .btn-secondary { padding: 12px 16px; }

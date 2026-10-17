@@ -2,6 +2,15 @@
 // frontend/.env 에 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY 필요 (.env.example 참고)
 import { createClient } from '@supabase/supabase-js';
 
+// 메일 링크(가입 인증·비밀번호 재설정)로 열리면 주소 # 뒤에 결과가 붙는다.
+// supabase 가 읽고 지우기 전에 남겨 둔다 (만료된 링크 안내, 비밀번호 새로 정하기 화면)
+const linkHash = new URLSearchParams(window.location.hash.slice(1));
+export const authLink = {
+  recovery: linkHash.get('type') === 'recovery',
+  error: linkHash.get('error_description') || linkHash.get('error') || '',
+  errorCode: linkHash.get('error_code') || '',
+};
+
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -56,11 +65,18 @@ const AUTH_MSG = [
   [/already registered|already been registered/i, '이미 가입된 이메일이에요 — 로그인해 주세요'],
   [/password should be at least/i, '비밀번호는 6자 이상이어야 해요'],
   [/unable to validate email|invalid email|email address .* is invalid/i, '이메일 주소를 확인해 주세요'],
+  [/email rate limit/i, '인증 메일을 너무 자주 보냈어요 — 잠시(약 1시간) 뒤에 다시 해 주세요'],
   [/rate limit|too many/i, '잠시 뒤에 다시 해 주세요 (요청이 너무 많아요)'],
+  [/password .*(weak|contain|characters)|weak password/i, '비밀번호가 너무 쉬워요 — 영문·숫자를 섞어 더 길게 해 주세요'],
+  [/same.*password|different from the old/i, '지금 비밀번호와 다른 비밀번호를 넣어 주세요'],
+  [/signups not allowed|signup.*disabled/i, '지금은 새로 가입할 수 없게 설정돼 있어요 (Supabase → Authentication 설정 확인)'],
+  [/failed to fetch|network|load failed/i, '인터넷 연결을 확인해 주세요'],
 ];
 const authErr = e => {
   const m = e?.message || String(e);
-  return new Error(AUTH_MSG.find(([re]) => re.test(m))?.[1] ?? m);
+  const err = new Error(AUTH_MSG.find(([re]) => re.test(m))?.[1] ?? m);
+  err.code = e?.code || (/email not confirmed/i.test(m) ? 'email_not_confirmed' : '');
+  return err;
 };
 const authed = ({ data, error }) => { if (error) throw authErr(error); return data; };
 // rpc 오류: 함수 안에서 낸 한국어 메시지는 그대로, 함수가 없으면 SQL 안내
@@ -74,12 +90,23 @@ const rpc = async (fn, args) => {
 
 export const auth = {
   session: async () => (supabase ? (await supabase.auth.getSession()).data.session : null),
-  onChange: cb => supabase?.auth.onAuthStateChange((_e, s) => cb(s)).data.subscription,
+  onChange: cb => supabase?.auth.onAuthStateChange((e, s) => cb(s, e)).data.subscription,
   signIn: async (email, password) => authed(await supabase.auth.signInWithPassword({ email, password })),
   // 메일 인증을 켜 둔 프로젝트면 session 이 비어서 온다 → 화면에서 '메일 확인' 안내
-  signUp: async (email, password) => authed(await supabase.auth.signUp({
-    email, password, options: { emailRedirectTo: window.location.origin },
+  // 이미 가입된 이메일이면 Supabase 는 오류 대신 identities 가 빈 사용자를 돌려준다 (가입 여부를 숨기려고)
+  signUp: async (email, password) => {
+    const d = authed(await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } }));
+    if (d.user && !d.session && Array.isArray(d.user.identities) && d.user.identities.length === 0) {
+      throw new Error('이미 가입된 이메일이에요 — 로그인하거나 비밀번호 찾기를 해 주세요');
+    }
+    return d;
+  },
+  resendSignup: async email => authed(await supabase.auth.resend({
+    type: 'signup', email, options: { emailRedirectTo: window.location.origin },
   })),
+  // 비밀번호 찾기: 메일 링크를 누르면 이 사이트로 돌아와 '새 비밀번호' 화면이 뜬다
+  sendReset: async email => authed(await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })),
+  setPassword: async password => authed(await supabase.auth.updateUser({ password })),
   signOut: async () => { shopId = null; await supabase.auth.signOut(); },
 };
 

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api, auth, configured } from './api';
+import { api, auth, authLink, configured } from './api';
 import App from './App';
 import { setDayEnd } from './lib/schedule';
-import { AuthPage, ShopSetup } from './components/AuthPage';
+import { AuthPage, NewPassword, ShopSetup } from './components/AuthPage';
 import './App.css';
 import { loadDisplay } from './lib/display';
 
@@ -14,11 +14,16 @@ export default function Root() {
   const [session, setSession] = useState(undefined); // undefined = 확인 중
   const [shop, setShop] = useState(undefined);
   const [err, setErr] = useState('');
+  // 비밀번호 재설정 메일 링크로 들어옴 → 새 비밀번호부터
+  const [recovery, setRecovery] = useState(authLink.recovery);
 
   useEffect(() => {
     if (!configured) return;
     auth.session().then(setSession);
-    const sub = auth.onChange(setSession);
+    const sub = auth.onChange((s, event) => {
+      setSession(s);
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
+    });
     return () => sub?.unsubscribe();
   }, []);
 
@@ -38,6 +43,7 @@ export default function Root() {
   if (!configured) return <App shop={null} />;
   if (session === undefined || (session && shop === undefined)) return <div className="auth-page" aria-busy="true" />;
   if (!session) return <AuthPage />;
+  if (recovery) return <NewPassword email={session.user.email} onDone={() => setRecovery(false)} />;
   if (err) return (
     <div className="auth-page"><div className="auth-card">
       <p className="m-err">{err}</p>
