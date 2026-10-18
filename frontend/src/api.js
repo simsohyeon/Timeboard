@@ -73,6 +73,7 @@ const AUTH_MSG = [
   [/same.*password|different from the old/i, '지금 비밀번호와 다른 비밀번호를 넣어 주세요'],
   [/signups not allowed|signup.*disabled/i, '지금은 새로 가입할 수 없게 설정돼 있어요 (Supabase → Authentication 설정 확인)'],
   [/failed to fetch|network|load failed/i, '인터넷 연결을 확인해 주세요'],
+  [/database error saving new user|database error/i, '가입을 저장하다 서버(DB) 오류가 났어요 — 관리자가 Supabase 설정을 확인해야 해요 (supabase/fix-signup.sql)'],
 ];
 const authErr = e => {
   const m = e?.message || String(e);
@@ -92,6 +93,12 @@ const rpc = async (fn, args) => {
 
 export const auth = {
   session: async () => (supabase ? (await supabase.auth.getSession()).data.session : null),
+  // 기기에 로그인 정보가 남아 있는지 — 토큰이 만료됐는데 인터넷이 안 될 때 Supabase 는 정보를 지우지 않고
+  // 나중에 다시 시도하지만 getSession 은 '없음'을 돌려준다. 이때 로그인 화면을 띄우면 안 된다
+  hasStored: () => {
+    try { return !!JSON.parse(localStorage.getItem(supabase.auth.storageKey) || 'null')?.refresh_token; }
+    catch { return false; }
+  },
   onChange: cb => supabase?.auth.onAuthStateChange((e, s) => cb(s, e)).data.subscription,
   signIn: async (email, password) => authed(await supabase.auth.signInWithPassword({ email, password })),
   // 메일 인증을 켜 둔 프로젝트면 session 이 비어서 온다 → 화면에서 '메일 확인' 안내
