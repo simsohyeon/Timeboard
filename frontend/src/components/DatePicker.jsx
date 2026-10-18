@@ -25,7 +25,9 @@ export default function DatePicker({ value, onChange, placeholder = '선택 안 
 
   const toggle = () => {
     const r = ref.current.getBoundingClientRect();
-    setAlignRight(r.left + POP_W > document.documentElement.clientWidth - 8);
+    // 글자 크게(zoom)일 때는 달력도 그만큼 넓어진다
+    const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--scale')) || 1;
+    setAlignRight(r.left + POP_W * scale > document.documentElement.clientWidth - 8);
     setOpen(o => !o);
   };
 

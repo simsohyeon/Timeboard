@@ -2,6 +2,12 @@
 import { useEffect, useRef, useState } from 'react';
 
 export function Modal({ title, onClose, children, className = '' }) {
+  // Esc 로 닫기 (위에 다른 창·드롭다운이 열려 있으면 그쪽이 먼저 받음)
+  useEffect(() => {
+    const esc = e => { if (e.key === 'Escape' && !e.defaultPrevented) onClose?.(); };
+    document.addEventListener('keydown', esc);
+    return () => document.removeEventListener('keydown', esc);
+  }, [onClose]);
   return (
     <div className={`modal-wrap ${className}`}>
       <div className="scrim" onClick={onClose} />
@@ -151,13 +157,31 @@ export function useDraft(source) {
   return { draft, setDraft, dirty, changes, reset: () => setDraft(base) };
 }
 
+// 여러 저장을 한꺼번에: 전부 끝날 때까지 기다린 뒤, 하나라도 실패했으면 그 오류를 낸다
+// (Promise.all 은 첫 실패에서 바로 끝나 나머지가 저장됐는지 모른 채 화면이 남는다)
+export async function allSaved(jobs) {
+  // 바뀐 게 없는 줄(null)은 '저장됨'으로 세지 않는다 — 하나만 바꿨는데 실패하면 '일부'가 아니라 그냥 실패
+  const rs = await Promise.allSettled(jobs.filter(Boolean));
+  const bad = rs.filter(r => r.status === 'rejected');
+  if (bad.length) {
+    const e = new Error(bad[0].reason?.message || String(bad[0].reason));
+    e.partial = bad.length < rs.length;
+    throw e;
+  }
+}
+
 // 저장 실행 + 상태(저장 중/저장됨/오류) 관리
+// 실패해도 after(다시 불러오기)를 불러, 일부 저장된 것이 화면에 반영되게 한다 (다시 저장해 중복 생성되지 않게)
 export function useSaver() {
   const [status, setStatus] = useState({ kind: 'idle' });
   const save = async (fn, after) => {
     setStatus({ kind: 'saving' });
     try { await fn(); setStatus({ kind: 'saved' }); after?.(); }
-    catch (e) { setStatus({ kind: 'error', msg: e.message || String(e) }); }
+    catch (e) {
+      const msg = e.message || String(e);
+      if (e.partial) after?.();
+      setStatus({ kind: 'error', msg: e.partial ? `일부만 저장됐어요 — ${msg}. 저장된 내용을 다시 불러왔어요` : msg });
+    }
   };
   const fail = msg => setStatus({ kind: 'error', msg });
   return { status, setStatus, save, fail };

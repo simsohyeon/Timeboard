@@ -2,6 +2,17 @@
 // frontend/.env 에 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY 필요 (.env.example 참고)
 import { createClient } from '@supabase/supabase-js';
 
+// 메일 링크(가입 인증·비밀번호 재설정)로 열리면 주소 # 뒤에 결과가 붙는다.
+// supabase 가 읽고 지우기 전에 남겨 둔다 (만료된 링크 안내, 비밀번호 새로 정하기 화면)
+const linkHash = new URLSearchParams(window.location.hash.slice(1));
+export const authLink = {
+  recovery: linkHash.get('type') === 'recovery',
+  error: linkHash.get('error_description') || linkHash.get('error') || '',
+  errorCode: linkHash.get('error_code') || '',
+};
+// 오류 링크는 supabase 가 주소를 안 지워서, 새로고침할 때마다 같은 안내가 다시 뜬다 → 읽었으니 지움
+if (authLink.error) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -46,7 +57,87 @@ const staffRow = s => ({
   phone: s.phone ?? '', memo: s.memo ?? '',
 });
 
+const NO_SHOP_MSG = '계정·매장 표(shop)가 없어요 — supabase/accounts.sql 을 SQL Editor에서 실행하세요';
+let shopId = null; // 로그인한 계정의 매장 (myShop 이 채움)
+
+// 로그인 오류를 한국어로
+const AUTH_MSG = [
+  [/invalid login credentials/i, '이메일 또는 비밀번호가 맞지 않아요'],
+  [/email not confirmed/i, '메일 인증이 아직이에요 — 받은 메일의 링크를 먼저 눌러 주세요'],
+  [/already registered|already been registered/i, '이미 가입된 이메일이에요 — 로그인해 주세요'],
+  [/password should be at least/i, '비밀번호는 6자 이상이어야 해요'],
+  [/unable to validate email|invalid email|email address .* is invalid/i, '이메일 주소를 확인해 주세요'],
+  [/email rate limit/i, '인증 메일을 너무 자주 보냈어요 — 잠시(약 1시간) 뒤에 다시 해 주세요'],
+  [/rate limit|too many/i, '잠시 뒤에 다시 해 주세요 (요청이 너무 많아요)'],
+  [/password .*(weak|contain|characters)|weak password/i, '비밀번호가 너무 쉬워요 — 영문·숫자를 섞어 더 길게 해 주세요'],
+  [/same.*password|different from the old/i, '지금 비밀번호와 다른 비밀번호를 넣어 주세요'],
+  [/signups not allowed|signup.*disabled/i, '지금은 새로 가입할 수 없게 설정돼 있어요 (Supabase → Authentication 설정 확인)'],
+  [/failed to fetch|network|load failed/i, '인터넷 연결을 확인해 주세요'],
+  [/database error saving new user|database error/i, '가입을 저장하다 서버(DB) 오류가 났어요 — 관리자가 Supabase 설정을 확인해야 해요 (supabase/fix-signup.sql)'],
+];
+const authErr = e => {
+  const m = e?.message || String(e);
+  const err = new Error(AUTH_MSG.find(([re]) => re.test(m))?.[1] ?? m);
+  err.code = e?.code || (/email not confirmed/i.test(m) ? 'email_not_confirmed' : '');
+  return err;
+};
+const authed = ({ data, error }) => { if (error) throw authErr(error); return data; };
+// rpc 오류: 함수 안에서 낸 한국어 메시지는 그대로, 함수가 없으면 SQL 안내
+const rpc = async (fn, args) => {
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) throw new Error(error.code === 'PGRST202' || error.code === '42883'
+    ? (fn === 'reset_pin' ? 'PIN 다시 정하기 함수가 없어요 — supabase/hardening.sql 을 SQL Editor에서 실행하세요' : NO_SHOP_MSG)
+    : error.message);
+  return data;
+};
+
+export const auth = {
+  session: async () => (supabase ? (await supabase.auth.getSession()).data.session : null),
+  // 기기에 로그인 정보가 남아 있는지 — 토큰이 만료됐는데 인터넷이 안 될 때 Supabase 는 정보를 지우지 않고
+  // 나중에 다시 시도하지만 getSession 은 '없음'을 돌려준다. 이때 로그인 화면을 띄우면 안 된다
+  hasStored: () => {
+    try { return !!JSON.parse(localStorage.getItem(supabase.auth.storageKey) || 'null')?.refresh_token; }
+    catch { return false; }
+  },
+  onChange: cb => supabase?.auth.onAuthStateChange((e, s) => cb(s, e)).data.subscription,
+  signIn: async (email, password) => authed(await supabase.auth.signInWithPassword({ email, password })),
+  // 메일 인증을 켜 둔 프로젝트면 session 이 비어서 온다 → 화면에서 '메일 확인' 안내
+  // 이미 가입된 이메일이면 Supabase 는 오류 대신 identities 가 빈 사용자를 돌려준다 (가입 여부를 숨기려고)
+  signUp: async (email, password) => {
+    const d = authed(await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin } }));
+    if (d.user && !d.session && Array.isArray(d.user.identities) && d.user.identities.length === 0) {
+      throw new Error('이미 가입된 이메일이에요 — 로그인하거나 비밀번호 찾기를 해 주세요');
+    }
+    return d;
+  },
+  resendSignup: async email => authed(await supabase.auth.resend({
+    type: 'signup', email, options: { emailRedirectTo: window.location.origin },
+  })),
+  // 비밀번호 찾기: 메일 링크를 누르면 이 사이트로 돌아와 '새 비밀번호' 화면이 뜬다
+  sendReset: async email => authed(await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })),
+  setPassword: async password => authed(await supabase.auth.updateUser({ password })),
+  signOut: async () => { shopId = null; await supabase.auth.signOut(); },
+};
+
 export const api = {
+  // ───── 매장 (계정 1개 = 매장 1개) ─────
+  myShop: async () => {
+    const res = await supabase.from('shop').select('id,name').maybeSingle();
+    if (res.error && ['42P01', 'PGRST205'].includes(res.error.code)) throw new Error(NO_SHOP_MSG);
+    const s = rows(res);
+    shopId = s?.id ?? null;
+    return s;
+  },
+  createShop: (name, pin) => rpc('create_shop', { p_name: name, p_pin: pin }),
+  verifyPin: pin => rpc('verify_pin', { p_pin: pin }),
+  setPin: (oldPin, newPin) => rpc('set_pin', { p_old: oldPin, p_new: newPin }),
+  renameShop: name => rpc('rename_shop', { p_name: name }),
+  // PIN을 잊었을 때: 비밀번호로 다시 로그인한 직후에만 DB가 새 PIN을 받아 준다
+  resetPin: async (email, password, pin) => {
+    await auth.signIn(email, password);
+    return rpc('reset_pin', { p_new: pin });
+  },
+
   // ───── 담당자 ─────
   staff: async () => {
     if (!supabase) return [];
@@ -147,9 +238,10 @@ export const api = {
     return [...new Set(data.map(r => (r.title || '').trim()).filter(t => t && t !== '고객 등록 필요'))];
   },
 
-  reservationDates: async () =>
+  // 달력 점: 보는 날 앞뒤 두 달만 (전체를 읽으면 쌓일수록 느려지고 1000줄에서 잘림)
+  reservationDates: async (from, to) =>
     supabase
-      ? [...new Set(rows(await supabase.from('reservation').select('date')).map(r => r.date))]
+      ? [...new Set(rows(await supabase.from('reservation').select('date').gte('date', from).lte('date', to)).map(r => r.date))]
       : [],
 
   createReservation: async r => {
@@ -171,13 +263,14 @@ export const api = {
   // ───── 설정 (업무시간) ─────
   settings: async () =>
     supabase
-      ? (rows(await supabase.from('settings').select('openMin:open_min,closeMin:close_min').eq('id', 1))[0] ?? null)
+      ? (rows(await supabase.from('settings').select('openMin:open_min,closeMin:close_min').limit(1))[0] ?? null)
       : null,
 
   updateSettings: async s => {
     need();
+    // 내 매장 줄 (다른 매장 줄은 DB 규칙상 보이지도 않음)
     const d = rows(await supabase.from('settings')
-      .update({ open_min: s.openMin, close_min: s.closeMin }).eq('id', 1).select());
+      .update({ open_min: s.openMin, close_min: s.closeMin }).eq('shop_id', shopId).select());
     if (!d.length) throw new Error('settings 테이블이 없어요 — supabase/setup.sql 최신 버전을 실행하세요');
     return d;
   },

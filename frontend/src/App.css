@@ -19,7 +19,7 @@
   --faint: #c9ced4;     /* 흐린 요소 (지난달 날짜, + 버튼) */
   --radius: 12px;
   /* 반응형 치수: 화면 폭에 따라 자동 조절 */
-  --timecol: clamp(74px, 8vw, 90px);  /* 보드 시간축 폭 */
+  --timecol: clamp(80px, 8vw, 90px);  /* 보드 시간축 폭 ('오전 11:00' 이 안 잘리게 최소 80) */
   --colmin: 120px;                    /* 담당자 열 최소 폭 */
   --amber: #b85c1a;     /* 진행 중(시술 중) */
   --amber-soft: #fbebdd;
@@ -897,6 +897,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
   position: fixed; right: 22px; bottom: 22px; width: 48px; height: 48px; border-radius: 50%;
   background: var(--blue); color: #fff; border: none; font-size: 26px; line-height: 1;
   cursor: pointer; box-shadow: 0 6px 16px rgba(49, 130, 246, .38);
+  z-index: 20; /* 예약 칸(z1~5) 위, 상단바(40)·창(50) 아래 */
 }
 .fab:hover { background: var(--blue-dark); }
 
@@ -917,8 +918,8 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 
 /* 폰: 칸·글자 축소, 설정은 여백을 줄이고 세그먼트를 꽉 채운다 */
 @media (max-width: 760px) {
-  :root { --colmin: 100px; --timecol: 64px; }
-  .time-label { font-size: 12px; right: 8px; }
+  :root { --colmin: 100px; --timecol: 70px; }
+  .time-label { font-size: 11.5px; right: 4px; }
   .col-head .avatar { display: none; }
   .day-sum { padding: 8px 10px; gap: 6px; }
 
@@ -972,4 +973,207 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .choice-tag {
   display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; vertical-align: 1px;
   font-size: 11px; font-style: normal; font-weight: 700; color: var(--blue-dark); background: var(--blue-soft);
+}
+
+/* ───── 로그인 · 회원가입 · 매장 만들기 ───── */
+.auth-page {
+  min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px; background: var(--page); color: var(--fg);
+}
+.auth-card {
+  width: 400px; max-width: 100%; background: var(--surface); border-radius: 20px; padding: 28px 24px 22px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, .06); display: flex; flex-direction: column; gap: 16px;
+}
+.auth-brand { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+.auth-seg { align-self: stretch; display: grid; grid-template-columns: 1fr 1fr; }
+.auth-h { margin: 0; font-size: 18px; }
+.auth-lead, .auth-note { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.auth-ok { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--green-soft); color: var(--green); font-size: 13px; line-height: 1.5; }
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-form .field input { padding: 12px 14px; font-size: 15px; }
+.auth-form .btn { padding: 13px 16px; font-size: 15px; margin-top: 4px; }
+.auth-form .m-err { margin: 0; font-size: 13px; }
+.auth-foot { margin: 0; text-align: center; font-size: 13px; color: var(--muted); }
+.auth-foot button { font: inherit; color: var(--blue); background: none; border: none; cursor: pointer; font-weight: 600; padding: 4px; }
+
+/* ───── 사장님 PIN ───── */
+.tb-tabs .lock-ic { margin-left: 3px; vertical-align: -1px; opacity: .7; }
+.tb-brand { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-lock {
+  display: inline-flex; align-items: center; gap: 4px; font: inherit; font-size: 12px; font-weight: 600;
+  color: #fff; background: rgba(255, 255, 255, .14); border: none; border-radius: 8px; padding: 5px 9px; cursor: pointer;
+}
+.tb-lock:hover { background: rgba(255, 255, 255, .22); }
+.pin .modal { width: 340px; text-align: center; }
+.pin .modal h2 { margin-bottom: 6px; }
+.pin-desc { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
+.pin-dots { display: flex; justify-content: center; gap: 14px; margin: 6px 0 4px; }
+.pin-dots i { width: 14px; height: 14px; border-radius: 50%; background: var(--line-strong); transition: background .1s; }
+.pin-dots i.on { background: var(--blue); }
+.pin-dots.bad i { background: var(--red); }
+.pin-err { min-height: 18px; margin: 6px 0 10px; font-size: 13px; color: var(--red); }
+.pin-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pin-keys button {
+  font: inherit; font-size: 22px; font-weight: 600; color: var(--fg); background: var(--line);
+  border: none; border-radius: 14px; height: 58px; cursor: pointer;
+}
+.pin-keys button:active:not(:disabled) { background: var(--line-strong); }
+.pin-keys button.pin-sub { font-size: 15px; color: var(--sub); background: none; }
+.pin-keys button:disabled { opacity: .5; }
+
+/* 설정 > 계정 */
+.acc-email { margin-left: auto; font-size: 14px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; }
+.acc-pin { text-align: right; letter-spacing: .3em; }
+.acc-actions { justify-content: flex-end; }
+.acc-actions .btn { flex: none; }
+.set-note.ok { color: var(--green); }
+.set-note.bad { color: var(--red); }
+.tb-tabs button { white-space: nowrap; }
+/* 폰: 매장 이름은 짧게 자르고, 잠그기는 아이콘만 */
+@media (max-width: 600px) {
+  .tb-brand { max-width: 76px; font-size: 13px; }
+  .tb-tabs { margin-left: 4px; }
+  .tb-tabs button { padding: 10px 7px; }
+  .tb-tabs .lock-ic { margin-left: 2px; width: 10px; height: 10px; }
+  .tb-lock { padding: 6px; font-size: 0; gap: 0; }
+  .tb-lock .lock-ic { width: 14px; height: 14px; }
+}
+@media (max-width: 400px) {
+  .tb-brand { max-width: 56px; }
+}
+.now-warn { color: var(--amber); }
+
+/* ───── QA 레이아웃 수정 ───── */
+/* 한국어는 단어(어절) 단위로 줄바꿈 — '저장해/야' 처럼 끊기지 않게 */
+body { word-break: keep-all; overflow-wrap: anywhere; }
+.time-label { right: 6px; }
+
+/* 설정 카드 안의 날짜 선택 달력이 카드 밖으로 펼쳐지게 */
+.set-grp > .set-box:has(.datepick) { overflow: visible; }
+
+/* 상단바: 매장 이름·시계가 0폭으로 사라지지 않게, 글자 크게일 때는 시계 날짜 숨김 */
+.tb-brand { flex-shrink: 0; min-width: 3em; }
+.tb-right { flex-shrink: 0; }
+.tb-tabs { min-width: 0; }
+:root[data-zoomed] .tb-clock-day { display: none; }
+/* 폰 + 글자 크게: 상단바 폭이 모자라 매장 이름·시계는 빼고 탭만 */
+@media (max-width: 600px) { :root[data-zoomed] .tb-brand, :root[data-zoomed] .tb-clock { display: none; } }
+
+/* 예약 창 담당자 이름: 글자 단위로 깨지지 않게 한 줄 말줄임 */
+.rm-chip b { max-width: 100%; min-width: 0; }
+.rm-chip-name, .rm-chip small { min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: keep-all; }
+.rm-chip .dot { flex: none; }
+
+/* 보드 위 요약 칩: 넘치면 말줄임 (폰은 한 줄 가로 스크롤) */
+.ds-chip { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) {
+  .day-sum { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .day-sum::-webkit-scrollbar { display: none; }
+  .ds-chip { flex: none; max-width: 80vw; }
+}
+
+/* 결제 표: 폰에서는 정산 비율을 빼고 이름은 말줄임 → 정산액이 화면 안에 */
+@media (max-width: 600px) {
+  .pay-table .pay-pct { display: none; }
+  .pay-table td:first-child { max-width: 6em; overflow: hidden; text-overflow: ellipsis; }
+  .pay-table th, .pay-table td { padding: 11px 6px; font-size: 13px; }
+  .pay-table th:first-child, .pay-table td:first-child { padding-left: 12px; }
+  .pay-table th:last-child, .pay-table td:last-child { padding-right: 12px; }
+  .pay-table td .dot { margin-right: 5px; }
+}
+
+/* 설정 > 화면 글자 크기 칩: 좁은 화면에서는 한 줄에 고르게 */
+@media (max-width: 600px) {
+  .seg-chips { flex-wrap: nowrap; }
+  .seg-chips button { flex: 1; min-width: 0; padding-left: 4px; padding-right: 4px; }
+}
+
+/* 다크 모드에서 창 테두리가 배경에 묻히지 않게 */
+:root[data-theme="dark"] .modal { border: 1px solid var(--line-strong); }
+
+/* 터치 기기: 작은 버튼의 누를 수 있는 영역을 넓힘 (보이는 크기는 거의 그대로) */
+@media (pointer: coarse) {
+  .mh-arrow { min-width: 40px; min-height: 40px; }
+  .mc-arrow { min-width: 36px; min-height: 36px; }
+  .mc-day { min-height: 36px; }
+  .set-link { padding: 10px 8px; margin: -6px -4px; }
+  .tb-lock { min-height: 32px; min-width: 32px; justify-content: center; }
+  .now-next { min-height: 36px; }
+  .switch { position: relative; }
+  .switch::before { content: ''; position: absolute; inset: -8px; }
+}
+.pin-forgot { margin-top: 14px; font: inherit; font-size: 13px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 8px; }
+.pin-forgot:hover { color: var(--blue); }
+.pin-reset .modal { text-align: left; }
+.pin-reset .m-actions { display: flex; gap: 8px; margin-top: 4px; }
+.auth-bad { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--red-soft); color: var(--red); font-size: 13px; line-height: 1.5; }
+.auth-form .btn-secondary { padding: 12px 16px; }
+
+/* ───── QA 2차 ───── */
+/* 날짜를 바꿔 새 예약을 불러오는 동안: 흐리게 + 누르지 못하게 */
+.is-loading .board, .is-loading .day-sum, .is-loading .now, .is-loading .payroll { opacity: .45; pointer-events: none; transition: opacity .1s; }
+.fab:disabled { opacity: .5; cursor: default; }
+/* 새 매장 처음 설정 안내 */
+.setup-hint {
+  flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 10px 16px 0; padding: 10px 14px; border-radius: 12px; background: var(--blue-soft); color: var(--blue-dark); font-size: 13px;
+}
+.setup-hint b { font-weight: 700; }
+.setup-hint span { flex: 1; min-width: 0; }
+.setup-hint button {
+  font: inherit; font-weight: 600; color: #fff; background: var(--blue); border: none; border-radius: 8px;
+  padding: 8px 12px; min-height: 36px; cursor: pointer;
+}
+
+/* 글자 크게(zoom): 화면 폭 기준 최대 폭을 배율로 나눠야 창·달력이 화면 밖으로 안 나감 */
+.modal { max-width: calc(100vw / var(--scale, 1) - 32px); max-height: calc(100dvh / var(--scale, 1) - 24px); overflow-y: auto; }
+.rm .modal { overflow: hidden; } /* 예약 창은 안쪽(본문)만 스크롤 */
+.modal-wrap { align-items: safe center; }
+.datepick-pop { max-width: calc(100vw / var(--scale, 1) - 16px); }
+@media (max-width: 600px) { .ds-chip { max-width: calc(80vw / var(--scale, 1)); } }
+
+/* 겹친 예약이 좁은 칸일 때: 손님 이름만 (시간·메뉴 줄 숨김) */
+.resv.narrow { padding: 5px 5px; }
+.resv.narrow span { display: none; }
+.resv.narrow small { font-size: 10.5px; }
+.resv.narrow b { font-size: 12.5px; white-space: normal; word-break: break-all; line-height: 1.25;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.resv.narrow .choice-tag { display: none; }
+
+/* 지금 탭: 긴 담당자 이름이 손님 이름을 밀어내지 않게 */
+.q-staff { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.q-body { min-width: 0; }
+.q-body b, .q-body small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.now-badge { white-space: nowrap; flex: none; }
+
+/* 이름이 끝만 다른 경우를 구분하게 두 줄까지 */
+.rm-chip-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all; line-height: 1.2; }
+@media (max-width: 600px) {
+  .pay-table td:first-child { white-space: normal; word-break: break-all; max-width: 6.5em; }
+}
+/* 글자 크게 + 폰: 결제 표에서 초이스도 빼서 정산액이 보이게, 설정 칩은 여러 줄 허용 */
+@media (max-width: 600px) {
+  :root[data-zoomed] .pay-table th:nth-child(3), :root[data-zoomed] .pay-table td:nth-child(3) { display: none; }
+  :root[data-zoomed] .seg-chips { flex-wrap: wrap; }
+  :root[data-zoomed] .seg-chips button { flex: 1 0 auto; min-width: auto; white-space: nowrap; }
+}
+
+/* 가격 미정 메뉴 버튼 */
+.menu-opt .no-price { color: var(--amber); font-weight: 600; }
+
+/* 다크 모드 대비: 파란 바탕 흰 글씨 버튼은 조금 더 진한 파랑, 지금 시각 표시는 어두운 글씨 */
+:root[data-theme="dark"] .btn-primary, :root[data-theme="dark"] .fab, :root[data-theme="dark"] .setup-hint button { background: #2f6fd6; }
+
+:root[data-theme="dark"] .btn-primary:hover:not(:disabled) { background: #2a62bf; }
+:root[data-theme="dark"] .now-pill { color: #1a1a1a; }
+:root[data-theme="dark"] .done-btn:not(.is-done) { background: #1d3a2a; color: #9fe0b8; }
+
+/* 터치: 더 작은 버튼들 */
+@media (pointer: coarse) {
+  .mh-date { min-height: 40px; }
+  .mc-today { min-height: 32px; padding: 6px 10px; }
+  .rm-status button, .rm-recent button { min-height: 36px; }
+  .pin-forgot { min-height: 40px; }
+  .seg button { min-height: 38px; }
+  .now-who { min-height: 36px; }
 }

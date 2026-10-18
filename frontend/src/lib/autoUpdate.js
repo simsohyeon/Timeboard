@@ -1,7 +1,7 @@
 // 새 배포 자동 반영 — 켜 둔 화면(태블릿·홈 화면 앱)이 옛 버전에 머무르지 않게.
 // 배포하면 index.html 이 가리키는 /assets/index-<해시>.js 이름이 바뀐다 → 지금 화면의 것과 다르면 새로고침.
 // 확인 시점: 화면으로 돌아올 때(앱 다시 열기·탭 전환) + 켜 둔 동안 5분마다.
-// 입력 중(창이 열려 있거나 저장 안 한 설정이 있으면)에는 새로고침을 미루고 끝나면 한다.
+// 입력 중(창이 열려 있거나, 칸에 입력 중이거나, 저장 안 한 설정이 있으면)에는 새로고침을 미루고 끝나면 한다.
 
 const CHECK_MS = 5 * 60 * 1000;
 const RETRY_MS = 30 * 1000;
@@ -10,7 +10,8 @@ const SCRIPT_RE = /\/assets\/index-[\w-]+\.js/;
 let hold = false;
 export const holdUpdate = on => { hold = on; };
 
-const busy = () => hold || !!document.querySelector('.modal-wrap');
+const typing = () => /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName ?? '');
+const busy = () => hold || typing() || !!document.querySelector('.modal-wrap');
 
 const current = () => {
   const s = [...document.scripts].find(x => SCRIPT_RE.test(x.src));

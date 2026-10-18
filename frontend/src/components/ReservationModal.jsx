@@ -17,7 +17,10 @@ const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).pad
 export default function ReservationModal({ init, staff: allStaff, list = [], leaves = [], menus, date: boardDate, startH = START_H, endH = END_H, hidePrice = false, onClose, onSaved }) {
   const options = optionsOf(menus);
   // 수정이면 기존 subtitle("아로마 60분")에서 메뉴를 찾고, 새 예약이면 preferDur 시간의 첫 버튼(없으면 첫 번째 버튼)
-  const initMenu = menus.find(m => (init.subtitle || '').startsWith(m.name))?.name;
+  // '타이'와 '타이스톤'처럼 앞이 같은 메뉴가 있어도 헷갈리지 않게: 정확히 같은 이름 → 가장 긴 앞부분 순
+  const subtitle = (init.subtitle || '').trim();
+  const initMenu = options.find(o => subtitle === `${o.menu} ${o.dur}분`)?.menu
+    ?? [...menus].sort((a, b) => b.name.length - a.name.length).find(m => subtitle.startsWith(m.name))?.name;
   const initOpt = init.id
     ? options.find(o => o.menu === initMenu && o.dur === init.durationMin)
     : options.find(o => o.dur === init.preferDur) ?? options[0];
@@ -29,15 +32,16 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
 
   const [form, setForm] = useState(() => ({
     ...init,
-    // 새 예약인데 처음 잡힌 담당자가 그 날 종일 휴가면, 휴가 아닌 첫 담당자로
-    staffId: !init.id && leaveOn(leaves, Number(init.staffId), fmtDate(boardDate)).full
+    // 새 예약인데 처음 잡힌 담당자가 그 날 종일 휴가거나 휴무면, 일하는 첫 담당자로
+    staffId: !init.id && (leaveOn(leaves, Number(init.staffId), fmtDate(boardDate)).full
+      || !worksOn(allStaff.find(s => s.id === Number(init.staffId)) ?? {}, boardDate.getDay()))
       ? (allStaff.find(s => isActiveOn(s, fmtDate(boardDate)) && worksOn(s, boardDate.getDay())
           && !leaveOn(leaves, s.id, fmtDate(boardDate)).full)?.id ?? init.staffId)
       : init.staffId,
     pick: initOpt?.key ?? (legacy ? 'legacy' : null),
     dur: initOpt?.dur ?? init.durationMin ?? 60,
-    // 저장된 금액이 없으면(새 예약·과거 0원 예약) 메뉴 가격으로
-    price: init.price || initOpt?.price || 0,
+    // 수정이면 저장된 금액 그대로(0원도), 새 예약이면 메뉴 가격 — 메뉴를 다시 고르면 그 가격으로
+    price: init.id ? (init.price ?? 0) : (initOpt?.price || 0),
     choice: !!init.choice,
   }));
   const [err, setErr] = useState('');
@@ -46,15 +50,20 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   useEffect(() => { api.recentCustomers().then(setRecent).catch(() => {}); }, []);
 
   // 날짜도 이 창에서 바꿀 수 있다 — 보드 날짜와 다르면 그 날 예약을 따로 불러와 겹침을 본다
-  const [date, setDay] = useState(boardDate);
+  // 수정이면 그 예약의 날짜로 연다 (보드가 다른 날을 보고 있어도 날짜가 바뀌어 저장되지 않게)
+  const [date, setDay] = useState(() => {
+    if (!init.date) return boardDate;
+    const [y, m, d] = init.date.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  });
   const [dayList, setDayList] = useState(list);
   const dateStr = fmtDate(date);
   useEffect(() => {
-    if (dateStr === fmtDate(boardDate)) { setDayList(list); return; }
+    if (dateStr === fmtDate(boardDate)) { setDayList(list); return; } // 보드가 새로 불러오면 겹침 검사도 따라감
     let alive = true;
     api.reservations(dateStr).then(r => alive && setDayList(r)).catch(() => alive && setDayList([]));
     return () => { alive = false; };
-  }, [dateStr]);
+  }, [dateStr, list]);
   const staff = allStaff.filter(s => isActiveOn(s, dateStr) || s.id === Number(init.staffId));
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const pick = o => setForm(f => ({ ...f, pick: o.key, dur: o.dur, price: o.price }));
@@ -112,12 +121,16 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
 
   // 고른 시각이 되는지 한 줄로: ok(초록) / warn(주황, 저장은 됨) / block(휴가 — 저장 막음)
   const hit = sel && clash(sel.id, start, dur);
+  // 수정인데 날짜·시각을 그대로 두었으면 '지난 시각' 안내는 하지 않는다
+  const moved = !form.id || dateStr !== init.date || start !== init.startMin;
   const status = !sel ? { kind: 'warn', text: '담당자를 골라 주세요' }
+    : (start < open || start >= close) ? { kind: 'block', text: `영업시간(${minLabel(open)}–${minLabel(close)}) 밖이라 보드에 보이지 않아요 — 시각을 바꿔 주세요` }
+    : endMin > close ? { kind: 'block', text: `마감(${minLabel(close)})을 넘겨서 끝나요 — 더 일찍 시작하거나 짧은 코스로 바꿔 주세요` }
     : !worksOn(sel, date.getDay()) ? { kind: 'warn', text: `${nim(sel.name)}은 이 날 휴무예요` }
     : leaveAt(start) ? { kind: 'block', text: `${nim(sel.name)} 휴가(${leaveLabel(lvOf(sel).full ?? lvOf(sel).parts.find(p => start < p.b && p.a < endMin).leave)}) 시간이라 예약할 수 없어요` }
     : hit ? { kind: 'warn', text: `${short(hit.startMin)} ${hit.title} 예약과 겹쳐요` }
-    : (start < wo || endMin > wc) ? { kind: 'warn', text: `${nim(sel.name)} 근무 시간(${short(wo)}–${short(wc)}) 밖이에요` }
-    : isToday && start + 10 <= nowMin && !form.id ? { kind: 'warn', text: '이미 지난 시각이에요' }
+    : (start < wo || endMin > wc) ? { kind: 'warn', text: `${nim(sel.name)} 근무 시간(${minLabel(wo)}–${minLabel(wc)}) 밖이에요` }
+    : isToday && start + 10 <= nowMin && moved ? { kind: 'warn', text: '이미 지난 시각이에요' }
     : { kind: 'ok', text: `${short(start)}–${short(endMin)} ${nim(sel.name)} 비어 있어요` };
 
   // '빈 시간 보기': 고른 담당자·코스로 바로 넣을 수 있는 시작 시각 (30분 간격 + 지금)
@@ -146,27 +159,38 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     choice: !!form.choice,
   });
 
-  const act = async fn => {
+  const act = async (fn, day = dateStr) => {
     setBusy(true);
-    try { await fn(); onSaved(dateStr); }
+    try { await fn(); onSaved(day); }
     catch (e) { setErr(e.message || String(e)); setBusy(false); }
   };
   // 완료된 예약은 '완료 취소' 말고는 아무것도 바꿀 수 없다
   const locked = !!form.done;
+  // 담당자·날짜·시각·길이를 바꿨을 때만 겹침을 다시 묻는다 (일부러 겹쳐 둔 예약의 이름만 고칠 때는 안 물음)
+  const slotChanged = !form.id || dateStr !== init.date || start !== init.startMin
+    || Number(form.staffId) !== Number(init.staffId) || dur !== init.durationMin;
+  // 저장·완료 처리 공통 검사 — 통과하면 true
+  const checks = () => {
+    if (!form.pick) { setErr('메뉴를 골라 주세요'); return false; }
+    if (!form.staffId) { setErr('담당자를 골라 주세요'); return false; }
+    if (status.kind === 'block') { setErr(status.text); return false; }
+    if (hit && slotChanged && !window.confirm(`${short(hit.startMin)} ${hit.title} 예약과 시간이 겹쳐요. 그래도 저장할까요?`)) return false;
+    return true;
+  };
   const submit = e => {
     e.preventDefault();
-    if (locked) return;
-    if (!form.pick) return setErr('메뉴를 골라 주세요');
-    if (!form.staffId) return setErr('담당자를 골라 주세요');
-    if (status.kind === 'block') return setErr(status.text);
+    if (locked || !checks()) return;
     act(() => (form.id ? api.updateReservation(form.id, payload()) : api.createReservation(payload())));
   };
   // 완료 처리: 고친 내용이 있으면 같이 저장하고 완료 표시 / 완료 취소: 상태만 되돌림
-  const toggleDone = () => act(async () => {
-    if (locked) return api.setReservationDone(form.id, false);
-    await api.updateReservation(form.id, payload());
-    await api.setReservationDone(form.id, true);
-  });
+  const toggleDone = () => {
+    if (!locked && !checks()) return;
+    act(async () => {
+      if (locked) return api.setReservationDone(form.id, false);
+      await api.updateReservation(form.id, payload());
+      await api.setReservationDone(form.id, true);
+    });
+  };
 
   return (
     <Modal className="rm" title={form.id ? (form.done ? '예약 (완료됨)' : '예약 수정') : '예약 등록'} onClose={onClose}>
@@ -189,7 +213,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                     <button key={s.id} type="button" role="radio" aria-checked={on} disabled={!!full && !on}
                       className={'rm-chip' + (on ? ' on' : '') + ' st-' + st}
                       onClick={() => set('staffId', s.id)}>
-                      <b><i className="dot" style={{ background: s.dotColor || 'var(--blue)' }} />{s.name}</b>
+                      <b><i className="dot" style={{ background: s.dotColor || 'var(--blue)' }} /><span className="rm-chip-name">{s.name}</span></b>
                       <small>{full ? (full.reason || '휴가') : STATE_LABEL[st]}</small>
                     </button>
                   );
@@ -222,7 +246,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                         {/* 가격이 없어도 같은 높이가 되도록 빈 줄 자리를 남긴다 */}
                         {!hidePrice && (o.price > 0
                           ? <small>{o.price.toLocaleString()}원</small>
-                          : <small className="blank" aria-hidden="true">0원</small>)}
+                          : <small className="no-price">가격 미정</small>)}
                       </button>
                     ))}
                   </div>
@@ -325,7 +349,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
             </Button>
           )}
           <div className="m-actions">
-            {form.id && <Button variant="danger" onClick={() => window.confirm('이 예약을 삭제할까요?') && act(() => api.deleteReservation(form.id))} disabled={busy || locked}>삭제</Button>}
+            {form.id && <Button variant="danger" onClick={() => window.confirm('이 예약을 삭제할까요?') && act(() => api.deleteReservation(form.id), init.date)} disabled={busy || locked}>삭제</Button>}
             <Button onClick={onClose} disabled={busy}>{locked ? '닫기' : '취소'}</Button>
             <Button variant="primary" type="submit" disabled={busy || locked}>{form.id ? '저장' : '예약 저장'}</Button>
           </div>
