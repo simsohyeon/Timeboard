@@ -87,18 +87,14 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   };
   const STATE_LABEL = { off: '휴무', leave: '휴가', out: '근무 외', clash: '겹침', ok: '가능' };
 
-  // 일행 예약: 같은 메뉴·같은 시간에 담당자만 여러 명 (새 예약일 때 '일행 여러 명'을 켜면)
-  const [group, setGroup] = useState(false);
-  const [groupIds, setGroupIds] = useState([]);
-  const toggleGroup = () => {
-    if (group) { setGroup(false); if (groupIds.length) set('staffId', groupIds[0]); }
-    else { setGroup(true); setGroupIds(form.staffId ? [Number(form.staffId)] : []); }
-  };
+  // 새 예약은 담당자를 여러 명 고를 수 있다 (같은 메뉴·같은 시간 일행). 수정은 한 명
+  const group = !form.id;
+  const [groupIds, setGroupIds] = useState(() => (form.staffId ? [Number(form.staffId)] : []));
   const tapStaff = id => {
     if (!group) return set('staffId', id);
     const next = groupIds.includes(id) ? groupIds.filter(x => x !== id) : [...groupIds, id];
     setGroupIds(next);
-    if (next.length) set('staffId', next[0]);
+    set('staffId', next[0] ?? null);
   };
   const selIds = group ? groupIds : (form.staffId ? [Number(form.staffId)] : []);
   const sels = selIds.map(id => staff.find(s => s.id === id)).filter(Boolean);
@@ -247,12 +243,8 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
 
             <section className="rm-sec">
               <div className="rm-sec-head">
-                <h3>1. 담당자{group && <span> (일행 — 여러 명 고르기)</span>}</h3>
-                {!form.id && (
-                  <button type="button" className={'rm-group' + (group ? ' on' : '')} aria-pressed={group} onClick={toggleGroup}>
-                    {group ? `일행 ${groupIds.length}명` : '+ 일행 여러 명'}
-                  </button>
-                )}
+                <h3>1. 담당자{group && <span> (일행이면 여러 명)</span>}</h3>
+                {multi && <b className="rm-group-count">일행 {sels.length}명</b>}
               </div>
               <div className="rm-staff" role="radiogroup" aria-label="담당자">
                 {staff.map(s => {

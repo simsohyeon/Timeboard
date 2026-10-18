@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, fmtDate, configured } from './api';
 import { holdUpdate } from './lib/autoUpdate';
-import { START_H, END_H, isActiveOn, worksOn } from './lib/constants';
+import { START_H, END_H, isActiveOn } from './lib/constants';
 import { BASE_FONT, loadDisplay } from './lib/display';
-import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo, leaveOn, hitsLeave } from './lib/schedule';
+import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo } from './lib/schedule';
 import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
@@ -254,11 +254,8 @@ export default function App({ shop, email, onShopChanged }) {
             const isToday = dateStr === bizToday();
             const want = isToday ? ceilTo(nowMinutes(), 10) : 12 * 60;
             const at = Math.min(Math.max(want, startH * 60), endH * 60 - 30);
-            // 그 날 일하고, 종일 휴가가 아니고, 그 시각 1시간이 비어 있는 첫 담당자 (없으면 일하는 첫 사람)
-            const works = activeStaff.filter(s => worksOn(s, date.getDay()) && !leaveOn(leaves, s.id, dateStr).full);
-            const free = works.find(s => !list.some(r => r.staffId === s.id && at < r.startMin + r.durationMin && r.startMin < at + 60)
-              && !hitsLeave(leaveOn(leaves, s.id, dateStr), at, 60));
-            openCreate((free ?? works[0] ?? activeStaff[0])?.id, at);
+            // 담당자는 미리 고르지 않는다 — 한 명이든 일행 여러 명이든 직접 고르게 (미리 골라 두면 다른 사람을 눌렀을 때 일행으로 더해짐)
+            openCreate(null, at);
           }}>+</button>
       )}
       {pinFor && (

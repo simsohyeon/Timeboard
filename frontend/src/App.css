@@ -1191,4 +1191,4 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 }
 .rm-group.on { color: #fff; background: var(--blue); }
 .rm-sec-head h3 span { font-weight: 500; color: var(--blue); }
-.rm-sec-head .rm-group { margin-left: auto; }
+.rm-group-count { margin-left: auto; font-size: 13px; font-weight: 700; color: #fff; background: var(--blue); border-radius: 99px; padding: 5px 12px; white-space: nowrap; }
