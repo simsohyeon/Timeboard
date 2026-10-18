@@ -1183,3 +1183,12 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 .resv.compact small { display: none; }
 .resv.compact.warn small, .resv.compact.live small { display: block; font-size: 10.5px; }
 .resv.short span { font-size: 14px; }
+
+/* 일행(여러 명) 예약 버튼 */
+.rm-group {
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--blue); background: var(--blue-soft);
+  border: none; border-radius: 99px; padding: 6px 12px; min-height: 34px; cursor: pointer; white-space: nowrap;
+}
+.rm-group.on { color: #fff; background: var(--blue); }
+.rm-sec-head h3 span { font-weight: 500; color: var(--blue); }
+.rm-sec-head .rm-group { margin-left: auto; }
