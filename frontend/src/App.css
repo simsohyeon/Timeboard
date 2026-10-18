@@ -353,10 +353,10 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .resv:hover { filter: brightness(.97); }
 .resv small, .resv b, .resv span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .resv small { font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--c) 70%, var(--fg)); font-variant-numeric: tabular-nums; }
-.resv b { font-size: 16px; font-weight: 700; }  /* 고객 이름 */
-.resv span { font-size: 14px; color: var(--sub); }  /* 메뉴 */
+.resv b { font-size: 19px; font-weight: 700; line-height: 1.25; }  /* 고객 이름 — 어르신도 잘 보이게 */
+.resv span { font-size: 16px; font-weight: 500; color: var(--sub); line-height: 1.25; }  /* 메뉴 */
 .resv.short { flex-direction: row; align-items: center; gap: 6px; padding: 0 9px; }
-.resv.short b { font-size: 15px; }
+.resv.short b { font-size: 17px; }
 .resv.live { box-shadow: inset 0 0 0 2px var(--amber); }
 .resv.live small { color: var(--amber); }
 /* 완료된 예약: 회색 */
@@ -1177,3 +1177,9 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
   .seg button { min-height: 38px; }
   .now-who { min-height: 36px; }
 }
+
+/* 높이가 모자란 예약 칸(60분 등): 시간 줄은 빼고 고객·메뉴만 크게 (시간은 왼쪽 시간축으로) */
+.resv.compact { justify-content: center; padding-top: 4px; padding-bottom: 4px; }
+.resv.compact small { display: none; }
+.resv.compact.warn small, .resv.compact.live small { display: block; font-size: 10.5px; }
+.resv.short span { font-size: 14px; }

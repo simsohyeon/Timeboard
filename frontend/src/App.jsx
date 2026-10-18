@@ -174,11 +174,6 @@ export default function App({ shop, email, onShopChanged }) {
   // 날짜를 바꾼 직후 새 날 예약이 오기 전에는 이전 날 예약을 보여 주지 않는다 (엉뚱한 날 예약을 누르지 않게)
   const list = listDate === dateStr ? rawList : [];
   const listLoading = listDate !== dateStr;
-  // 새 매장: 처음 할 일 안내 (다 하면 사라짐)
-  const setupTodo = [
-    !menus.some(m => (m.prices || []).some(p => p > 0)) && '메뉴 가격 정하기',
-    staff.length <= 1 && '담당자 추가하기',
-  ].filter(Boolean);
   const activeStaff = staff.filter(s => isActiveOn(s, dateStr));
   const payStaff = staff.filter(s => isActiveOn(s, dateStr) || list.some(r => r.staffId === s.id));
 
@@ -221,13 +216,6 @@ export default function App({ shop, email, onShopChanged }) {
           {listErr && <p className="notice">{listErr}</p>}
           {tab === 'reserve' && (<>
             {dateHead}
-            {setupTodo.length > 0 && (
-              <div className="setup-hint" role="note">
-                <b>처음 설정</b>
-                <span>{setupTodo.join(' · ')}</span>
-                <button type="button" onClick={() => changeTab('settings')}>설정 열기</button>
-              </div>
-            )}
             <div className={listLoading ? 'is-loading' : undefined} style={{ display: 'contents' }}>
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
