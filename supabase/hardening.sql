@@ -177,4 +177,30 @@ revoke execute on function public.my_shop_id(), public.create_shop(text, text), 
 grant execute on function public.my_shop_id(), public.create_shop(text, text), public.verify_pin(text),
   public.set_pin(text, text), public.rename_shop(text), public.reset_pin(text) to authenticated;
 
+-- ───── 5) 예전 로그인 작업이 남긴 '가입하면 자동 실행' 트리거 제거 (잠근 예전 표에 쓰려다 가입이 실패함) ─────
+do $$
+declare t record; n int := 0; fname text;
+begin
+  for t in
+    select tg.tgname, p.oid::regprocedure as fn, pn.nspname as fn_schema
+    from pg_trigger tg
+    join pg_proc p on p.oid = tg.tgfoid
+    join pg_namespace pn on pn.oid = p.pronamespace
+    where tg.tgrelid = 'auth.users'::regclass and not tg.tgisinternal
+      and pn.nspname not in ('auth', 'extensions', 'realtime', 'storage', 'supabase_functions', 'graphql', 'pgsodium', 'vault')
+  loop
+    fname := t.fn::text;
+    execute format('drop trigger %I on auth.users', t.tgname);
+    raise notice '트리거 삭제: % (함수 %)', t.tgname, fname;
+    n := n + 1;
+    -- 그 함수를 다른 데서 안 쓰면 함수도 지움
+    begin
+      execute format('drop function %s', fname);
+      raise notice '함수 삭제: %', fname;
+    exception when dependent_objects_still_exist then
+      raise notice '함수 %는 다른 곳에서 써서 남김', fname;
+    end;
+  end loop;
+end $$;
+
 notify pgrst, 'reload schema';
