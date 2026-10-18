@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fmtDate } from '../api';
 import { START_H, END_H, HOUR_PX, hourLabel, worksOn, workRange } from '../lib/constants';
 import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel } from '../lib/schedule';
@@ -42,7 +42,23 @@ const laneStyle = ([i, n, span] = [0, 1, 1]) => (n > 1 && span < n
 // 한 칸의 1/3 이하로 좁으면 손님 이름만 크게 (메뉴·시간 줄은 숨김)
 const isNarrow = ([, n, span] = [0, 1, 1]) => n / span >= 3;
 
-export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick }) {
+export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx: wantPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick }) {
+  // 영업시간이 짧아 보드가 화면보다 짧으면 1시간 높이를 늘려 화면을 꽉 채운다 (아래가 비지 않게)
+  const boardRef = useRef(null);
+  const [fillPx, setFillPx] = useState(0);
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!el || !window.ResizeObserver) return;
+    const measure = () => {
+      const head = el.querySelector('.col-head')?.offsetHeight ?? 0;
+      setFillPx(Math.floor((el.clientHeight - head) / Math.max(1, endH - startH)));
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, [startH, endH]);
+  const hourPx = Math.max(wantPx, fillPx);
   const dateStr = fmtDate(date);
   const isToday = dateStr === bizToday();
   const [, tick] = useState(0);
@@ -74,7 +90,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   };
 
   return (
-    <div className="board">
+    <div className="board" ref={boardRef}>
       <div className="board-grid"
         style={{ gridTemplateColumns: `var(--timecol, 80px) repeat(${staff.length || 1}, minmax(var(--colmin, 120px), 1fr))` }}>
         <div className="col-head corner" />
@@ -152,7 +168,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
               const why = r.done ? '' : hitsLeave(lv, r.startMin, r.durationMin) ? '담당자 휴가' : dayOff ? '담당자 휴무' : '';
               const warn = why ? ' warn' : '';
               const pos = { top: top(r.startMin) + 1, height: h, '--c': s.dotColor || 'var(--blue)', ...laneStyle(lanes[r.id]) };
-              if (h < 52) return ( // 짧은 예약(30분 등)은 한 줄로
+              if (h < 56) return ( // 짧은 예약(30분 등)은 한 줄로
                 <button type="button" key={r.id}
                   className={'resv short' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn + (isNarrow(lanes[r.id]) ? ' narrow' : '')}
                   style={pos} title={why || undefined}
@@ -162,7 +178,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
               );
               return (
                 <button type="button" key={r.id}
-                  className={'resv' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn + (isNarrow(lanes[r.id]) ? ' narrow' : '')}
+                  className={'resv' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn + (isNarrow(lanes[r.id]) ? ' narrow' : '') + (h < 80 ? ' compact' : '')}
                   style={pos}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
                   <small>{r.done ? '✓ 완료 · ' : why ? `⚠ ${why} · ` : live ? '진행 중 · ' : ''}{short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>

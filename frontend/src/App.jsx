@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, fmtDate, configured } from './api';
 import { holdUpdate } from './lib/autoUpdate';
-import { START_H, END_H, isActiveOn, worksOn } from './lib/constants';
+import { START_H, END_H, isActiveOn } from './lib/constants';
 import { BASE_FONT, loadDisplay } from './lib/display';
-import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo, leaveOn, hitsLeave } from './lib/schedule';
+import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo } from './lib/schedule';
 import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
@@ -174,11 +174,6 @@ export default function App({ shop, email, onShopChanged }) {
   // 날짜를 바꾼 직후 새 날 예약이 오기 전에는 이전 날 예약을 보여 주지 않는다 (엉뚱한 날 예약을 누르지 않게)
   const list = listDate === dateStr ? rawList : [];
   const listLoading = listDate !== dateStr;
-  // 새 매장: 처음 할 일 안내 (다 하면 사라짐)
-  const setupTodo = [
-    !menus.some(m => (m.prices || []).some(p => p > 0)) && '메뉴 가격 정하기',
-    staff.length <= 1 && '담당자 추가하기',
-  ].filter(Boolean);
   const activeStaff = staff.filter(s => isActiveOn(s, dateStr));
   const payStaff = staff.filter(s => isActiveOn(s, dateStr) || list.some(r => r.staffId === s.id));
 
@@ -221,13 +216,6 @@ export default function App({ shop, email, onShopChanged }) {
           {listErr && <p className="notice">{listErr}</p>}
           {tab === 'reserve' && (<>
             {dateHead}
-            {setupTodo.length > 0 && (
-              <div className="setup-hint" role="note">
-                <b>처음 설정</b>
-                <span>{setupTodo.join(' · ')}</span>
-                <button type="button" onClick={() => changeTab('settings')}>설정 열기</button>
-              </div>
-            )}
             <div className={listLoading ? 'is-loading' : undefined} style={{ display: 'contents' }}>
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
@@ -266,11 +254,8 @@ export default function App({ shop, email, onShopChanged }) {
             const isToday = dateStr === bizToday();
             const want = isToday ? ceilTo(nowMinutes(), 10) : 12 * 60;
             const at = Math.min(Math.max(want, startH * 60), endH * 60 - 30);
-            // 그 날 일하고, 종일 휴가가 아니고, 그 시각 1시간이 비어 있는 첫 담당자 (없으면 일하는 첫 사람)
-            const works = activeStaff.filter(s => worksOn(s, date.getDay()) && !leaveOn(leaves, s.id, dateStr).full);
-            const free = works.find(s => !list.some(r => r.staffId === s.id && at < r.startMin + r.durationMin && r.startMin < at + 60)
-              && !hitsLeave(leaveOn(leaves, s.id, dateStr), at, 60));
-            openCreate((free ?? works[0] ?? activeStaff[0])?.id, at);
+            // 담당자는 미리 고르지 않는다 — 한 명이든 일행 여러 명이든 직접 고르게 (미리 골라 두면 다른 사람을 눌렀을 때 일행으로 더해짐)
+            openCreate(null, at);
           }}>+</button>
       )}
       {pinFor && (

@@ -353,10 +353,10 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .resv:hover { filter: brightness(.97); }
 .resv small, .resv b, .resv span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .resv small { font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--c) 70%, var(--fg)); font-variant-numeric: tabular-nums; }
-.resv b { font-size: 14px; font-weight: 700; }
-.resv span { font-size: 12px; color: var(--sub); }
+.resv b { font-size: 19px; font-weight: 700; line-height: 1.25; }  /* 고객 이름 — 어르신도 잘 보이게 */
+.resv span { font-size: 16px; font-weight: 500; color: var(--sub); line-height: 1.25; }  /* 메뉴 */
 .resv.short { flex-direction: row; align-items: center; gap: 6px; padding: 0 9px; }
-.resv.short b { font-size: 13px; }
+.resv.short b { font-size: 17px; }
 .resv.live { box-shadow: inset 0 0 0 2px var(--amber); }
 .resv.live small { color: var(--amber); }
 /* 완료된 예약: 회색 */
@@ -555,26 +555,26 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 /* 시간 휠 [오전/오후/새벽 | 시 | 분] */
 .rm-wheels {
   position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px;
-  height: 200px; border-radius: 16px; background: var(--hover); overflow: hidden;
+  height: 126px; border-radius: 14px; background: var(--hover); overflow: hidden; /* 위·가운데·아래 3칸만 */
 }
 .rm-wheel-band {
-  position: absolute; left: 8px; right: 8px; top: 78px; height: 44px; border-radius: 12px; pointer-events: none;
+  position: absolute; left: 8px; right: 8px; top: 44px; height: 38px; border-radius: 10px; pointer-events: none;
   background: var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, .08);
 }
 .wheel {
-  position: relative; height: 200px; overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain;
+  position: relative; height: 126px; overflow-y: auto; scroll-snap-type: y mandatory; overscroll-behavior: contain;
   scrollbar-width: none; outline: none;
-  -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
-  mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+  -webkit-mask-image: linear-gradient(transparent, #000 25%, #000 75%, transparent);
+  mask-image: linear-gradient(transparent, #000 25%, #000 75%, transparent);
 }
 .wheel::-webkit-scrollbar { display: none; }
 .wheel:focus-visible { box-shadow: inset 0 0 0 2px var(--blue); border-radius: 16px; }
-.wheel-pad { height: 78px; }
+.wheel-pad { height: 44px; }
 .wheel-item {
-  height: 44px; line-height: 44px; text-align: center; scroll-snap-align: center; cursor: pointer; user-select: none;
-  font-size: 17px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums;
+  height: 38px; line-height: 38px; text-align: center; scroll-snap-align: center; cursor: pointer; user-select: none;
+  font-size: 16px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums;
 }
-.wheel-item.on { font-size: 22px; font-weight: 700; color: var(--fg); }
+.wheel-item.on { font-size: 20px; font-weight: 700; color: var(--fg); }
 .wheel-item.dim { opacity: .55; }
 .wheel-item.bad { text-decoration: line-through; }
 .wheel-item.leave { color: var(--faint); text-decoration: line-through; }
@@ -1177,3 +1177,18 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
   .seg button { min-height: 38px; }
   .now-who { min-height: 36px; }
 }
+
+/* 높이가 모자란 예약 칸(60분 등): 시간 줄은 빼고 고객·메뉴만 크게 (시간은 왼쪽 시간축으로) */
+.resv.compact { justify-content: center; padding-top: 4px; padding-bottom: 4px; }
+.resv.compact small { display: none; }
+.resv.compact.warn small, .resv.compact.live small { display: block; font-size: 10.5px; }
+.resv.short span { font-size: 14px; }
+
+/* 일행(여러 명) 예약 버튼 */
+.rm-group {
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--blue); background: var(--blue-soft);
+  border: none; border-radius: 99px; padding: 6px 12px; min-height: 34px; cursor: pointer; white-space: nowrap;
+}
+.rm-group.on { color: #fff; background: var(--blue); }
+.rm-sec-head h3 span { font-weight: 500; color: var(--blue); }
+.rm-group-count { margin-left: auto; font-size: 13px; font-weight: 700; color: #fff; background: var(--blue); border-radius: 99px; padding: 5px 12px; white-space: nowrap; }

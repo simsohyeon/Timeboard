@@ -87,20 +87,36 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   };
   const STATE_LABEL = { off: '휴무', leave: '휴가', out: '근무 외', clash: '겹침', ok: '가능' };
 
+  // 새 예약은 담당자를 여러 명 고를 수 있다 (같은 메뉴·같은 시간 일행). 수정은 한 명
+  const group = !form.id;
+  const [groupIds, setGroupIds] = useState(() => (form.staffId ? [Number(form.staffId)] : []));
+  const tapStaff = id => {
+    if (!group) return set('staffId', id);
+    const next = groupIds.includes(id) ? groupIds.filter(x => x !== id) : [...groupIds, id];
+    setGroupIds(next);
+    set('staffId', next[0] ?? null);
+  };
+  const selIds = group ? groupIds : (form.staffId ? [Number(form.staffId)] : []);
+  const sels = selIds.map(id => staff.find(s => s.id === id)).filter(Boolean);
+  const multi = sels.length > 1;
+
   // 시간 고르기: [오전/오후/새벽 | 시 | 분(10분 단위)] 휠 세 줄. 아래 한 줄로 그 시각이 되는지 바로 알려 준다
-  const sel = staff.find(s => s.id === Number(form.staffId));
+  const sel = sels[0];
   const [wo, wc] = sel ? workRange(sel, open, close) : [open, close];
   const isToday = dateStr === bizToday();
   const nowMin = nowMinutes();
-  // 그 시각 m의 상태: bad(겹침·휴가 — 무엇과 겹치는지) / dim(지났거나 근무 외)
-  const badAt = m => sel && (clash(sel.id, m, dur) || (hitsLeave(lvOf(sel), m, dur) && { title: '휴가' }));
-  const dimAt = m => (isToday && m + 10 <= nowMin) || (sel && (m < wo || m + dur > wc || !worksOn(sel, date.getDay())));
+  // 그 시각 m의 상태: bad(겹침·휴가 — 무엇과 겹치는지) / dim(지났거나 근무 외) — 고른 담당자 모두 기준
+  const badAt = m => sels.reduce((hit, s) => hit || clash(s.id, m, dur) || (hitsLeave(lvOf(s), m, dur) && { title: '휴가' }), null);
+  const dimAt = m => (isToday && m + 10 <= nowMin) || sels.some(s => {
+    const [a, b] = workRange(s, open, close);
+    return m < a || m + dur > b || !worksOn(s, date.getDay());
+  });
   const hours = [];
   for (let h = Math.floor(open / 60); h * 60 < close; h++) hours.push(h);
   const curH = Math.floor(start / 60), curM = start % 60;
   const minsOf = h => [0, 10, 20, 30, 40, 50].map(mm => h * 60 + mm).filter(m => m >= open && m < close);
   // 휴가(반차·외출) 시간은 아예 못 고른다
-  const leaveAt = m => !!sel && hitsLeave(lvOf(sel), m, dur);
+  const leaveAt = m => sels.some(s => hitsLeave(lvOf(s), m, dur));
   const pickHour = h => {
     const ms = minsOf(h);
     if (!ms.length) return;
@@ -120,12 +136,25 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   };
 
   // 고른 시각이 되는지 한 줄로: ok(초록) / warn(주황, 저장은 됨) / block(휴가 — 저장 막음)
-  const hit = sel && clash(sel.id, start, dur);
+  const hit = sels.reduce((h, s) => h || clash(s.id, start, dur), null);
   // 수정인데 날짜·시각을 그대로 두었으면 '지난 시각' 안내는 하지 않는다
   const moved = !form.id || dateStr !== init.date || start !== init.startMin;
+  const names = list => list.map(s => s.name).join('·');
+  const groupStatus = () => {
+    const onLeave = sels.filter(s => hitsLeave(lvOf(s), start, dur));
+    if (onLeave.length) return { kind: 'block', text: `${names(onLeave)} 휴가 시간이라 예약할 수 없어요 — 빼거나 시각을 바꿔 주세요` };
+    const issues = sels.map(s => {
+      const st = staffState(s);
+      return st === 'ok' ? null : `${s.name} ${{ off: '휴무', clash: '겹침', out: '근무 외' }[st]}`;
+    }).filter(Boolean);
+    if (issues.length) return { kind: 'warn', text: issues.join(' · ') };
+    if (isToday && start + 10 <= nowMin) return { kind: 'warn', text: '이미 지난 시각이에요' };
+    return { kind: 'ok', text: `${short(start)}–${short(endMin)} ${sels.length}명 모두 비어 있어요` };
+  };
   const status = !sel ? { kind: 'warn', text: '담당자를 골라 주세요' }
     : (start < open || start >= close) ? { kind: 'block', text: `영업시간(${minLabel(open)}–${minLabel(close)}) 밖이라 보드에 보이지 않아요 — 시각을 바꿔 주세요` }
     : endMin > close ? { kind: 'block', text: `마감(${minLabel(close)})을 넘겨서 끝나요 — 더 일찍 시작하거나 짧은 코스로 바꿔 주세요` }
+    : multi ? groupStatus()
     : !worksOn(sel, date.getDay()) ? { kind: 'warn', text: `${nim(sel.name)}은 이 날 휴무예요` }
     : leaveAt(start) ? { kind: 'block', text: `${nim(sel.name)} 휴가(${leaveLabel(lvOf(sel).full ?? lvOf(sel).parts.find(p => start < p.b && p.a < endMin).leave)}) 시간이라 예약할 수 없어요` }
     : hit ? { kind: 'warn', text: `${short(hit.startMin)} ${hit.title} 예약과 겹쳐요` }
@@ -136,10 +165,12 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   // '빈 시간 보기': 고른 담당자·코스로 바로 넣을 수 있는 시작 시각 (30분 간격 + 지금)
   const [showFree, setShowFree] = useState(false);
   const freeStarts = [];
-  if (sel && worksOn(sel, date.getDay())) {
-    const from = isToday ? Math.ceil(nowMin / 10) * 10 : wo;
-    for (let m = Math.max(wo, from); m + dur <= wc && freeStarts.length < 8; m += (m % 30 ? 10 : 30)) {
-      if (!clash(sel.id, m, dur) && !leaveAt(m)) freeStarts.push(m);
+  if (sels.length && sels.every(s => worksOn(s, date.getDay()))) {
+    const lo = Math.max(...sels.map(s => workRange(s, open, close)[0]));
+    const hi = Math.min(...sels.map(s => workRange(s, open, close)[1]));
+    const from = isToday ? Math.ceil(nowMin / 10) * 10 : lo;
+    for (let m = Math.max(lo, from); m + dur <= hi && freeStarts.length < 8; m += (m % 30 ? 10 : 30)) {
+      if (!sels.some(s => clash(s.id, m, dur)) && !leaveAt(m)) freeStarts.push(m);
     }
   }
   const [calOpen, setCalOpen] = useState(false);
@@ -172,14 +203,22 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   // 저장·완료 처리 공통 검사 — 통과하면 true
   const checks = () => {
     if (!form.pick) { setErr('메뉴를 골라 주세요'); return false; }
-    if (!form.staffId) { setErr('담당자를 골라 주세요'); return false; }
+    if (!sels.length) { setErr('담당자를 골라 주세요'); return false; }
     if (status.kind === 'block') { setErr(status.text); return false; }
-    if (hit && slotChanged && !window.confirm(`${short(hit.startMin)} ${hit.title} 예약과 시간이 겹쳐요. 그래도 저장할까요?`)) return false;
+    if (hit && slotChanged && !window.confirm(multi
+      ? `${names(sels.filter(s => clash(s.id, start, dur)))} 예약과 시간이 겹쳐요. 그래도 저장할까요?`
+      : `${short(hit.startMin)} ${hit.title} 예약과 시간이 겹쳐요. 그래도 저장할까요?`)) return false;
     return true;
   };
   const submit = e => {
     e.preventDefault();
     if (locked || !checks()) return;
+    if (multi) return act(async () => {
+      // 일행: 담당자마다 같은 내용으로 하나씩
+      const rs = await Promise.allSettled(sels.map(s => api.createReservation({ ...payload(), staffId: s.id })));
+      const bad = rs.filter(r => r.status === 'rejected');
+      if (bad.length) throw new Error(`${sels.length}건 중 ${bad.length}건을 저장하지 못했어요 (${bad[0].reason?.message || bad[0].reason}) — 보드를 확인해 주세요`);
+    });
     act(() => (form.id ? api.updateReservation(form.id, payload()) : api.createReservation(payload())));
   };
   // 완료 처리: 고친 내용이 있으면 같이 저장하고 완료 표시 / 완료 취소: 상태만 되돌림
@@ -203,16 +242,19 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
           <fieldset className="m-lock" disabled={locked}>
 
             <section className="rm-sec">
-              <h3>1. 담당자</h3>
+              <div className="rm-sec-head">
+                <h3>1. 담당자{group && <span> (일행이면 여러 명)</span>}</h3>
+                {multi && <b className="rm-group-count">일행 {sels.length}명</b>}
+              </div>
               <div className="rm-staff" role="radiogroup" aria-label="담당자">
                 {staff.map(s => {
                   const st = staffState(s);
-                  const on = s.id === Number(form.staffId);
+                  const on = selIds.includes(s.id);
                   const full = lvOf(s).full; // 종일 휴가면 고를 수 없음
                   return (
                     <button key={s.id} type="button" role="radio" aria-checked={on} disabled={!!full && !on}
                       className={'rm-chip' + (on ? ' on' : '') + ' st-' + st}
-                      onClick={() => set('staffId', s.id)}>
+                      onClick={() => tapStaff(s.id)}>
                       <b><i className="dot" style={{ background: s.dotColor || 'var(--blue)' }} /><span className="rm-chip-name">{s.name}</span></b>
                       <small>{full ? (full.reason || '휴가') : STATE_LABEL[st]}</small>
                     </button>
@@ -222,7 +264,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
               {/* 손님이 담당자를 직접 고른 예약 — 담당자 인센이 더 붙어서 따로 기록 */}
               <button type="button" role="switch" aria-checked={!!form.choice}
                 className={'rm-choice' + (form.choice ? ' on' : '')} onClick={() => set('choice', !form.choice)}>
-                <span><b>초이스</b><small>손님이 {sel ? nim(sel.name) : '담당자'}을 직접 골랐어요</small></span>
+                <span><b>초이스</b><small>{multi ? `고른 ${sels.length}명 모두 손님이 직접 골랐어요` : `손님이 ${sel ? nim(sel.name) : '담당자'}을 직접 골랐어요`}</small></span>
                 <i className={'switch' + (form.choice ? ' on' : '')} aria-hidden="true"><i /></i>
               </button>
             </section>
@@ -340,8 +382,8 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
         <div className="rm-foot">
           {err && <p className="m-err">{err}</p>}
           <div className="rm-summary">
-            <span>{sel?.name ?? '담당자 미선택'}{form.choice && <em className="choice-tag">초이스</em>} · {minLabel(start)}–{short(endMin)}</span>
-            {!hidePrice && Number(form.price) > 0 && <b>{Number(form.price).toLocaleString()}원</b>}
+            <span>{multi ? `${names(sels)} (${sels.length}명)` : (sel?.name ?? '담당자 미선택')}{form.choice && <em className="choice-tag">초이스</em>} · {minLabel(start)}–{short(endMin)}</span>
+            {!hidePrice && Number(form.price) > 0 && <b>{multi ? `1인 ${Number(form.price).toLocaleString()}원 × ${sels.length}명` : `${Number(form.price).toLocaleString()}원`}</b>}
           </div>
           {form.id && (
             <Button className={'done-btn' + (form.done ? ' is-done' : '')} onClick={toggleDone} disabled={busy}>
@@ -351,7 +393,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
           <div className="m-actions">
             {form.id && <Button variant="danger" onClick={() => window.confirm('이 예약을 삭제할까요?') && act(() => api.deleteReservation(form.id), init.date)} disabled={busy || locked}>삭제</Button>}
             <Button onClick={onClose} disabled={busy}>{locked ? '닫기' : '취소'}</Button>
-            <Button variant="primary" type="submit" disabled={busy || locked}>{form.id ? '저장' : '예약 저장'}</Button>
+            <Button variant="primary" type="submit" disabled={busy || locked}>{form.id ? '저장' : multi ? `${sels.length}명 예약 저장` : '예약 저장'}</Button>
           </div>
         </div>
       </form>
