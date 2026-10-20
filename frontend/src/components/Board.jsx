@@ -176,7 +176,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                   className={'resv short' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn + (isNarrow(lanes[r.id]) ? ' narrow' : '')}
                   style={pos} title={why || undefined}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
-                  <small>{r.done && '✓ '}{warn && '⚠ '}{r.choice && '★ '}{short(r.startMin)}</small><b>{r.title}</b>
+                  <small>{r.done && '✓ '}{warn && '⚠ '}{r.choice && <em className="choice-star">★ </em>}<i className="t">{short(r.startMin)}</i></small><b>{r.title}</b>
                 </button>
               );
               return (
@@ -185,7 +185,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                   style={pos}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
                   <small>{r.done ? '✓ 완료 · ' : why ? `⚠ ${why} · ` : live ? '진행 중 · ' : ''}{short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
-                  <b>{r.title}{r.choice && <em className="choice-tag">초이스</em>}</b>
+                  <b>{r.choice && <em className="choice-tag">초이스</em>}{r.title}</b>
                   <span>{r.subtitle}</span>
                 </button>
               );
