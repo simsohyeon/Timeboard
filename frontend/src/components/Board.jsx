@@ -1,10 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fmtDate } from '../api';
-import { START_H, END_H, HOUR_PX, hourLabel, worksOn, workRange } from '../lib/constants';
+import { START_H, END_H, HOUR_PX, DAYS, hourLabel, worksOn, workRange } from '../lib/constants';
 import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel } from '../lib/schedule';
 
 // 예약 보드: 가로 = 담당자, 세로 = 시간.
 // 30분 이상 빈 시간은 점선 칸으로 보여 주고, 누르면 그 시각으로 바로 예약 등록.
+// 받침에 따라 조사: josa('휴무', '로', '으로') → '휴무로', josa('개인 사정', '을', '를') 처럼 (받침 있음, 없음)
+const josa = (w, withJong, noJong) => {
+  const c = w.charCodeAt(w.length - 1) - 0xac00;
+  const jong = c >= 0 && c < 11172 ? c % 28 : 0;
+  if (withJong === '으로') return w + (jong && jong !== 8 ? '으로' : '로');   // ㄹ 받침은 '로'
+  return w + (jong ? withJong : noJong);
+};
 const short = m => `${((Math.floor(m / 60) + 11) % 12) + 1}:${String(m % 60).padStart(2, '0')}`;
 
 // 시간이 겹치는 예약은 칸을 나눠 나란히: { id: [몇 번째 줄, 묶음의 줄 수, 오른쪽으로 넓힐 수 있는 줄 수] }
@@ -42,7 +49,7 @@ const laneStyle = ([i, n, span] = [0, 1, 1]) => (n > 1 && span < n
 // 한 칸의 1/3 이하로 좁으면 손님 이름만 크게 (메뉴·시간 줄은 숨김)
 const isNarrow = ([, n, span] = [0, 1, 1]) => n / span >= 3;
 
-export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx: wantPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick, onReorder }) {
+export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx: wantPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick, onReorder, onDayOff, onCancelLeave }) {
   // 영업시간이 짧아 보드가 화면보다 짧으면 1시간 높이를 늘려 화면을 꽉 채운다 (아래가 비지 않게)
   const boardRef = useRef(null);
   const [fillPx, setFillPx] = useState(0);
@@ -62,13 +69,21 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   }, [startH, endH]);
   const hourPx = Math.max(wantPx, fillPx);
 
-  // 담당자 순서 바꾸기: 머리글을 길게 누른 뒤 좌우로 끌어 놓는다 (터치·마우스 공통)
-  // 누르는 동안 머리글이 파랗게 차오름 → 들리면 이름표가 손가락을 따라오고, 다른 칸은 흐려지고, 칸이 미끄러지며 자리를 바꿈
+  // 담당자 머리글: 짧게 누르기(또는 우클릭) = 그날 휴무 메뉴, 길게 눌러 끌기 = 순서 바꾸기 (터치·마우스 공통)
+  // 누르는 동안 머리글이 파랗게 차오름 → 들리면 이름표가 손가락을 따라오고, 다른 칸은 흐려지며 칸이 바로 자리를 바꿈
   // → 놓으면 옮긴 칸이 반짝하고 '순서를 바꿨어요'
   const [drag, setDrag] = useState(null); // { id: 끄는 담당자, order: [id...] }
   const [pressId, setPressId] = useState(null); // 길게 누르는 중
   const [moved, setMoved] = useState(null);     // 방금 옮긴 담당자
   const [toast, setToast] = useState('');
+  const [menu, setMenu] = useState(null);       // 휴무 메뉴 { id, x, y }
+  const lastPointer = useRef('mouse');
+  useEffect(() => {
+    if (!menu) return;
+    const esc = e => e.key === 'Escape' && setMenu(null);
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [menu]);
   const ghostRef = useRef(null);
   const ghostAt = useRef({ x: 0, y: 0 });
   const idsKey = staff.map(s => s.id).join();
@@ -79,11 +94,13 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   const ghostTransform = () => { const k = zoomK(); return `translate(${ghostAt.current.x / k}px, ${ghostAt.current.y / k}px) translate(-50%, -135%)`; };
   const showToast = msg => { setToast(msg); clearTimeout(showToast.t); showToast.t = setTimeout(() => setToast(''), 1800); };
   const startPress = (e, id) => {
-    if (!onReorder || staff.length < 2 || e.button > 0) return;
+    lastPointer.current = e.pointerType;
+    if (e.button > 0) return;
+    const canDrag = onReorder && staff.length > 1;
     const x0 = e.clientX, y0 = e.clientY;
     let order = null; // 길게 눌러 끌기가 시작되면 [id...]
-    setPressId(id);
-    const timer = setTimeout(() => {
+    if (canDrag) setPressId(id);
+    const timer = canDrag && setTimeout(() => {
       order = staff.map(s => s.id);
       ghostAt.current = { x: x0, y: y0 };
       navigator.vibrate?.(15);
@@ -96,13 +113,19 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
       ghostAt.current = { x: ev.clientX, y: ev.clientY };
       if (ghostRef.current) ghostRef.current.style.transform = ghostTransform();
       const board = boardRef.current;
+      // 사파리는 글자 크기(zoom)가 걸리면 칸 위치를 손가락 좌표보다 작은 단위로 준다 — 같은 단위로 맞춘다 (크롬은 1)
+      const unit = innerWidth / (document.body.getBoundingClientRect().width || innerWidth);
+      const x = ev.clientX / unit;
       const r = board.getBoundingClientRect();
-      if (ev.clientX > r.right - 40) board.scrollLeft += 12;              // 화면 끝으로 끌면 옆으로 넘김
-      else if (ev.clientX < r.left + 120) board.scrollLeft -= 12;
+      if (x > r.right - 40) board.scrollLeft += 12;                      // 화면 끝으로 끌면 옆으로 넘김
+      else if (x < r.left + 120) board.scrollLeft -= 12;
       // 몇 번째 칸 위인지는 칸 위치로 (화면이 바뀐 순서를 아직 안 그렸어도 맞게)
       const slots = [...board.querySelectorAll('.col-head[data-sid]')].map(h => h.getBoundingClientRect()).sort((a, b) => a.left - b.left);
-      const to = slots.findIndex(b => ev.clientX >= b.left && ev.clientX < b.right);
+      const to = slots.findIndex(b => x >= b.left && x < b.right);
       if (to < 0 || order[to] === id) return;
+      // 옆 칸 안쪽(폭의 1/4 이상)까지 들어가야 바꾼다 — 경계에서 손이 떨려도 왔다갔다 하지 않게
+      const edge = (slots[to].right - slots[to].left) / 4;
+      if (x < slots[to].left + edge || x > slots[to].right - edge) return;
       order = order.filter(x => x !== id);
       order.splice(to, 0, id);
       navigator.vibrate?.(8);
@@ -120,6 +143,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
     const drop = () => {
       const done = order;
       end();
+      if (!done && onDayOff) setMenu({ id, x: x0, y: y0 });               // 짧게 누름 → 휴무 메뉴
       if (done && done.some((x, i) => x !== staff[i]?.id)) {
         setDrag({ id: null, order: done });                                 // 저장되는 동안 바뀐 순서 유지
         setMoved(id);
@@ -133,29 +157,6 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
     window.addEventListener('pointerup', drop);
     window.addEventListener('pointercancel', end);
   };
-  // 칸이 자리를 바꿀 때 미끄러지듯 (바뀌기 전 위치에서 새 위치로 옮겨 가는 애니메이션)
-  const lastLeft = useRef({});
-  const wasDragging = useRef(false);
-  useLayoutEffect(() => {
-    const board = boardRef.current;
-    if (!board) return;
-    const animate = !!drag || wasDragging.current;
-    wasDragging.current = !!drag;
-    const base = board.getBoundingClientRect().left - board.scrollLeft;
-    const k = zoomK();
-    const next = {};
-    board.querySelectorAll('[data-sid]').forEach(el => {
-      const key = (el.classList.contains('col-head') ? 'h' : 'c') + el.dataset.sid;
-      const left = el.getBoundingClientRect().left - base;
-      next[key] = left;
-      const was = lastLeft.current[key];
-      if (!animate || was == null || Math.abs(was - left) < 1) return;
-      el.style.transition = 'none';
-      el.style.transform = `translateX(${(was - left) / k}px)`;
-      requestAnimationFrame(() => { el.style.transition = 'transform .2s ease'; el.style.transform = ''; });
-    });
-    lastLeft.current = next;
-  });
   const dateStr = fmtDate(date);
   const isToday = dateStr === bizToday();
   const [, tick] = useState(0);
@@ -187,14 +188,19 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   };
 
   return (
-    <div className={'board' + (drag?.id ? ' sorting' : '')} ref={boardRef}>
+    <div className={'board' + (drag?.id ? ' sorting' : '') + (menu ? ' menu-open' : '')} ref={boardRef}>
       <div className="board-grid"
         style={{ gridTemplateColumns: `var(--timecol, 80px) repeat(${cols.length || 1}, minmax(var(--colmin, 120px), 1fr))` }}>
         <div className="col-head corner" />
         {cols.map(s => (
           <div key={s.id} data-sid={s.id} className={'col-head' + (onReorder ? ' sortable' : '') + (drag?.id === s.id ? ' dragging' : '') + (pressId === s.id ? ' pressing' : '') + (moved === s.id ? ' moved' : '')}
-            title={onReorder ? '길게 눌러 끌면 순서를 바꿀 수 있어요' : undefined}
-            onPointerDown={e => startPress(e, s.id)} onContextMenu={e => onReorder && e.preventDefault()}>
+            data-tip={onReorder ? '탭: 휴무 설정\n길게 끌기: 순서 변경' : undefined}
+            onPointerDown={e => startPress(e, s.id)}
+            onContextMenu={e => {
+              if (!onReorder && !onDayOff) return;
+              e.preventDefault();                                              // 길게 누를 때 뜨는 기본 메뉴 막기
+              if (onDayOff && lastPointer.current === 'mouse') setMenu({ id: s.id, x: e.clientX, y: e.clientY }); // 우클릭
+            }}>
             <i className="avatar" style={{ '--c': s.dotColor || 'var(--blue)' }}>{s.name.slice(0, 1)}</i>
             <span className="ch-text">
               <b>{s.name}</b>
@@ -301,6 +307,40 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             <small>좌우로 옮겨 놓으세요</small>
           </div>
         );
+      })()}
+      {menu && (() => {
+        const s = staff.find(x => x.id === menu.id);
+        if (!s) return null;
+        const k = zoomK();
+        const left = Math.max(8, Math.min(menu.x, innerWidth - 270 * k)) / k;
+        const top = Math.max(8, Math.min(menu.y + 8, innerHeight - 300 * k)) / k;
+        const { full } = leaveOn(leaves, s.id, dateStr);
+        const weekOff = !worksOn(s, date.getDay());
+        const count = list.filter(r => r.staffId === s.id).length;
+        const day = `${date.getMonth() + 1}월 ${date.getDate()}일 (${DAYS[date.getDay()]})`;
+        const md = d => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
+        const act = (job, msg) => { setMenu(null); Promise.resolve(job()).then(ok => ok !== false && showToast(msg)); };
+        return (<>
+          <div className="staff-menu-scrim" onPointerDown={() => setMenu(null)} onContextMenu={e => { e.preventDefault(); setMenu(null); }} />
+          <div className="staff-menu" role="menu" style={{ left, top }}>
+            <div className="sm-head"><b>{s.name}</b><small>{day}</small></div>
+            {weekOff && <p className="sm-note">매주 {DAYS[date.getDay()]}요일은 쉬는 날이에요 (설정 › 담당자에서 바꿔요)</p>}
+            {full ? (<>
+              <p className="sm-now">{leaveLabel(full)}{full.startDate !== full.endDate && ` · ${md(full.startDate)}~${md(full.endDate)}`}</p>
+              {full.startDate === full.endDate
+                ? <button type="button" role="menuitem" className="sm-cancel" onClick={() => act(() => onCancelLeave(full.id), `${s.name} ${josa(leaveLabel(full), '을', '를')} 취소했어요`)}>{leaveLabel(full)} 취소</button>
+                : <p className="sm-note">여러 날 휴가는 설정 › 담당자에서 바꿀 수 있어요</p>}
+            </>) : (<>
+              <p className="sm-label">이날 하루 쉬기</p>
+              <div className="sm-reasons">
+                {['휴무', '연차', '병가', '개인 사정'].map(r => (
+                  <button key={r} type="button" role="menuitem" onClick={() => act(() => onDayOff(s.id, r), `${s.name} ${day} ${josa(r, '으로')} 했어요`)}>{r}</button>
+                ))}
+              </div>
+              {count > 0 && <p className="sm-warn">⚠ 이날 예약 {count}건이 있어요 — 쉬게 하면 예약에 경고가 떠요</p>}
+            </>)}
+          </div>
+        </>);
       })()}
       {toast && <div className="board-toast" role="status">{toast}</div>}
     </div>

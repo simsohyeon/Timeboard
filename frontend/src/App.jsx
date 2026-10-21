@@ -115,6 +115,15 @@ export default function App({ shop, email, onShopChanged }) {
       .catch(e => { alert(`순서를 저장하지 못했어요 — ${e.message || e}`); return false; })
       .finally(loadStaff);
   };
+  // 보드 머리글 메뉴: 그날 하루 휴무(종일 휴가) 넣기 / 하루짜리 휴가 취소
+  const setDayOff = (staffId, reason) => api.createLeave({ staffId, startDate: fmtDate(date), endDate: fmtDate(date), reason })
+    .then(() => true)
+    .catch(e => { alert(`휴무로 바꾸지 못했어요 — ${e.message || e}`); return false; })
+    .finally(loadLeaves);
+  const cancelLeave = id => api.deleteLeave(id)
+    .then(() => true)
+    .catch(e => { alert(`취소하지 못했어요 — ${e.message || e}`); return false; })
+    .finally(loadLeaves);
   const loadMenus = () => api.menus().then(setMenus).catch(() => setMenus([]));
   const loadSettings = () => api.settings().then(s => {
     // 자정 넘어 영업하면 새벽 시간대는 전날 영업일로 — 처음 열었을 때 보드도 그 날로
@@ -231,7 +240,8 @@ export default function App({ shop, email, onShopChanged }) {
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
               hourPx={display.hourPx} halfLine={display.halfLine} leaves={leaves}
-              onCellClick={openCreate} onBlockClick={r => setModal(r)} onReorder={reorderStaff} />
+              onCellClick={openCreate} onBlockClick={r => setModal(r)} onReorder={reorderStaff}
+              onDayOff={setDayOff} onCancelLeave={cancelLeave} />
           </>)}
           {tab === 'now' && (
             <NowPage staff={activeStaff} list={list} leaves={leaves} menus={menus}
