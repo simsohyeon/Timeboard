@@ -42,7 +42,7 @@ const laneStyle = ([i, n, span] = [0, 1, 1]) => (n > 1 && span < n
 // 한 칸의 1/3 이하로 좁으면 손님 이름만 크게 (메뉴·시간 줄은 숨김)
 const isNarrow = ([, n, span] = [0, 1, 1]) => n / span >= 3;
 
-export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx: wantPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick }) {
+export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx: wantPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick, onReorder }) {
   // 영업시간이 짧아 보드가 화면보다 짧으면 1시간 높이를 늘려 화면을 꽉 채운다 (아래가 비지 않게)
   const boardRef = useRef(null);
   const [fillPx, setFillPx] = useState(0);
@@ -61,6 +61,56 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
     return () => { ro.disconnect(); window.removeEventListener('resize', measure); clearTimeout(late); };
   }, [startH, endH]);
   const hourPx = Math.max(wantPx, fillPx);
+
+  // 담당자 순서 바꾸기: 머리글을 길게 누른 뒤 좌우로 끌어 놓는다 (터치·마우스 공통)
+  const [drag, setDrag] = useState(null); // { id: 끄는 담당자, order: [id...] }
+  const idsKey = staff.map(s => s.id).join();
+  useEffect(() => setDrag(null), [idsKey]);
+  const cols = drag ? drag.order.map(id => staff.find(s => s.id === id)).filter(Boolean) : staff;
+  const startPress = (e, id) => {
+    if (!onReorder || staff.length < 2 || e.button > 0) return;
+    const x0 = e.clientX, y0 = e.clientY;
+    let order = null; // 길게 눌러 끌기가 시작되면 [id...]
+    const timer = setTimeout(() => {
+      order = staff.map(s => s.id);
+      navigator.vibrate?.(15);
+      setDrag({ id, order });
+    }, 400);
+    const move = ev => {
+      if (!order) { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) end(); return; } // 그냥 쓸어 넘김
+      ev.preventDefault();
+      const board = boardRef.current;
+      const r = board.getBoundingClientRect();
+      if (ev.clientX > r.right - 40) board.scrollLeft += 12;              // 화면 끝으로 끌면 옆으로 넘김
+      else if (ev.clientX < r.left + 120) board.scrollLeft -= 12;
+      // 몇 번째 칸 위인지는 칸 위치로 (화면이 바뀐 순서를 아직 안 그렸어도 맞게)
+      const slots = [...board.querySelectorAll('.col-head[data-sid]')].map(h => h.getBoundingClientRect()).sort((a, b) => a.left - b.left);
+      const to = slots.findIndex(b => ev.clientX >= b.left && ev.clientX < b.right);
+      if (to < 0 || order[to] === id) return;
+      order = order.filter(x => x !== id);
+      order.splice(to, 0, id);
+      setDrag({ id, order });
+    };
+    const end = () => {
+      clearTimeout(timer);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', drop);
+      window.removeEventListener('pointercancel', end);
+      if (order) setDrag(null);
+      order = null;
+    };
+    const drop = () => {
+      const done = order;
+      end();
+      if (done && done.some((x, i) => x !== staff[i]?.id)) {
+        setDrag({ id: null, order: done });                                 // 저장되는 동안 바뀐 순서 유지
+        Promise.resolve(onReorder(done)).finally(() => setDrag(null));
+      }
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', drop);
+    window.addEventListener('pointercancel', end);
+  };
   const dateStr = fmtDate(date);
   const isToday = dateStr === bizToday();
   const [, tick] = useState(0);
@@ -94,10 +144,12 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   return (
     <div className="board" ref={boardRef}>
       <div className="board-grid"
-        style={{ gridTemplateColumns: `var(--timecol, 80px) repeat(${staff.length || 1}, minmax(var(--colmin, 120px), 1fr))` }}>
+        style={{ gridTemplateColumns: `var(--timecol, 80px) repeat(${cols.length || 1}, minmax(var(--colmin, 120px), 1fr))` }}>
         <div className="col-head corner" />
-        {staff.map(s => (
-          <div className="col-head" key={s.id}>
+        {cols.map(s => (
+          <div key={s.id} data-sid={s.id} className={'col-head' + (onReorder ? ' sortable' : '') + (drag?.id === s.id ? ' dragging' : '')}
+            title={onReorder ? '길게 눌러 끌면 순서를 바꿀 수 있어요' : undefined}
+            onPointerDown={e => startPress(e, s.id)} onContextMenu={e => onReorder && e.preventDefault()}>
             <i className="avatar" style={{ '--c': s.dotColor || 'var(--blue)' }}>{s.name.slice(0, 1)}</i>
             <span className="ch-text">
               <b>{s.name}</b>
@@ -113,7 +165,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           ))}
           {showNow && <span className="now-pill" style={{ top: nowTop }}>{short(nowMin)}</span>}
         </div>
-        {staff.map(s => {
+        {cols.map(s => {
           // 휴무 요일·종일 휴가는 칸 전체, 근무시간 밖·시간 지정 휴가는 그 부분만 빗금 + 클릭 막음
           const lv = leaveOn(leaves, s.id, dateStr);
           const off = !worksOn(s, date.getDay()) || !!lv.full;
@@ -125,7 +177,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           const from = isToday ? Math.max(wo, ceilTo(nowMin)) : wo;
           const gaps = off ? [] : freeGaps([...mine, ...leaveBlocks(lv.parts)], [wo, wc], from).filter(([a, b]) => b - a >= 30);
           return (
-          <div className={'col' + (off ? ' off' : '')} key={s.id} style={{ minHeight: (endH - startH) * hourPx }}
+          <div className={'col' + (off ? ' off' : '') + (drag?.id === s.id ? ' dragging' : '')} key={s.id} style={{ minHeight: (endH - startH) * hourPx }}
             onClick={e => {
               if (off) return;
               // 좌표를 px로 다루면 zoom 배율에서 단위가 섞인다 →

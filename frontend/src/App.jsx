@@ -103,6 +103,17 @@ export default function App({ shop, email, onShopChanged }) {
 
   const loadStaff = () => api.staff().then(s => { setStaff(s); setDbErr(''); })
     .catch(e => { setStaff([]); setDbErr(e.message || String(e)); });
+  // 보드 머리글을 끌어 바꾼 순서 저장. ids = 보드에 보이는 담당자의 새 순서 (그날 안 보이는 담당자는 제자리)
+  const reorderStaff = ids => {
+    const slots = staff.map((s, i) => (ids.includes(s.id) ? i : -1)).filter(i => i >= 0);
+    const next = [...staff];
+    slots.forEach((slot, k) => { next[slot] = staff.find(s => s.id === ids[k]); });
+    const changes = next.map((s, i) => [s.id, i, s.sortOrder]).filter(([, i, was]) => i !== was).map(([id, i]) => [id, i]);
+    setStaff(next.map((s, i) => ({ ...s, sortOrder: i })));
+    return api.setStaffOrder(changes)
+      .catch(e => alert(`순서를 저장하지 못했어요 — ${e.message || e}`))
+      .finally(loadStaff);
+  };
   const loadMenus = () => api.menus().then(setMenus).catch(() => setMenus([]));
   const loadSettings = () => api.settings().then(s => {
     // 자정 넘어 영업하면 새벽 시간대는 전날 영업일로 — 처음 열었을 때 보드도 그 날로
@@ -219,7 +230,7 @@ export default function App({ shop, email, onShopChanged }) {
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
               hourPx={display.hourPx} halfLine={display.halfLine} leaves={leaves}
-              onCellClick={openCreate} onBlockClick={r => setModal(r)} />
+              onCellClick={openCreate} onBlockClick={r => setModal(r)} onReorder={reorderStaff} />
           </>)}
           {tab === 'now' && (
             <NowPage staff={activeStaff} list={list} leaves={leaves} menus={menus}

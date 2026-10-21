@@ -162,6 +162,12 @@ export const api = {
     if (error) throw error;
   },
 
+  // 순서만 바꾸기 (보드 머리글을 길게 눌러 끌기) — changes: [[id, 새 순서], ...]
+  setStaffOrder: async changes => {
+    need();
+    await Promise.all(changes.map(([id, i]) => supabase.from('staff').update({ sort_order: i }).eq('id', id).then(rows)));
+  },
+
   // ───── 메뉴 ─────
   menus: async () =>
     supabase ? rows(await supabase.from('menu').select(MENU_COLS).order('sort_order')) : [],

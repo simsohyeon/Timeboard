@@ -1250,3 +1250,11 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
   .resv .choice-tag, .resv.short .choice-tag { font-size: 0; padding: 0; margin-left: 3px; background: none; }
   .resv .choice-tag::before { content: '★'; font-size: 16px; color: var(--red); }
 }
+
+/* 보드 담당자 순서 바꾸기: 머리글 길게 눌러 끌기 */
+.col-head.sortable { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; }
+.col-head.dragging {
+  cursor: grabbing; z-index: 7; background: var(--blue-soft);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .14); border-radius: 12px 12px 0 0; transform: translateY(-2px);
+}
+.col.dragging { background: color-mix(in srgb, var(--blue) 6%, var(--surface)); }
