@@ -56,7 +56,9 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     measure();
-    return () => ro.disconnect();
+    window.addEventListener('resize', measure);
+    const late = setTimeout(measure, 500); // 글꼴·설정을 불러온 뒤 한 번 더
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); clearTimeout(late); };
   }, [startH, endH]);
   const hourPx = Math.max(wantPx, fillPx);
   const dateStr = fmtDate(date);
@@ -105,7 +107,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             </span>
           </div>
         ))}
-        <div className="time-col" style={{ height: (endH - startH) * hourPx }}>
+        <div className="time-col" style={{ minHeight: (endH - startH) * hourPx }}>
           {Array.from({ length: endH - startH }, (_, i) => (
             <span className="time-label" key={i} style={{ top: (i + 1) * hourPx }}>{hourLabel(startH + i + 1)}</span>
           ))}
@@ -123,14 +125,15 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           const from = isToday ? Math.max(wo, ceilTo(nowMin)) : wo;
           const gaps = off ? [] : freeGaps([...mine, ...leaveBlocks(lv.parts)], [wo, wc], from).filter(([a, b]) => b - a >= 30);
           return (
-          <div className={'col' + (off ? ' off' : '')} key={s.id} style={{ height: (endH - startH) * hourPx }}
+          <div className={'col' + (off ? ' off' : '')} key={s.id} style={{ minHeight: (endH - startH) * hourPx }}
             onClick={e => {
               if (off) return;
               // 좌표를 px로 다루면 zoom 배율에서 단위가 섞인다 →
               // 같은 좌표계인 clientY와 rect로 "칸 안에서의 비율"을 구해 시간으로 환산
+              // (칸이 화면 끝까지 늘어나 있어도 맞게: 화면 좌표 → 칸 안 CSS px → 30분 단위)
               const rect = e.currentTarget.getBoundingClientRect();
-              const frac = (e.clientY - rect.top) / rect.height;
-              const slot = open + Math.floor(frac * (endH - startH) * 2) * 30;
+              const y = (e.clientY - rect.top) * (e.currentTarget.offsetHeight / rect.height);
+              const slot = open + Math.floor(y / (hourPx / 2)) * 30;
               const min = Math.min(Math.max(slot, open), close - 30);
               if (min < wo || min >= wc || lv.parts.some(p => p.a <= min && min < p.b)) return;
               onCellClick(s.id, min);
@@ -173,7 +176,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                   className={'resv short' + (r.done ? ' done' : '') + (live ? ' live' : '') + warn + (isNarrow(lanes[r.id]) ? ' narrow' : '')}
                   style={pos} title={why || undefined}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
-                  <small>{r.done && '✓ '}{warn && '⚠ '}{r.choice && '★ '}{short(r.startMin)}</small><b>{r.title}</b>
+                  <small>{r.done && '✓ '}{warn && '⚠ '}<i className="t">{short(r.startMin)}</i></small><b><i className="nm">{r.title}</i>{r.choice && <em className="choice-tag">초이스</em>}</b>
                 </button>
               );
               return (
@@ -182,7 +185,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                   style={pos}
                   onClick={e => { e.stopPropagation(); onBlockClick(r); }}>
                   <small>{r.done ? '✓ 완료 · ' : why ? `⚠ ${why} · ` : live ? '진행 중 · ' : ''}{short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
-                  <b>{r.title}{r.choice && <em className="choice-tag">초이스</em>}</b>
+                  <b><i className="nm">{r.title}</i>{r.choice && <em className="choice-tag">초이스</em>}</b>
                   <span>{r.subtitle}</span>
                 </button>
               );

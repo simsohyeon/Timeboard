@@ -208,7 +208,7 @@ export default function App({ shop, email, onShopChanged }) {
             <MiniCalendar selected={date} onSelect={setDate} eventDates={eventDates} />
           </aside>
         )}
-        <main className="main">
+        <main className={'main' + (listLoading ? ' is-loading' : '')}>
           {!configured && (
             <p className="notice">Supabase가 아직 연결되지 않았어요 — frontend/.env 를 채우면 데이터가 표시됩니다 (README 참고)</p>
           )}
@@ -216,25 +216,19 @@ export default function App({ shop, email, onShopChanged }) {
           {listErr && <p className="notice">{listErr}</p>}
           {tab === 'reserve' && (<>
             {dateHead}
-            <div className={listLoading ? 'is-loading' : undefined} style={{ display: 'contents' }}>
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
               hourPx={display.hourPx} halfLine={display.halfLine} leaves={leaves}
               onCellClick={openCreate} onBlockClick={r => setModal(r)} />
-            </div>
           </>)}
           {tab === 'now' && (
-            <div className={listLoading ? 'is-loading' : undefined} style={{ display: 'contents' }}>
             <NowPage staff={activeStaff} list={list} leaves={leaves} menus={menus}
               openMin={startH * 60} closeMin={endH * 60}
               onCreate={openCreate} onOpen={r => setModal(r)} onChanged={reload} />
-            </div>
           )}
           {tab === 'pay' && (<>
             {dateHead}
-            <div className={listLoading ? 'is-loading' : undefined} style={{ display: 'contents' }}>
-              <PayrollPage staff={payStaff} list={list} />
-            </div>
+            <PayrollPage staff={payStaff} list={list} />
           </>)}
           {tab === 'settings' && (
             <SettingsPage staff={staff} menus={menus} settings={settings}

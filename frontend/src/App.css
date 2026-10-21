@@ -66,6 +66,7 @@
 .app {
   height: calc(100vh / var(--scale, 1));
   height: calc(100dvh / var(--scale, 1));
+  height: calc(var(--app-h, 100dvh) / var(--scale, 1)); /* main.jsx 가 잰 실제 화면 높이 */
   display: flex; flex-direction: column; background: var(--surface); color: var(--fg);
 }
 /* 안쪽 목록을 끝까지 스크롤해도 페이지 전체로 넘어가지 않게 */
@@ -307,7 +308,7 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .ds-chip.free { color: var(--green); background: var(--green-soft); font-weight: 600; }
 
 .board { flex: 1; overflow: auto; min-height: 0; }
-.board-grid { display: grid; width: 100%; min-width: max-content; }
+.board-grid { display: grid; width: 100%; min-width: max-content; min-height: 100%; grid-template-rows: auto 1fr; }
 .col-head {
   position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line-strong);
   display: flex; align-items: center; gap: 8px; padding: 10px 10px; min-width: 0;
@@ -1192,3 +1193,60 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 .rm-group.on { color: #fff; background: var(--blue); }
 .rm-sec-head h3 span { font-weight: 500; color: var(--blue); }
 .rm-group-count { margin-left: auto; font-size: 13px; font-weight: 700; color: #fff; background: var(--blue); border-radius: 99px; padding: 5px 12px; white-space: nowrap; }
+
+/* ───── 큰 글씨 (어르신도 한눈에): 담당자 이름 · 시간축 · 예약 · 상단 · 지금 탭 ───── */
+:root { --timecol: clamp(100px, 9vw, 112px); }        /* '오전 11:00' 16px 이 들어가게 */
+.col-head { padding: 12px 10px; }
+.col-head .avatar { width: 38px; height: 38px; font-size: 17px; }
+.ch-text b { font-size: 19px; }
+.ch-text small { font-size: 13.5px; }
+.time-label { font-size: 16px; font-weight: 600; color: var(--fg); right: 10px; }
+.now-pill { font-size: 14px; padding: 3px 9px; }
+.resv small { font-size: 13px; }
+.resv b { font-size: 21px; }
+.resv span { font-size: 17px; }
+.resv.short b { font-size: 19px; }
+.resv.short span { font-size: 16px; }
+.resv.narrow b { font-size: 15px; }
+.resv.narrow small { font-size: 12px; }
+.gap { font-size: 14.5px; }
+.ds-chip { font-size: 15px; }
+.ds-chip b { font-size: 17px; }
+.mh-date { font-size: 18px; }
+.tb-brand { font-size: 16px; }
+.tb-tabs button { font-size: 16px; }
+.tb-clock { font-size: 14px; }
+.now-card header b { font-size: 20px; }
+.now-badge { font-size: 14.5px; }
+.q-time { width: 54px; font-size: 17px; }
+.q-body b { font-size: 17px; }
+.q-body small { font-size: 14px; }
+/* 초이스(손님이 담당자를 고름): 빨간 바탕 흰 글씨로 눈에 띄게 */
+.choice-tag { font-size: 13px; padding: 2px 7px; color: #fff; background: var(--red); }
+@media (max-width: 760px) {
+  :root { --timecol: 80px; }
+  .time-label { font-size: 13.5px; right: 5px; }
+  .ch-text b { font-size: 16.5px; }
+  .ch-text small { font-size: 12px; }
+  .tb-tabs button { font-size: 15px; }
+}
+@media (max-width: 600px) { .tb-brand { font-size: 14px; } }
+/* 담당자 머리글의 긴 상태 글('비어 있음 · 다음 10:30')이 칸 폭을 넓히지 않게 — 넘치면 … 로 자르고, 가로 스크롤은 칸이 정말 모자랄 때만 */
+.col-head:not(.corner) { contain: inline-size; }
+/* 초이스는 손님 이름 바로 오른쪽 — 이름 위치는 초이스가 있든 없든 같고, 이름이 길면 이름만 … 로 잘려 초이스는 늘 보이게 */
+.resv b { display: flex; align-items: center; min-width: 0; max-width: 100%; }
+.resv b .nm { font-style: normal; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.resv b .choice-tag { flex: none; margin: 0 0 0 6px; }
+.resv.short b { flex: 1 1 auto; }
+.resv.short .choice-tag { font-size: 12px; padding: 1px 5px; }
+.resv small .t { font-style: normal; }
+@media (max-width: 760px) {
+  .resv b { font-size: 18px; }
+  .resv span { font-size: 15px; }
+  .resv.short b { font-size: 16px; }
+  .resv.short .t { display: none; }   /* 좁은 칸의 30분 예약: 시각은 왼쪽 시간축으로, 이름이 보이게 */
+}
+@media (max-width: 760px) {   /* 폰: 칸이 좁아 '초이스' 글자 대신 빨간 ★ (이름이 보이게) */
+  .resv .choice-tag, .resv.short .choice-tag { font-size: 0; padding: 0; margin-left: 3px; background: none; }
+  .resv .choice-tag::before { content: '★'; font-size: 16px; color: var(--red); }
+}
