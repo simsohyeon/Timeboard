@@ -341,10 +341,20 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   position: absolute; left: 5px; right: 5px; box-sizing: border-box; overflow: hidden;
   display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 4px;
   font: inherit; font-size: 12.5px; font-weight: 600; color: var(--green);
-  background: transparent; border: 1.5px dashed color-mix(in srgb, var(--green) 40%, transparent);
+  /* 점선 테두리는 border:dashed 대신 배경 무늬로 — 아이폰·아이패드 사파리는 아주 긴 칸(몇 시간짜리)의 점선을 앞부분만 그린다 */
+  --dash: color-mix(in srgb, var(--green) 40%, transparent);
+  border: none; background-color: transparent;
+  background-image:
+    repeating-linear-gradient(90deg, var(--dash) 0 6px, transparent 6px 11px),
+    repeating-linear-gradient(90deg, var(--dash) 0 6px, transparent 6px 11px),
+    repeating-linear-gradient(180deg, var(--dash) 0 6px, transparent 6px 11px),
+    repeating-linear-gradient(180deg, var(--dash) 0 6px, transparent 6px 11px);
+  background-size: 100% 1.5px, 100% 1.5px, 1.5px 100%, 1.5px 100%;
+  background-position: top, bottom, left, right;
+  background-repeat: no-repeat;
   border-radius: 10px; cursor: pointer; opacity: .75;
 }
-.gap:hover, .gap.avail { opacity: 1; background: var(--green-soft); border-color: var(--green); }
+.gap:hover, .gap.avail { opacity: 1; background-color: var(--green-soft); --dash: var(--green); }
 .resv {
   position: absolute; left: 4px; right: 4px; box-sizing: border-box; overflow: hidden; z-index: 1;
   display: flex; flex-direction: column; gap: 1px; padding: 6px 9px;
