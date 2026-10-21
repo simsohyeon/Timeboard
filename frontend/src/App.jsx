@@ -111,7 +111,8 @@ export default function App({ shop, email, onShopChanged }) {
     const changes = next.map((s, i) => [s.id, i, s.sortOrder]).filter(([, i, was]) => i !== was).map(([id, i]) => [id, i]);
     setStaff(next.map((s, i) => ({ ...s, sortOrder: i })));
     return api.setStaffOrder(changes)
-      .catch(e => alert(`순서를 저장하지 못했어요 — ${e.message || e}`))
+      .then(() => true)
+      .catch(e => { alert(`순서를 저장하지 못했어요 — ${e.message || e}`); return false; })
       .finally(loadStaff);
   };
   const loadMenus = () => api.menus().then(setMenus).catch(() => setMenus([]));

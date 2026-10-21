@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { fmtDate } from '../api';
 import { START_H, END_H, HOUR_PX, hourLabel, worksOn, workRange } from '../lib/constants';
 import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel } from '../lib/schedule';
@@ -63,22 +63,38 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   const hourPx = Math.max(wantPx, fillPx);
 
   // 담당자 순서 바꾸기: 머리글을 길게 누른 뒤 좌우로 끌어 놓는다 (터치·마우스 공통)
+  // 누르는 동안 머리글이 파랗게 차오름 → 들리면 이름표가 손가락을 따라오고, 다른 칸은 흐려지고, 칸이 미끄러지며 자리를 바꿈
+  // → 놓으면 옮긴 칸이 반짝하고 '순서를 바꿨어요'
   const [drag, setDrag] = useState(null); // { id: 끄는 담당자, order: [id...] }
+  const [pressId, setPressId] = useState(null); // 길게 누르는 중
+  const [moved, setMoved] = useState(null);     // 방금 옮긴 담당자
+  const [toast, setToast] = useState('');
+  const ghostRef = useRef(null);
+  const ghostAt = useRef({ x: 0, y: 0 });
   const idsKey = staff.map(s => s.id).join();
   useEffect(() => setDrag(null), [idsKey]);
   const cols = drag ? drag.order.map(id => staff.find(s => s.id === id)).filter(Boolean) : staff;
+  // 글자 크기 설정(zoom) 안에서는 화면 좌표를 배율로 나눠야 손가락 위치와 맞는다
+  const zoomK = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--scale')) || 1;
+  const ghostTransform = () => { const k = zoomK(); return `translate(${ghostAt.current.x / k}px, ${ghostAt.current.y / k}px) translate(-50%, -135%)`; };
+  const showToast = msg => { setToast(msg); clearTimeout(showToast.t); showToast.t = setTimeout(() => setToast(''), 1800); };
   const startPress = (e, id) => {
     if (!onReorder || staff.length < 2 || e.button > 0) return;
     const x0 = e.clientX, y0 = e.clientY;
     let order = null; // 길게 눌러 끌기가 시작되면 [id...]
+    setPressId(id);
     const timer = setTimeout(() => {
       order = staff.map(s => s.id);
+      ghostAt.current = { x: x0, y: y0 };
       navigator.vibrate?.(15);
+      setPressId(null);
       setDrag({ id, order });
     }, 400);
     const move = ev => {
       if (!order) { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 8) end(); return; } // 그냥 쓸어 넘김
       ev.preventDefault();
+      ghostAt.current = { x: ev.clientX, y: ev.clientY };
+      if (ghostRef.current) ghostRef.current.style.transform = ghostTransform();
       const board = boardRef.current;
       const r = board.getBoundingClientRect();
       if (ev.clientX > r.right - 40) board.scrollLeft += 12;              // 화면 끝으로 끌면 옆으로 넘김
@@ -89,6 +105,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
       if (to < 0 || order[to] === id) return;
       order = order.filter(x => x !== id);
       order.splice(to, 0, id);
+      navigator.vibrate?.(8);
       setDrag({ id, order });
     };
     const end = () => {
@@ -96,6 +113,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', drop);
       window.removeEventListener('pointercancel', end);
+      setPressId(null);
       if (order) setDrag(null);
       order = null;
     };
@@ -104,13 +122,40 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
       end();
       if (done && done.some((x, i) => x !== staff[i]?.id)) {
         setDrag({ id: null, order: done });                                 // 저장되는 동안 바뀐 순서 유지
-        Promise.resolve(onReorder(done)).finally(() => setDrag(null));
+        setMoved(id);
+        setTimeout(() => setMoved(m => (m === id ? null : m)), 1300);
+        Promise.resolve(onReorder(done))
+          .then(ok => ok !== false && showToast('순서를 바꿨어요'))
+          .finally(() => setDrag(null));
       }
     };
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', drop);
     window.addEventListener('pointercancel', end);
   };
+  // 칸이 자리를 바꿀 때 미끄러지듯 (바뀌기 전 위치에서 새 위치로 옮겨 가는 애니메이션)
+  const lastLeft = useRef({});
+  const wasDragging = useRef(false);
+  useLayoutEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    const animate = !!drag || wasDragging.current;
+    wasDragging.current = !!drag;
+    const base = board.getBoundingClientRect().left - board.scrollLeft;
+    const k = zoomK();
+    const next = {};
+    board.querySelectorAll('[data-sid]').forEach(el => {
+      const key = (el.classList.contains('col-head') ? 'h' : 'c') + el.dataset.sid;
+      const left = el.getBoundingClientRect().left - base;
+      next[key] = left;
+      const was = lastLeft.current[key];
+      if (!animate || was == null || Math.abs(was - left) < 1) return;
+      el.style.transition = 'none';
+      el.style.transform = `translateX(${(was - left) / k}px)`;
+      requestAnimationFrame(() => { el.style.transition = 'transform .2s ease'; el.style.transform = ''; });
+    });
+    lastLeft.current = next;
+  });
   const dateStr = fmtDate(date);
   const isToday = dateStr === bizToday();
   const [, tick] = useState(0);
@@ -142,12 +187,12 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   };
 
   return (
-    <div className="board" ref={boardRef}>
+    <div className={'board' + (drag?.id ? ' sorting' : '')} ref={boardRef}>
       <div className="board-grid"
         style={{ gridTemplateColumns: `var(--timecol, 80px) repeat(${cols.length || 1}, minmax(var(--colmin, 120px), 1fr))` }}>
         <div className="col-head corner" />
         {cols.map(s => (
-          <div key={s.id} data-sid={s.id} className={'col-head' + (onReorder ? ' sortable' : '') + (drag?.id === s.id ? ' dragging' : '')}
+          <div key={s.id} data-sid={s.id} className={'col-head' + (onReorder ? ' sortable' : '') + (drag?.id === s.id ? ' dragging' : '') + (pressId === s.id ? ' pressing' : '') + (moved === s.id ? ' moved' : '')}
             title={onReorder ? '길게 눌러 끌면 순서를 바꿀 수 있어요' : undefined}
             onPointerDown={e => startPress(e, s.id)} onContextMenu={e => onReorder && e.preventDefault()}>
             <i className="avatar" style={{ '--c': s.dotColor || 'var(--blue)' }}>{s.name.slice(0, 1)}</i>
@@ -177,7 +222,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           const from = isToday ? Math.max(wo, ceilTo(nowMin)) : wo;
           const gaps = off ? [] : freeGaps([...mine, ...leaveBlocks(lv.parts)], [wo, wc], from).filter(([a, b]) => b - a >= 30);
           return (
-          <div className={'col' + (off ? ' off' : '') + (drag?.id === s.id ? ' dragging' : '')} key={s.id} style={{ minHeight: (endH - startH) * hourPx }}
+          <div className={'col' + (off ? ' off' : '') + (drag?.id === s.id ? ' dragging' : '') + (moved === s.id ? ' moved' : '')} key={s.id} data-sid={s.id} style={{ minHeight: (endH - startH) * hourPx }}
             onClick={e => {
               if (off) return;
               // 좌표를 px로 다루면 zoom 배율에서 단위가 섞인다 →
@@ -247,6 +292,17 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           );
         })}
       </div>
+      {drag?.id && (() => {
+        const g = staff.find(s => s.id === drag.id);
+        return g && (
+          <div ref={ghostRef} className="drag-ghost" style={{ transform: ghostTransform() }} aria-hidden>
+            <i className="avatar" style={{ '--c': g.dotColor || 'var(--blue)' }}>{g.name.slice(0, 1)}</i>
+            <b>{g.name}</b>
+            <small>좌우로 옮겨 놓으세요</small>
+          </div>
+        );
+      })()}
+      {toast && <div className="board-toast" role="status">{toast}</div>}
     </div>
   );
 }
