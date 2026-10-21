@@ -319,7 +319,16 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
         const count = list.filter(r => r.staffId === s.id).length;
         const day = `${date.getMonth() + 1}월 ${date.getDate()}일 (${DAYS[date.getDay()]})`;
         const md = d => `${+d.slice(5, 7)}/${+d.slice(8, 10)}`;
-        const act = (job, msg) => { setMenu(null); Promise.resolve(job()).then(ok => ok !== false && showToast(msg)); };
+        // 휴무를 넣거나 빼면 칸이 오른쪽 끝(또는 원래 자리)으로 옮겨지니, 옮겨 간 칸을 반짝여 보여 준다
+        const act = (job, msg) => {
+          setMenu(null);
+          Promise.resolve(job()).then(ok => {
+            if (ok === false) return;
+            showToast(msg);
+            setMoved(s.id);
+            setTimeout(() => setMoved(m => (m === s.id ? null : m)), 1300);
+          });
+        };
         return (<>
           <div className="staff-menu-scrim" onPointerDown={() => setMenu(null)} onContextMenu={e => { e.preventDefault(); setMenu(null); }} />
           <div className="staff-menu" role="menu" style={{ left, top }}>
