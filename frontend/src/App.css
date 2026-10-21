@@ -1223,7 +1223,6 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 .q-body small { font-size: 14px; }
 /* 초이스(손님이 담당자를 고름): 빨간 바탕 흰 글씨로 눈에 띄게 */
 .choice-tag { font-size: 13px; padding: 2px 7px; color: #fff; background: var(--red); }
-.choice-star { font-style: normal; color: var(--red); }
 @media (max-width: 760px) {
   :root { --timecol: 80px; }
   .time-label { font-size: 13.5px; right: 5px; }
@@ -1234,8 +1233,12 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .tb-brand { font-size: 14px; } }
 /* 담당자 머리글의 긴 상태 글('비어 있음 · 다음 10:30')이 칸 폭을 넓히지 않게 — 넘치면 … 로 자르고, 가로 스크롤은 칸이 정말 모자랄 때만 */
 .col-head:not(.corner) { contain: inline-size; }
-/* 초이스 표시는 이름 앞 — 이름이 길어 잘려도 초이스는 보이게 */
-.resv .choice-tag { margin: 0 6px 0 0; vertical-align: 2px; }
+/* 초이스는 손님 이름 바로 오른쪽 — 이름 위치는 초이스가 있든 없든 같고, 이름이 길면 이름만 … 로 잘려 초이스는 늘 보이게 */
+.resv b { display: flex; align-items: center; min-width: 0; max-width: 100%; }
+.resv b .nm { font-style: normal; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.resv b .choice-tag { flex: none; margin: 0 0 0 6px; }
+.resv.short b { flex: 1 1 auto; }
+.resv.short .choice-tag { font-size: 12px; padding: 1px 5px; }
 .resv small .t { font-style: normal; }
 @media (max-width: 760px) {
   .resv b { font-size: 18px; }
@@ -1244,6 +1247,6 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
   .resv.short .t { display: none; }   /* 좁은 칸의 30분 예약: 시각은 왼쪽 시간축으로, 이름이 보이게 */
 }
 @media (max-width: 760px) {   /* 폰: 칸이 좁아 '초이스' 글자 대신 빨간 ★ (이름이 보이게) */
-  .resv .choice-tag { font-size: 0; padding: 0; margin-right: 3px; background: none; vertical-align: 0; }
+  .resv .choice-tag, .resv.short .choice-tag { font-size: 0; padding: 0; margin-left: 3px; background: none; }
   .resv .choice-tag::before { content: '★'; font-size: 16px; color: var(--red); }
 }
