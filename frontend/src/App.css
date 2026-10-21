@@ -341,10 +341,20 @@ button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   position: absolute; left: 5px; right: 5px; box-sizing: border-box; overflow: hidden;
   display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 4px;
   font: inherit; font-size: 12.5px; font-weight: 600; color: var(--green);
-  background: transparent; border: 1.5px dashed color-mix(in srgb, var(--green) 40%, transparent);
+  /* 점선 테두리는 border:dashed 대신 배경 무늬로 — 아이폰·아이패드 사파리는 아주 긴 칸(몇 시간짜리)의 점선을 앞부분만 그린다 */
+  --dash: color-mix(in srgb, var(--green) 40%, transparent);
+  border: none; background-color: transparent;
+  background-image:
+    repeating-linear-gradient(90deg, var(--dash) 0 6px, transparent 6px 11px),
+    repeating-linear-gradient(90deg, var(--dash) 0 6px, transparent 6px 11px),
+    repeating-linear-gradient(180deg, var(--dash) 0 6px, transparent 6px 11px),
+    repeating-linear-gradient(180deg, var(--dash) 0 6px, transparent 6px 11px);
+  background-size: 100% 1.5px, 100% 1.5px, 1.5px 100%, 1.5px 100%;
+  background-position: top, bottom, left, right;
+  background-repeat: no-repeat;
   border-radius: 10px; cursor: pointer; opacity: .75;
 }
-.gap:hover, .gap.avail { opacity: 1; background: var(--green-soft); border-color: var(--green); }
+.gap:hover, .gap.avail { opacity: 1; background-color: var(--green-soft); --dash: var(--green); }
 .resv {
   position: absolute; left: 4px; right: 4px; box-sizing: border-box; overflow: hidden; z-index: 1;
   display: flex; flex-direction: column; gap: 1px; padding: 6px 9px;
@@ -1250,3 +1260,72 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
   .resv .choice-tag, .resv.short .choice-tag { font-size: 0; padding: 0; margin-left: 3px; background: none; }
   .resv .choice-tag::before { content: '★'; font-size: 16px; color: var(--red); }
 }
+
+/* 보드 담당자 순서 바꾸기: 머리글 길게 눌러 끌기 */
+.col-head.sortable {
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab;
+  transition: background-color .15s, box-shadow .15s;
+}
+/* 누르는 동안: 0.4초에 걸쳐 파랗게 차오름 (길게 누르기가 되고 있다는 표시) */
+.col-head.pressing { background: var(--blue-soft); box-shadow: inset 0 -4px 0 var(--blue); transition: background-color .4s ease-in, box-shadow .4s ease-in; }
+/* 끄는 중: 잡은 칸은 파란 테두리, 나머지는 흐리게 */
+.col-head.dragging { cursor: grabbing; z-index: 7; background: var(--blue-soft); box-shadow: inset 0 0 0 2px var(--blue); border-radius: 12px 12px 0 0; }
+.col.dragging { background: color-mix(in srgb, var(--blue) 9%, var(--surface)); box-shadow: inset 2px 0 0 var(--blue), inset -2px 0 0 var(--blue); }
+.board.sorting .col:not(.dragging) { opacity: .45; transition: opacity .15s; }
+.board.sorting .col-head:not(.dragging):not(.corner) > * { opacity: .45; }
+/* 손가락을 따라오는 이름표 */
+.drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 80; pointer-events: none;
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px 8px 8px; border-radius: 99px; white-space: nowrap;
+  background: var(--surface); box-shadow: 0 12px 32px rgba(0, 0, 0, .25), 0 0 0 2px var(--blue);
+}
+.drag-ghost b { font-size: 18px; }
+.drag-ghost small { font-size: 12.5px; font-weight: 600; color: var(--blue); }
+/* 놓은 뒤: 옮긴 칸이 잠깐 반짝 */
+.col-head.moved { animation: moved-head 1.3s ease-out; }
+.col.moved { animation: moved-col 1.3s ease-out; }
+@keyframes moved-head { 0%, 35% { background: color-mix(in srgb, var(--blue) 25%, var(--surface)); } 100% { background: var(--surface); } }
+@keyframes moved-col { 0%, 35% { background: color-mix(in srgb, var(--blue) 14%, var(--surface)); } 100% { background: transparent; } }
+.board-toast {
+  position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 80;
+  padding: 12px 20px; border-radius: 14px; background: rgba(25, 31, 40, .92); color: #fff;
+  font-size: 15px; font-weight: 600; white-space: nowrap; pointer-events: none; animation: board-toast-in .2s ease-out;
+}
+@keyframes board-toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+@media (prefers-reduced-motion: reduce) { .col-head.moved, .col.moved, .board-toast { animation: none; } }
+
+/* 담당자 머리글 안내 말풍선 (마우스를 올렸을 때) — 브라우저 기본 툴팁은 작아서 직접 그린다 */
+@media (hover: hover) {
+  .col-head[data-tip]:hover::after {
+    content: attr(data-tip); white-space: pre-line;
+    position: absolute; left: 8px; right: 8px; top: calc(100% + 6px); z-index: 9; pointer-events: none;
+    padding: 10px 14px; border-radius: 12px; background: #191f28; color: #fff;
+    font-size: 15px; font-weight: 600; line-height: 1.5; box-shadow: 0 8px 22px rgba(0, 0, 0, .22);
+  }
+  .col-head.pressing::after, .col-head.dragging::after, .board.sorting .col-head::after, .board.menu-open .col-head::after { display: none; }
+}
+
+/* 담당자 휴무 메뉴 (머리글 짧게 누르기 · 우클릭) */
+.staff-menu-scrim { position: fixed; inset: 0; z-index: 85; }
+.staff-menu {
+  position: fixed; z-index: 86; width: 260px; padding: 14px; border-radius: 16px;
+  background: var(--surface); box-shadow: 0 14px 40px rgba(0, 0, 0, .22); border: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 10px; animation: board-toast-in .15s ease-out;
+}
+.sm-head { display: flex; align-items: baseline; gap: 8px; }
+.sm-head b { font-size: 19px; }
+.sm-head small { font-size: 14px; color: var(--sub); }
+.sm-label { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--sub); }
+.sm-reasons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sm-reasons button {
+  font: inherit; font-size: 16px; font-weight: 700; padding: 12px 8px; border-radius: 12px; cursor: pointer;
+  border: none; color: var(--leave, var(--sub)); background: var(--leave-soft, var(--line));
+}
+.sm-reasons button:first-child { color: #fff; background: var(--leave, var(--blue)); }
+.sm-now { margin: 0; font-size: 16px; font-weight: 700; color: var(--leave, var(--fg)); }
+.sm-cancel {
+  font: inherit; font-size: 16px; font-weight: 700; padding: 12px; border-radius: 12px; cursor: pointer;
+  border: none; color: var(--red); background: var(--red-soft);
+}
+.sm-note { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
+.sm-warn { margin: 0; font-size: 13px; color: var(--amber); font-weight: 600; line-height: 1.45; }

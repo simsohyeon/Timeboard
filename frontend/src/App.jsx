@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, fmtDate, configured } from './api';
 import { holdUpdate } from './lib/autoUpdate';
-import { START_H, END_H, isActiveOn } from './lib/constants';
+import { START_H, END_H, isActiveOn, worksOn } from './lib/constants';
 import { BASE_FONT, loadDisplay } from './lib/display';
-import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo } from './lib/schedule';
+import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo, leaveOn } from './lib/schedule';
 import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
@@ -103,6 +103,31 @@ export default function App({ shop, email, onShopChanged }) {
 
   const loadStaff = () => api.staff().then(s => { setStaff(s); setDbErr(''); })
     .catch(e => { setStaff([]); setDbErr(e.message || String(e)); });
+  // 보드 머리글을 끌어 바꾼 순서 저장. ids = 보드에 보이는 담당자의 새 순서 (그날 안 보이는 담당자는 제자리)
+  const reorderStaff = ids => {
+    // 일하는 사람끼리, 쉬는 사람끼리 각자 원래 자리 안에서만 바꾼다 — 쉬는 사람이 보드 오른쪽에 모여 보여도 저장된 순서는 그대로
+    const offIds = new Set(staff.filter(isOff).map(s => s.id));
+    const next = [...staff];
+    for (const group of [ids.filter(id => !offIds.has(id)), ids.filter(id => offIds.has(id))]) {
+      const slots = staff.map((s, i) => (group.includes(s.id) ? i : -1)).filter(i => i >= 0);
+      slots.forEach((slot, k) => { next[slot] = staff.find(s => s.id === group[k]); });
+    }
+    const changes = next.map((s, i) => [s.id, i, s.sortOrder]).filter(([, i, was]) => i !== was).map(([id, i]) => [id, i]);
+    setStaff(next.map((s, i) => ({ ...s, sortOrder: i })));
+    return api.setStaffOrder(changes)
+      .then(() => true)
+      .catch(e => { alert(`순서를 저장하지 못했어요 — ${e.message || e}`); return false; })
+      .finally(loadStaff);
+  };
+  // 보드 머리글 메뉴: 그날 하루 휴무(종일 휴가) 넣기 / 하루짜리 휴가 취소
+  const setDayOff = (staffId, reason) => api.createLeave({ staffId, startDate: fmtDate(date), endDate: fmtDate(date), reason })
+    .then(() => true)
+    .catch(e => { alert(`휴무로 바꾸지 못했어요 — ${e.message || e}`); return false; })
+    .finally(loadLeaves);
+  const cancelLeave = id => api.deleteLeave(id)
+    .then(() => true)
+    .catch(e => { alert(`취소하지 못했어요 — ${e.message || e}`); return false; })
+    .finally(loadLeaves);
   const loadMenus = () => api.menus().then(setMenus).catch(() => setMenus([]));
   const loadSettings = () => api.settings().then(s => {
     // 자정 넘어 영업하면 새벽 시간대는 전날 영업일로 — 처음 열었을 때 보드도 그 날로
@@ -175,6 +200,9 @@ export default function App({ shop, email, onShopChanged }) {
   const list = listDate === dateStr ? rawList : [];
   const listLoading = listDate !== dateStr;
   const activeStaff = staff.filter(s => isActiveOn(s, dateStr));
+  // 보드: 그날 쉬는 담당자(요일 휴무·종일 휴가)는 오른쪽 끝으로 — 보이는 순서만 바꾸고, 다시 일하는 날엔 원래 자리
+  const isOff = s => !worksOn(s, date.getDay()) || !!leaveOn(leaves, s.id, dateStr).full;
+  const boardStaff = [...activeStaff.filter(s => !isOff(s)), ...activeStaff.filter(isOff)];
   const payStaff = staff.filter(s => isActiveOn(s, dateStr) || list.some(r => r.staffId === s.id));
 
   const moveDay = n => setDate(d => { const x = new Date(d); x.setDate(x.getDate() + n); return x; });
@@ -217,9 +245,10 @@ export default function App({ shop, email, onShopChanged }) {
           {tab === 'reserve' && (<>
             {dateHead}
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
-            <Board staff={activeStaff} list={list} date={date} startH={startH} endH={endH}
+            <Board staff={boardStaff} list={list} date={date} startH={startH} endH={endH}
               hourPx={display.hourPx} halfLine={display.halfLine} leaves={leaves}
-              onCellClick={openCreate} onBlockClick={r => setModal(r)} />
+              onCellClick={openCreate} onBlockClick={r => setModal(r)} onReorder={reorderStaff}
+              onDayOff={setDayOff} onCancelLeave={cancelLeave} />
           </>)}
           {tab === 'now' && (
             <NowPage staff={activeStaff} list={list} leaves={leaves} menus={menus}
