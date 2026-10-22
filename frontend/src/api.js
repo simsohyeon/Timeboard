@@ -284,6 +284,7 @@ export const api = {
 
 const resvWrite = res => {
   if (res.error?.code === '42703' || res.error?.code === 'PGRST204') throw new Error(NO_CHOICE_MSG);
+  if (res.error?.code === '23502') throw new Error('담당자 미정으로 저장하려면 supabase/setup.sql 최신 버전을 SQL Editor에서 실행하세요');
   return rows(res);
 };
 
@@ -291,7 +292,7 @@ const resvWrite = res => {
 // choice 칸이 없는 DB면 초이스가 아닐 때는 빼고 보내 저장은 되게 (초이스로 저장하려 할 때만 안내)
 const toRow = r => ({
   ...(hasChoice || r.choice ? { choice: !!r.choice } : {}),
-  staff_id: r.staffId,
+  staff_id: r.staffId ?? null,   // null = 담당자 미정
   date: r.date,
   start_min: r.startMin,
   duration_min: r.durationMin,

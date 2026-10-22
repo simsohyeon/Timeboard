@@ -49,7 +49,7 @@ const laneStyle = ([i, n, span] = [0, 1, 1]) => (n > 1 && span < n
 // 한 칸의 1/3 이하로 좁으면 손님 이름만 크게 (메뉴·시간 줄은 숨김)
 const isNarrow = ([, n, span] = [0, 1, 1]) => n / span >= 3;
 
-export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx: wantPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick, onReorder, onDayOff, onCancelLeave }) {
+export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx: wantPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick, onReorder, onDayOff, onCancelLeave, onUnassigned }) {
   // 영업시간이 짧아 보드가 화면보다 짧으면 1시간 높이를 늘려 화면을 꽉 채운다 (아래가 비지 않게)
   const boardRef = useRef(null);
   const [fillPx, setFillPx] = useState(0);
@@ -215,6 +215,19 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             <span className="time-label" key={i} style={{ top: (i + 1) * hourPx }}>{hourLabel(startH + i + 1)}</span>
           ))}
           {showNow && <span className="now-pill" style={{ top: nowTop }}>{short(nowMin)}</span>}
+          {/* 담당자 미정 예약: 그 시각 아래 '미정 n' (30분 안으로 다가오면 주황). 누르면 날짜 옆 목록이 열린다 */}
+          {Object.entries(list.filter(r => r.staffId == null).reduce((acc, r) => {
+            const h = Math.floor(r.startMin / 60);
+            (acc[h] ??= []).push(r);
+            return acc;
+          }, {})).map(([h, rs]) => {
+            const urgent = isToday && rs.some(r => r.startMin - nowMin <= 30);
+            return (
+              <button key={h} type="button" className={'un-mark' + (urgent ? ' soon' : '')}
+                style={{ top: top(Math.max(open, h * 60)) + 10 }} onClick={onUnassigned}
+                aria-label={`${short(h * 60)}시대 담당자 미정 예약 ${rs.length}건`}>미정 {rs.length}</button>
+            );
+          })}
         </div>
         {cols.map(s => {
           // 휴무 요일·종일 휴가는 칸 전체, 근무시간 밖·시간 지정 휴가는 그 부분만 빗금 + 클릭 막음
