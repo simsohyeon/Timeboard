@@ -542,7 +542,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm-chip.st-ok small { color: var(--green); }
 .rm-chip.st-clash small { color: var(--amber); }
 .rm-chip.st-off { background: var(--hover); }
-.rm-chip.on { border: 2px solid var(--blue); background: var(--blue-soft); }
+.rm-chip.on { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); background: var(--blue-soft); } /* 테두리 두께는 그대로 — 고를 때 칸이 커지며 흔들리지 않게 */
 .rm-chip.on b { color: var(--blue-dark); }
 .rm .menu-pick { max-height: none; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .rm .menu-opt { min-height: 56px; justify-content: center; border-radius: 12px; }
@@ -595,7 +595,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
   display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 14px; border-radius: 12px;
   font-size: 14px; font-weight: 700;
 }
-.rm-status span { flex: 1; min-width: 0; }
+.rm-status span { flex: 1; min-width: 0; line-height: 20px; } /* 글자(·, ✓ 등)마다 줄 높이가 달라져 담당자를 바꿀 때 흔들리지 않게 고정 */
 .rm-status button { flex: none; font: inherit; font-size: 13px; font-weight: 600; background: none; border: none; color: inherit; cursor: pointer; padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; }
 .rm-status.ok { color: var(--green); background: var(--green-soft); }
 .rm-status.warn { color: var(--amber); background: var(--amber-soft); }
@@ -981,6 +981,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm-choice.on { border-color: var(--blue); background: var(--blue-soft); }
 .rm-choice.on b { color: var(--blue-dark); }
 .rm-choice .switch { display: block; flex: none; }
+.rm-choice:disabled { cursor: default; opacity: .55; }
 .choice-tag {
   display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; vertical-align: 1px;
   font-size: 11px; font-style: normal; font-weight: 700; color: var(--blue-dark); background: var(--blue-soft);
@@ -1379,3 +1380,5 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
   .un-tag { font-size: 11.5px; padding: 2px 6px; }
   .un-mark { right: 4px; font-size: 11px; padding: 1px 5px; }
 }
+/* 폰: 상태 줄은 두 줄 자리를 늘 잡아 둔다 — 담당자를 바꿔 문구 길이가 달라져도 아래가 흔들리지 않게 */
+@media (max-width: 760px) { .rm-status { min-height: 60px; box-sizing: border-box; } }

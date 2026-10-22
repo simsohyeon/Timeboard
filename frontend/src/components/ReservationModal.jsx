@@ -163,7 +163,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     : endMin > close ? { kind: 'block', text: `마감(${minLabel(close)})을 넘겨서 끝나요 — 더 일찍 시작하거나 짧은 코스로 바꿔 주세요` }
     : unassigned ? (isToday && start + 10 <= nowMin && moved
       ? { kind: 'warn', text: '이미 지난 시각이에요 — 담당자를 정해 주세요' }
-      : { kind: 'ok', text: `${short(start)}–${short(endMin)} 담당자 미정 — 시간이 다가오면 날짜 옆 '담당자 미정'에서 골라요` })
+      : { kind: 'ok', text: `${short(start)}–${short(endMin)} 담당자 미정 · 나중에 골라요` })
     : !sel ? { kind: 'warn', text: '담당자를 골라 주세요' }
     : multi ? groupStatus()
     : !worksOn(sel, date.getDay()) ? { kind: 'warn', text: `${nim(sel.name)}은 이 날 휴무예요` }
@@ -278,12 +278,13 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                   );
                 })}
               </div>
-              {/* 손님이 담당자를 직접 고른 예약 — 담당자 인센이 더 붙어서 따로 기록 (담당자 미정이면 고를 수 없음) */}
-              {!unassigned && <button type="button" role="switch" aria-checked={!!form.choice}
+              {/* 손님이 담당자를 직접 고른 예약 — 담당자 인센이 더 붙어서 따로 기록
+                  담당자 미정이면 고를 수 없음 (줄은 그대로 두어 담당자를 바꿔도 창 높이가 변하지 않게) */}
+              <button type="button" role="switch" aria-checked={!!form.choice} disabled={unassigned}
                 className={'rm-choice' + (form.choice ? ' on' : '')} onClick={() => set('choice', !form.choice)}>
-                <span><b>초이스</b><small>{multi ? `고른 ${sels.length}명 모두 손님이 직접 골랐어요` : `손님이 ${sel ? nim(sel.name) : '담당자'}을 직접 골랐어요`}</small></span>
+                <span><b>초이스</b><small>{unassigned ? '담당자를 정하면 고를 수 있어요' : multi ? `고른 ${sels.length}명 모두 손님이 직접 골랐어요` : `손님이 ${sel ? nim(sel.name) : '담당자'}을 직접 골랐어요`}</small></span>
                 <i className={'switch' + (form.choice ? ' on' : '')} aria-hidden="true"><i /></i>
-              </button>}
+              </button>
             </section>
 
             <section className="rm-sec">
@@ -361,13 +362,13 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
 
               <div className={'rm-status ' + status.kind}>
                 <span>{status.kind === 'ok' ? '✓ ' : '⚠ '}{status.text}</span>
-                {sel && (
-                  <button type="button" onClick={() => setShowFree(v => !v)} aria-expanded={showFree}>
-                    {showFree ? '접기' : '빈 시간 보기'}
-                  </button>
-                )}
+                {/* 담당자가 없을 때도 자리는 남겨 둔다 — 담당자를 바꿀 때 줄 높이가 변하지 않게 */}
+                <button type="button" onClick={() => setShowFree(v => !v)} aria-expanded={showFree}
+                  disabled={!sel} tabIndex={sel ? undefined : -1} style={sel ? undefined : { visibility: 'hidden' }}>
+                  {showFree ? '접기' : '빈 시간 보기'}
+                </button>
               </div>
-              {showFree && (
+              {showFree && sel && (
                 <div className="rm-free">
                   {freeStarts.length === 0 && <span className="m-empty">이 날 {dur}분 비는 시간이 없어요</span>}
                   {freeStarts.map(m => (
