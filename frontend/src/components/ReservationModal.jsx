@@ -87,8 +87,8 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   };
   const STATE_LABEL = { off: '휴무', leave: '휴가', out: '근무 외', clash: '겹침', ok: '가능' };
 
-  // 새 예약은 담당자를 여러 명 고를 수 있다 (같은 메뉴·같은 시간 일행). 수정은 한 명
-  const group = !form.id;
+  // 새 예약과 담당자 미정이던 예약은 담당자를 여러 명 고를 수 있다 (같은 메뉴·같은 시간 일행). 그 밖의 수정은 한 명
+  const group = !form.id || init.staffId == null;
   const [groupIds, setGroupIds] = useState(() => (form.staffId ? [Number(form.staffId)] : []));
   // 담당자 미정: 지금은 비워 두고, 시간이 다가오면 날짜 옆 '담당자 미정'에서 이 창을 다시 열어 고른다
   const [unassigned, setUnassigned] = useState(() => !!init.id && init.staffId == null);
@@ -225,8 +225,10 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     e.preventDefault();
     if (locked || !checks()) return;
     if (multi) return act(async () => {
-      // 일행: 담당자마다 같은 내용으로 하나씩
-      const rs = await Promise.allSettled(sels.map(s => api.createReservation({ ...payload(), staffId: s.id })));
+      // 일행: 담당자마다 같은 내용으로 하나씩. 담당자 미정이던 예약이면 그 예약은 첫 담당자로, 나머지는 새로
+      const rs = await Promise.allSettled(sels.map((s, i) => (form.id && i === 0
+        ? api.updateReservation(form.id, { ...payload(), staffId: s.id })
+        : api.createReservation({ ...payload(), staffId: s.id }))));
       const bad = rs.filter(r => r.status === 'rejected');
       if (bad.length) throw new Error(`${sels.length}건 중 ${bad.length}건을 저장하지 못했어요 (${bad[0].reason?.message || bad[0].reason}) — 보드를 확인해 주세요`);
     });
@@ -404,7 +406,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
             {!hidePrice && Number(form.price) > 0 && <b>{multi ? `1인 ${Number(form.price).toLocaleString()}원 × ${sels.length}명` : `${Number(form.price).toLocaleString()}원`}</b>}
           </div>
           {form.id && (
-            <Button className={'done-btn' + (form.done ? ' is-done' : '')} onClick={toggleDone} disabled={busy || (unassigned && !locked)}
+            <Button className={'done-btn' + (form.done ? ' is-done' : '')} onClick={toggleDone} disabled={busy || (!locked && (unassigned || multi))}
               title={unassigned && !locked ? '담당자를 정하면 완료할 수 있어요' : undefined}>
               {form.done ? '완료 취소' : '✓ 완료 처리'}
             </Button>
@@ -412,7 +414,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
           <div className="m-actions">
             {form.id && <Button variant="danger" onClick={() => window.confirm('이 예약을 삭제할까요?') && act(() => api.deleteReservation(form.id), init.date)} disabled={busy || locked}>삭제</Button>}
             <Button onClick={onClose} disabled={busy}>{locked ? '닫기' : '취소'}</Button>
-            <Button variant="primary" type="submit" disabled={busy || locked}>{form.id ? '저장' : multi ? `${sels.length}명 예약 저장` : '예약 저장'}</Button>
+            <Button variant="primary" type="submit" disabled={busy || locked}>{multi ? `${sels.length}명 예약 저장` : form.id ? '저장' : '예약 저장'}</Button>
           </div>
         </div>
       </form>
