@@ -90,23 +90,32 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   // 새 예약과 담당자 미정이던 예약은 담당자를 여러 명 고를 수 있다 (같은 메뉴·같은 시간 일행). 그 밖의 수정은 한 명
   const group = !form.id || init.staffId == null;
   const [groupIds, setGroupIds] = useState(() => (form.staffId ? [Number(form.staffId)] : []));
-  // 담당자 미정: 지금은 비워 두고, 시간이 다가오면 날짜 옆 '담당자 미정'에서 이 창을 다시 열어 고른다
-  const [unassigned, setUnassigned] = useState(() => !!init.id && init.staffId == null);
+  // 담당자 미정: 지금은 비워 두고, 시간이 다가오면 보드의 흐린 카드(또는 목록)로 고른다
+  // 새 예약·미정이던 예약(group)은 미정을 '인원 수'로 정하고, 정해진 담당자와 섞어 고를 수 있다
+  // (하나 + 엠미 + 미정 1 → 3건). 그 밖의 수정은 미정이냐 한 명이냐 둘 중 하나
+  const editingUn = !!init.id && init.staffId == null;
+  const [unCount, setUnCount] = useState(editingUn ? 1 : 0);
+  const [unTouched, setUnTouched] = useState(false); // 미정 칩을 직접 눌렀는지
   const chooseUnassigned = () => {
-    setUnassigned(true);
-    setGroupIds([]);
-    setForm(f => ({ ...f, staffId: null, choice: false }));
+    setUnTouched(true);
+    if (!group) { setUnCount(1); setForm(f => ({ ...f, staffId: null, choice: false })); return; }
+    setUnCount(n => (n ? 0 : 1));
   };
+  const stepUn = d => { setUnTouched(true); setUnCount(n => Math.max(0, Math.min(10, n + d))); };
   const tapStaff = id => {
-    setUnassigned(false);
-    if (!group) return set('staffId', id);
-    const next = groupIds.includes(id) ? groupIds.filter(x => x !== id) : [...groupIds, id];
+    if (!group) { setUnCount(0); return set('staffId', id); }
+    const adding = !groupIds.includes(id);
+    // 미정 예약 하나를 열어 담당자를 고르면 그 미정 자리가 그 사람으로 바뀐다 (미정 칩을 직접 건드리지 않았을 때)
+    if (adding && editingUn && !unTouched && groupIds.length === 0 && unCount === 1) setUnCount(0);
+    const next = adding ? [...groupIds, id] : groupIds.filter(x => x !== id);
     setGroupIds(next);
     set('staffId', next[0] ?? null);
   };
   const selIds = group ? groupIds : (form.staffId ? [Number(form.staffId)] : []);
   const sels = selIds.map(id => staff.find(s => s.id === id)).filter(Boolean);
-  const multi = sels.length > 1;
+  const unassigned = unCount > 0 && sels.length === 0; // 담당자 없이 미정만
+  const total = sels.length + unCount;                   // 이번에 저장할 예약 수
+  const multi = total > 1;
 
   // 시간 고르기: [오전/오후/새벽 | 시 | 분(10분 단위)] 휠 세 줄. 아래 한 줄로 그 시각이 되는지 바로 알려 준다
   const sel = sels[0];
@@ -157,13 +166,13 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     }).filter(Boolean);
     if (issues.length) return { kind: 'warn', text: issues.join(' · ') };
     if (isToday && start + 10 <= nowMin) return { kind: 'warn', text: '이미 지난 시각이에요' };
-    return { kind: 'ok', text: `${short(start)}–${short(endMin)} ${sels.length}명 모두 비어 있어요` };
+    return { kind: 'ok', text: `${short(start)}–${short(endMin)} ${sels.length > 1 ? `${sels.length}명 모두` : nim(sels[0].name)} 비어 있어요${unCount ? ` · 미정 ${unCount}명` : ''}` };
   };
   const status = (start < open || start >= close) ? { kind: 'block', text: `영업시간(${minLabel(open)}–${minLabel(close)}) 밖이라 보드에 보이지 않아요 — 시각을 바꿔 주세요` }
     : endMin > close ? { kind: 'block', text: `마감(${minLabel(close)})을 넘겨서 끝나요 — 더 일찍 시작하거나 짧은 코스로 바꿔 주세요` }
     : unassigned ? (isToday && start + 10 <= nowMin && moved
       ? { kind: 'warn', text: '이미 지난 시각이에요 — 담당자를 정해 주세요' }
-      : { kind: 'ok', text: `${short(start)}–${short(endMin)} 담당자 미정 · 나중에 골라요` })
+      : { kind: 'ok', text: `${short(start)}–${short(endMin)} 담당자 미정${unCount > 1 ? ` ${unCount}명` : ''} · 나중에 골라요` })
     : !sel ? { kind: 'warn', text: '담당자를 골라 주세요' }
     : multi ? groupStatus()
     : !worksOn(sel, date.getDay()) ? { kind: 'warn', text: `${nim(sel.name)}은 이 날 휴무예요` }
@@ -214,7 +223,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   // 저장·완료 처리 공통 검사 — 통과하면 true
   const checks = () => {
     if (!form.pick) { setErr('메뉴를 골라 주세요'); return false; }
-    if (!sels.length && !unassigned) { setErr('담당자를 골라 주세요'); return false; }
+    if (!total) { setErr('담당자를 골라 주세요'); return false; }
     if (status.kind === 'block') { setErr(status.text); return false; }
     if (hit && slotChanged && !window.confirm(multi
       ? `${names(sels.filter(s => clash(s.id, start, dur)))} 예약과 시간이 겹쳐요. 그래도 저장할까요?`
@@ -224,13 +233,14 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   const submit = e => {
     e.preventDefault();
     if (locked || !checks()) return;
-    if (multi) return act(async () => {
-      // 일행: 담당자마다 같은 내용으로 하나씩. 담당자 미정이던 예약이면 그 예약은 첫 담당자로, 나머지는 새로
-      const rs = await Promise.allSettled(sels.map((s, i) => (form.id && i === 0
-        ? api.updateReservation(form.id, { ...payload(), staffId: s.id })
-        : api.createReservation({ ...payload(), staffId: s.id }))));
+    if (group) return act(async () => {
+      // 일행: 담당자마다 하나씩 + 미정 인원만큼 담당자 없이. 미정이던 예약을 열었으면 그 예약이 첫 자리
+      const targets = [...sels.map(x => ({ staffId: x.id })), ...Array.from({ length: unCount }, () => ({ staffId: null, choice: false }))];
+      const rs = await Promise.allSettled(targets.map((t, i) => (form.id && i === 0
+        ? api.updateReservation(form.id, { ...payload(), ...t })
+        : api.createReservation({ ...payload(), ...t }))));
       const bad = rs.filter(r => r.status === 'rejected');
-      if (bad.length) throw new Error(`${sels.length}건 중 ${bad.length}건을 저장하지 못했어요 (${bad[0].reason?.message || bad[0].reason}) — 보드를 확인해 주세요`);
+      if (bad.length) throw new Error(`${targets.length}건 중 ${bad.length}건을 저장하지 못했어요 (${bad[0].reason?.message || bad[0].reason}) — 보드를 확인해 주세요`);
     });
     act(() => (form.id ? api.updateReservation(form.id, payload()) : api.createReservation(payload())));
   };
@@ -258,14 +268,23 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
             <section className="rm-sec">
               <div className="rm-sec-head">
                 <h3>1. 담당자{group && <span> (일행이면 여러 명)</span>}</h3>
-                {multi && <b className="rm-group-count">일행 {sels.length}명</b>}
+                {multi && <b className="rm-group-count">일행 {total}명</b>}
               </div>
               <div className="rm-staff" role="radiogroup" aria-label="담당자">
-                <button type="button" role="radio" aria-checked={unassigned}
-                  className={'rm-chip unassigned' + (unassigned ? ' on' : '')} onClick={chooseUnassigned}>
-                  <b><span className="rm-chip-name">담당자 미정</span></b>
-                  <small>나중에 고름</small>
-                </button>
+                {/* 담당자 미정: 고르면 아랫줄이 인원 수(− n명 +)로 바뀐다 — 칸 크기는 그대로 */}
+                <div className={'rm-chip unassigned' + (unCount ? ' on' : '')} role="group" aria-label="담당자 미정">
+                  <button type="button" className="rm-un-main" aria-pressed={!!unCount} onClick={chooseUnassigned}>
+                    <b><span className="rm-chip-name"><span className="un-pre">담당자 </span>미정</span></b>
+                    {!(group && unCount) && <small>나중에 고름</small>}
+                  </button>
+                  {group && unCount > 0 && (
+                    <span className="rm-un-step">
+                      <button type="button" aria-label="미정 한 명 빼기" onClick={() => stepUn(-1)}>−</button>
+                      <b>{unCount}명</b>
+                      <button type="button" aria-label="미정 한 명 더" onClick={() => stepUn(1)}>+</button>
+                    </span>
+                  )}
+                </div>
                 {staff.map(s => {
                   const st = staffState(s);
                   const on = selIds.includes(s.id);
@@ -284,7 +303,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                   담당자 미정이면 고를 수 없음 (줄은 그대로 두어 담당자를 바꿔도 창 높이가 변하지 않게) */}
               <button type="button" role="switch" aria-checked={!!form.choice} disabled={unassigned}
                 className={'rm-choice' + (form.choice ? ' on' : '')} onClick={() => set('choice', !form.choice)}>
-                <span><b>초이스</b><small>{unassigned ? '담당자를 정하면 고를 수 있어요' : multi ? `고른 ${sels.length}명 모두 손님이 직접 골랐어요` : `손님이 ${sel ? nim(sel.name) : '담당자'}을 직접 골랐어요`}</small></span>
+                <span><b>초이스</b><small>{unassigned ? '담당자를 정하면 고를 수 있어요' : sels.length > 1 ? `고른 ${sels.length}명 모두 손님이 직접 골랐어요` : `손님이 ${sel ? nim(sel.name) : '담당자'}을 직접 골랐어요`}</small></span>
                 <i className={'switch' + (form.choice ? ' on' : '')} aria-hidden="true"><i /></i>
               </button>
             </section>
@@ -402,8 +421,8 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
         <div className="rm-foot">
           {err && <p className="m-err">{err}</p>}
           <div className="rm-summary">
-            <span>{unassigned ? '담당자 미정' : multi ? `${names(sels)} (${sels.length}명)` : (sel?.name ?? '담당자 미선택')}{form.choice && <em className="choice-tag">초이스</em>} · {minLabel(start)}–{short(endMin)}</span>
-            {!hidePrice && Number(form.price) > 0 && <b>{multi ? `1인 ${Number(form.price).toLocaleString()}원 × ${sels.length}명` : `${Number(form.price).toLocaleString()}원`}</b>}
+            <span>{(([names(sels), unCount ? `미정 ${unCount}명` : ''].filter(Boolean).join(' · ')) || '담당자 미선택') + (multi ? ` (${total}명)` : '')}{form.choice && <em className="choice-tag">초이스</em>} · {minLabel(start)}–{short(endMin)}</span>
+            {!hidePrice && Number(form.price) > 0 && <b>{multi ? `1인 ${Number(form.price).toLocaleString()}원 × ${total}명` : `${Number(form.price).toLocaleString()}원`}</b>}
           </div>
           {form.id && (
             <Button className={'done-btn' + (form.done ? ' is-done' : '')} onClick={toggleDone} disabled={busy || (!locked && (unassigned || multi))}
@@ -414,7 +433,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
           <div className="m-actions">
             {form.id && <Button variant="danger" onClick={() => window.confirm('이 예약을 삭제할까요?') && act(() => api.deleteReservation(form.id), init.date)} disabled={busy || locked}>삭제</Button>}
             <Button onClick={onClose} disabled={busy}>{locked ? '닫기' : '취소'}</Button>
-            <Button variant="primary" type="submit" disabled={busy || locked}>{multi ? `${sels.length}명 예약 저장` : form.id ? '저장' : '예약 저장'}</Button>
+            <Button variant="primary" type="submit" disabled={busy || locked}>{multi ? `${total}명 예약 저장` : form.id ? '저장' : '예약 저장'}</Button>
           </div>
         </div>
       </form>

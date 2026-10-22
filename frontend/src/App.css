@@ -530,7 +530,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm-sec { margin-bottom: 20px; }
 .rm-sec h3 { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--sub); }
 .rm-sec h3 span { font-weight: 400; color: var(--muted); }
-.rm-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.rm-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-height: 28px; } /* '일행 n명' 표시가 생겨도 아래 칸이 밀리지 않게 */
 .rm-sec-head h3 { margin: 0; flex: 1; }
 .rm-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .rm-chip {
@@ -1399,3 +1399,28 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
   pointer-events: auto; flex: none; min-height: 36px; padding: 0 12px; border: none; border-radius: 10px; cursor: pointer;
   font: inherit; font-size: 14px; font-weight: 800; color: #191f28; background: #ffd43b;
 }
+
+/* 예약 창 '담당자 미정' 칩: 고르면 아랫줄이 인원 수(− n명 +) — 다른 담당자 칩과 크기 같게 */
+.rm-chip.unassigned { padding: 0; gap: 0; overflow: hidden; }
+.rm-un-main {
+  flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 4px; border: none; background: none; font: inherit; color: inherit; cursor: pointer;
+}
+.rm-un-step { display: flex; align-items: center; gap: 6px; padding-bottom: 5px; }
+.rm-un-step button {
+  width: 26px; height: 26px; padding: 0; border: none; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: 16px; font-weight: 800; line-height: 1; color: var(--blue-dark); background: var(--surface); box-shadow: inset 0 0 0 1px var(--blue);
+}
+.rm-un-step b { min-width: 2.4em; text-align: center; font-size: 13px; color: var(--blue-dark); }
+/* 담당자를 여러 명 고르면 머리글 옆 '일행 n명'·아래 요약이 길어진다 — 한 줄로 잘라 창이 흔들리지 않게 */
+.rm-sec-head h3 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm-summary span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm-summary b { flex: none; white-space: nowrap; }
+/* 폰: 칩이 좁아 '담당자 미정'이 두 줄 — 고른 뒤엔 '미정'만, 인원 버튼도 작게 (칸 높이가 늘지 않게) */
+@media (max-width: 760px) {
+  .rm-chip.unassigned.on .un-pre { display: none; }
+  .rm-un-step { gap: 3px; }
+  .rm-un-step button { width: 24px; height: 24px; font-size: 15px; }
+  .rm-un-step b { min-width: 2em; font-size: 12.5px; }
+}
+@media (max-width: 760px) { .rm-chip.unassigned { min-height: 66px; } } /* 고르기 전(두 줄)·고른 뒤(미정 + 인원) 높이를 같게 */
