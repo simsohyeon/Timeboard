@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fmtDate } from '../api';
 import { START_H, END_H, HOUR_PX, DAYS, hourLabel, worksOn, workRange } from '../lib/constants';
-import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel } from '../lib/schedule';
+import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel, canTake } from '../lib/schedule';
 
 // 예약 보드: 가로 = 담당자, 세로 = 시간.
 // 30분 이상 빈 시간은 점선 칸으로 보여 주고, 누르면 그 시각으로 바로 예약 등록.
@@ -49,7 +49,7 @@ const laneStyle = ([i, n, span] = [0, 1, 1]) => (n > 1 && span < n
 // 한 칸의 1/3 이하로 좁으면 손님 이름만 크게 (메뉴·시간 줄은 숨김)
 const isNarrow = ([, n, span] = [0, 1, 1]) => n / span >= 3;
 
-export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx: wantPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick, onReorder, onDayOff, onCancelLeave, onUnassigned }) {
+export default function Board({ staff, list, date, startH = START_H, endH = END_H, hourPx: wantPx = HOUR_PX, halfLine = false, leaves = [], onCellClick, onBlockClick, onReorder, onDayOff, onCancelLeave, onUnassigned, onAssign }) {
   // 영업시간이 짧아 보드가 화면보다 짧으면 1시간 높이를 늘려 화면을 꽉 채운다 (아래가 비지 않게)
   const boardRef = useRef(null);
   const [fillPx, setFillPx] = useState(0);
@@ -75,7 +75,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   const [drag, setDrag] = useState(null); // { id: 끄는 담당자, order: [id...] }
   const [pressId, setPressId] = useState(null); // 길게 누르는 중
   const [moved, setMoved] = useState(null);     // 방금 옮긴 담당자
-  const [toast, setToast] = useState('');
+  const [toast, setToast] = useState(null); // { text, undo? }
   const [menu, setMenu] = useState(null);       // 휴무 메뉴 { id, x, y }
   const lastPointer = useRef('mouse');
   useEffect(() => {
@@ -92,7 +92,11 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   // 글자 크기 설정(zoom) 안에서는 화면 좌표를 배율로 나눠야 손가락 위치와 맞는다
   const zoomK = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--scale')) || 1;
   const ghostTransform = () => { const k = zoomK(); return `translate(${ghostAt.current.x / k}px, ${ghostAt.current.y / k}px) translate(-50%, -135%)`; };
-  const showToast = msg => { setToast(msg); clearTimeout(showToast.t); showToast.t = setTimeout(() => setToast(''), 1800); };
+  const showToast = (text, undo) => {
+    setToast({ text, undo });
+    clearTimeout(showToast.t);
+    showToast.t = setTimeout(() => setToast(null), undo ? 5000 : 1800);
+  };
   const startPress = (e, id) => {
     lastPointer.current = e.pointerType;
     if (e.button > 0) return;
@@ -159,6 +163,14 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   };
   const dateStr = fmtDate(date);
   const isToday = dateStr === bizToday();
+  const unList = list.filter(r => r.staffId == null);
+  // 흐린 카드를 누르면 바로 그 담당자에게 — 잘못 눌렀으면 알림의 '되돌리기'
+  const assign = (r, s) => Promise.resolve(onAssign(r, s.id)).then(ok => {
+    if (ok === false) return;
+    setMoved(s.id);
+    setTimeout(() => setMoved(m => (m === s.id ? null : m)), 1300);
+    showToast(`${short(r.startMin)} ${r.title} → ${s.name}에게 맡겼어요`, () => onAssign(r, null));
+  });
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick(n => n + 1), 60000); return () => clearInterval(t); }, []);
   useEffect(() => {
@@ -240,6 +252,9 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           // 오늘이면 지금 이후의 빈 시간만
           const from = isToday ? Math.max(wo, ceilTo(nowMin)) : wo;
           const gaps = off ? [] : freeGaps([...mine, ...leaveBlocks(lv.parts)], [wo, wc], from).filter(([a, b]) => b - a >= 30);
+          // 담당자 미정 예약 중 이 사람이 맡을 수 있는 것: 이 칸에 흐린 카드로, 누르면 이 사람에게 배정
+          const ghosts = onAssign ? unList.filter(r => canTake(s, r, list, leaves, dateStr, date.getDay(), open, close)) : [];
+          const gLanes = lanesOf(ghosts);
           return (
           <div className={'col' + (off ? ' off' : '') + (drag?.id === s.id ? ' dragging' : '') + (moved === s.id ? ' moved' : '')} key={s.id} data-sid={s.id} style={{ minHeight: (endH - startH) * hourPx }}
             onClick={e => {
@@ -277,6 +292,20 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                   aria-label={`${s.name} ${short(a)}부터 빈 ${durLabel(b - a)} 예약하기`}
                   onClick={e => { e.stopPropagation(); onCellClick(s.id, a); }}>
                   {h >= 44 ? <>+ {avail ? '지금 가능 · ' : '빈 '}{durLabel(b - a)}</> : h >= 26 ? '+' : null}
+                </button>
+              );
+            })}
+            {ghosts.map(r => {
+              const h = r.durationMin / 60 * hourPx - 3;
+              return (
+                <button type="button" key={'g' + r.id}
+                  className={'resv ghost' + (h < 56 ? ' short' : h < 80 ? ' compact' : '')}
+                  style={{ top: top(r.startMin) + 1, height: h, ...laneStyle(gLanes[r.id]) }}
+                  aria-label={`담당자 미정 ${short(r.startMin)} ${r.title} — ${s.name}에게 맡기기`}
+                  onClick={e => { e.stopPropagation(); assign(r, s); }}>
+                  <small>미정 · {short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
+                  <b><i className="nm">{r.title}</i></b>
+                  {h >= 56 && <span>미정 · 눌러서 {s.name}에게</span>}
                 </button>
               );
             })}
@@ -364,7 +393,14 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           </div>
         </>);
       })()}
-      {toast && <div className="board-toast" role="status">{toast}</div>}
+      {toast && (
+        <div className="board-toast" role="status">
+          {toast.text}
+          {toast.undo && (
+            <button type="button" onClick={() => { const u = toast.undo; setToast(null); Promise.resolve(u()).then(ok => ok !== false && showToast('되돌렸어요')); }}>되돌리기</button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

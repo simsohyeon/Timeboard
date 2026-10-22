@@ -1382,3 +1382,20 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 }
 /* 폰: 상태 줄은 두 줄 자리를 늘 잡아 둔다 — 담당자를 바꿔 문구 길이가 달라져도 아래가 흔들리지 않게 */
 @media (max-width: 760px) { .rm-status { min-height: 60px; box-sizing: border-box; } }
+
+/* 담당자 미정 예약: 맡을 수 있는 사람 칸마다 흐린 카드 — 누르면 그 사람에게 */
+.resv.ghost {
+  z-index: 2; background: color-mix(in srgb, var(--leave-soft) 65%, var(--surface)); /* 뒤 빈 칸 글자가 비치지 않게 불투명 */
+  border: 2px dashed color-mix(in srgb, var(--leave) 55%, transparent); color: var(--leave);
+}
+.resv.ghost small { color: var(--leave); }
+.resv.ghost b { color: var(--leave); opacity: .85; }
+.resv.ghost span { color: color-mix(in srgb, var(--leave) 75%, var(--sub)); font-size: 13.5px; font-weight: 700; }
+.resv.ghost:hover { background: var(--leave-soft); border-style: solid; }
+.un-wrap { align-self: stretch; display: flex; align-items: center; }
+.un-none { color: var(--red) !important; font-weight: 700; }
+.board-toast { display: flex; align-items: center; gap: 14px; }
+.board-toast button {
+  pointer-events: auto; flex: none; min-height: 36px; padding: 0 12px; border: none; border-radius: 10px; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 800; color: #191f28; background: #ffd43b;
+}

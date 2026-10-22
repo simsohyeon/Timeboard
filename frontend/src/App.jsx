@@ -3,7 +3,7 @@ import { api, fmtDate, configured } from './api';
 import { holdUpdate } from './lib/autoUpdate';
 import { START_H, END_H, isActiveOn, worksOn } from './lib/constants';
 import { BASE_FONT, loadDisplay } from './lib/display';
-import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo, leaveOn } from './lib/schedule';
+import { bizNow, bizToday, setDayEnd, nowMinutes, ceilTo, leaveOn, canTake } from './lib/schedule';
 import TopBar from './components/TopBar';
 import MiniCalendar from './components/MiniCalendar';
 import DateHeader from './components/DateHeader';
@@ -209,6 +209,13 @@ export default function App({ shop, email, onShopChanged }) {
   const payStaff = staff.filter(s => isActiveOn(s, dateStr) || list.some(r => r.staffId === s.id));
   // 담당자 미정 예약 (시간이 다가오면 날짜 옆 칩 → 목록 → '담당자 고르기'로 예약 창에서 고른다)
   const unassigned = list.filter(r => r.staffId == null).sort((a, b) => a.startMin - b.startMin);
+  // 그 시간에 맡을 사람이 아무도 없는 미정 예약 — 보드에 흐린 카드가 안 뜨므로 날짜 줄 칩으로 알린다
+  const stuck = unassigned.filter(r => !boardStaff.some(s => canTake(s, r, list, leaves, dateStr, date.getDay(), startH * 60, endH * 60)));
+  // 보드의 흐린 카드를 눌러 담당자 정하기 (staffId null = 다시 미정으로, '되돌리기')
+  const assignStaff = (r, staffId) => api.updateReservation(r.id, { ...r, staffId })
+    .then(() => true)
+    .catch(e => { alert(`담당자를 정하지 못했어요 — ${e.message || e}`); return false; })
+    .finally(reload);
 
   const moveDay = n => setDate(d => { const x = new Date(d); x.setDate(x.getDate() + n); return x; });
   // preferDur: 이 시간(분) 메뉴를 먼저 골라 둔다 (지금 탭 워크인 도우미)
@@ -224,7 +231,7 @@ export default function App({ shop, email, onShopChanged }) {
       calOpen={calOpen} onDateClick={() => setCalOpen(o => !o)}
       sideHidden={sideHidden} onToggleSide={toggleSide}
       extra={tab === 'reserve' && (
-        <UnassignedChip items={unassigned} dateStr={dateStr} open={unOpen}
+        <UnassignedChip items={unassigned} stuck={stuck} dateStr={dateStr} open={unOpen}
           onToggle={() => setUnOpen(o => !o)} onClose={() => setUnOpen(false)}
           onPick={r => { setUnOpen(false); setModal(r); }} />
       )} />
@@ -257,7 +264,7 @@ export default function App({ shop, email, onShopChanged }) {
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={boardStaff} list={list} date={date} startH={startH} endH={endH}
               hourPx={display.hourPx} halfLine={display.halfLine} leaves={leaves}
-              onCellClick={openCreate} onBlockClick={r => setModal(r)} onReorder={reorderStaff} onUnassigned={() => setUnOpen(true)}
+              onCellClick={openCreate} onBlockClick={r => setModal(r)} onReorder={reorderStaff} onUnassigned={() => setUnOpen(true)} onAssign={assignStaff}
               onDayOff={setDayOff} onCancelLeave={cancelLeave} />
           </>)}
           {tab === 'now' && (
