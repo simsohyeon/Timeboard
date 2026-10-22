@@ -13,6 +13,7 @@ import NowPage from './components/NowPage';
 import PayrollPage from './components/PayrollPage';
 import SettingsPage from './components/SettingsPage';
 import ReservationModal from './components/ReservationModal';
+import UnassignedChip from './components/UnassignedChip';
 import PinPad from './components/PinPad';
 import './App.css';
 
@@ -35,6 +36,8 @@ export default function App({ shop, email, onShopChanged }) {
   const [leaves, setLeaves] = useState([]);
   const [leaveErr, setLeaveErr] = useState('');
   const [modal, setModal] = useState(null); // 예약 등록/수정 폼 초기값
+  const [unOpen, setUnOpen] = useState(false); // 날짜 옆 '담당자 미정' 목록
+  useEffect(() => setUnOpen(false), [date]);
   const [dbErr, setDbErr] = useState('');
   const [display, setDisplay] = useState(loadDisplay); // 적용 중인 값 (설정에서 미리보기 포함, 저장은 설정 화면이 함)
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -204,6 +207,8 @@ export default function App({ shop, email, onShopChanged }) {
   const isOff = s => !worksOn(s, date.getDay()) || !!leaveOn(leaves, s.id, dateStr).full;
   const boardStaff = [...activeStaff.filter(s => !isOff(s)), ...activeStaff.filter(isOff)];
   const payStaff = staff.filter(s => isActiveOn(s, dateStr) || list.some(r => r.staffId === s.id));
+  // 담당자 미정 예약 (시간이 다가오면 날짜 옆 칩 → 목록 → '담당자 고르기'로 예약 창에서 고른다)
+  const unassigned = list.filter(r => r.staffId == null).sort((a, b) => a.startMin - b.startMin);
 
   const moveDay = n => setDate(d => { const x = new Date(d); x.setDate(x.getDate() + n); return x; });
   // preferDur: 이 시간(분) 메뉴를 먼저 골라 둔다 (지금 탭 워크인 도우미)
@@ -217,7 +222,12 @@ export default function App({ shop, email, onShopChanged }) {
         ? { count: list.filter(r => r.done).length, countLabel: '완료' }
         : { count: list.length })}
       calOpen={calOpen} onDateClick={() => setCalOpen(o => !o)}
-      sideHidden={sideHidden} onToggleSide={toggleSide} />
+      sideHidden={sideHidden} onToggleSide={toggleSide}
+      extra={tab === 'reserve' && (
+        <UnassignedChip items={unassigned} dateStr={dateStr} open={unOpen}
+          onToggle={() => setUnOpen(o => !o)} onClose={() => setUnOpen(false)}
+          onPick={r => { setUnOpen(false); setModal(r); }} />
+      )} />
     {calOpen && <div className="cal-scrim" onClick={() => setCalOpen(false)} />}
     {calOpen && (
       <div className="cal-drop">
@@ -247,7 +257,7 @@ export default function App({ shop, email, onShopChanged }) {
             <DaySummary staff={activeStaff} list={list} leaves={leaves} date={date} openMin={startH * 60} closeMin={endH * 60} />
             <Board staff={boardStaff} list={list} date={date} startH={startH} endH={endH}
               hourPx={display.hourPx} halfLine={display.halfLine} leaves={leaves}
-              onCellClick={openCreate} onBlockClick={r => setModal(r)} onReorder={reorderStaff}
+              onCellClick={openCreate} onBlockClick={r => setModal(r)} onReorder={reorderStaff} onUnassigned={() => setUnOpen(true)}
               onDayOff={setDayOff} onCancelLeave={cancelLeave} />
           </>)}
           {tab === 'now' && (

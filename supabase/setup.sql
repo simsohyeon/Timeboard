@@ -34,6 +34,7 @@ alter table public.menu add column if not exists prices int[] not null default '
 alter table public.reservation add column if not exists price int not null default 0;
 alter table public.reservation add column if not exists done boolean not null default false;  -- 시술 완료 표시
 alter table public.reservation add column if not exists choice boolean not null default false; -- 초이스: 손님이 담당자를 직접 고름 (인센 추가)
+alter table public.reservation alter column staff_id drop not null;  -- 담당자 미정 예약 (시간이 다가오면 그때 고름)
 
 -- 가게 설정: 업무시간 (accounts.sql 이후에는 매장마다 한 줄)
 create table if not exists public.settings (

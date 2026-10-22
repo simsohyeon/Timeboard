@@ -37,8 +37,8 @@ export default function NowPage({ staff, list, leaves = [], openMin, closeMin, m
     .sort((a, b) => a.at - b.at);
   const upcoming = list.filter(r => !r.done && r.startMin >= nowMin).sort((a, b) => a.startMin - b.startMin);
   const overdue = list.filter(r => !r.done && r.startMin + r.durationMin <= nowMin);
-  const nameOf = id => staff.find(s => s.id === id)?.name ?? '';
-  const colorOf = id => staff.find(s => s.id === id)?.dotColor || 'var(--blue)';
+  const nameOf = id => (id == null ? '담당자 미정' : staff.find(s => s.id === id)?.name ?? '');
+  const colorOf = id => (id == null ? 'var(--muted)' : staff.find(s => s.id === id)?.dotColor || 'var(--blue)');
 
   if (!staff.length) return <p className="now-empty">오늘 근무하는 담당자가 없어요. 설정 → 담당자에서 추가하세요.</p>;
 
@@ -147,7 +147,9 @@ export default function NowPage({ staff, list, leaves = [], openMin, closeMin, m
                   <b className="q-time">{short(r.startMin)}</b>
                   <span className="q-body"><b>{r.title}</b><small>{r.subtitle} · {nameOf(r.staffId)}</small></span>
                 </button>
-                <button type="button" className="now-act" disabled={busy === r.id} onClick={() => markDone(r)}>완료</button>
+                {r.staffId != null && (
+                  <button type="button" className="now-act" disabled={busy === r.id} onClick={() => markDone(r)}>완료</button>
+                )}
               </div>
             ))}
           </>)}

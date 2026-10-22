@@ -3,7 +3,7 @@ import { Chevron } from './ui';
 
 // 모바일에선 날짜를 누르면 달력이 펼쳐진다 (데스크톱은 왼쪽 사이드바 달력 사용)
 // 데스크톱·태블릿 가로: 왼쪽 달력을 접을 수 있고, 접으면 모바일처럼 날짜를 눌러 달력을 편다
-export default function DateHeader({ date, count, countLabel = '총', onMove, calOpen = false, onDateClick, sideHidden = false, onToggleSide }) {
+export default function DateHeader({ date, count, countLabel = '총', onMove, calOpen = false, onDateClick, sideHidden = false, onToggleSide, extra = null }) {
   return (
     <div className="main-head">
       {onToggleSide && (
@@ -22,6 +22,7 @@ export default function DateHeader({ date, count, countLabel = '총', onMove, ca
       </button>
       <span className="mh-count">{countLabel} {count}건</span>
       <button className="mh-arrow" onClick={() => onMove(1)} aria-label="다음 날"><Chevron dir="right" /></button>
+      {extra}
     </div>
   );
 }

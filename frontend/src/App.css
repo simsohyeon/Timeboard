@@ -1329,3 +1329,53 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 }
 .sm-note { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
 .sm-warn { margin: 0; font-size: 13px; color: var(--amber); font-weight: 600; line-height: 1.45; }
+
+/* ───── 담당자 미정 예약: 날짜 줄 칩 · 목록 · 시간축 표시 ───── */
+.un-wrap { margin-left: auto; position: relative; min-width: 0; }
+.un-chip {
+  display: flex; align-items: center; gap: 8px; min-height: 40px; max-width: 100%; padding: 0 10px 0 12px;
+  font: inherit; border: none; border-radius: 12px; cursor: pointer;
+  background: var(--leave-soft); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--leave) 45%, transparent); color: var(--leave);
+}
+.un-chip b { font-size: 15px; white-space: nowrap; }
+.un-sum { font-size: 14px; font-weight: 600; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.un-tag { flex: none; font-style: normal; font-size: 12.5px; font-weight: 800; color: #fff; background: #f76707; border-radius: 99px; padding: 3px 8px; white-space: nowrap; }
+.un-tag.late { background: var(--red); }
+.un-chip.soon { box-shadow: inset 0 0 0 2px #f76707; }
+.un-chip.late { box-shadow: inset 0 0 0 2px var(--red); }
+.un-scrim { position: fixed; inset: 0; z-index: 40; }
+.un-pop {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 41;
+  width: 380px; max-width: calc(100vw / var(--scale, 1) - 24px); max-height: calc(var(--app-h, 100dvh) / var(--scale, 1) - 160px); overflow-y: auto;
+  padding: 14px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .2); display: flex; flex-direction: column; gap: 8px;
+}
+.un-pop-h { display: flex; flex-direction: column; gap: 2px; padding: 0 2px 4px; }
+.un-pop-h b { font-size: 18px; }
+.un-pop-h small { font-size: 13px; color: var(--muted); }
+.un-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--hover); }
+.un-row.soon { background: #fff4e6; }
+.un-row.late { background: var(--red-soft); }
+.un-row-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.un-row-t > span { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.un-row-t b { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.un-row-t small { font-size: 13.5px; color: var(--sub); }
+.un-row > button {
+  flex: none; min-height: 44px; padding: 0 14px; border: none; border-radius: 10px; cursor: pointer;
+  font: inherit; font-size: 14.5px; font-weight: 800; color: #fff; background: var(--leave);
+}
+:root[data-theme="dark"] .un-row.soon { background: #3a2a14; }
+/* 시간축의 '미정 n' */
+.un-mark {
+  position: absolute; right: 8px; z-index: 3; padding: 2px 7px; border: none; border-radius: 7px; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 800; color: #fff; background: var(--leave); white-space: nowrap;
+}
+.un-mark.soon { background: #f76707; }
+/* 폰: 칩은 '미정 2' 만 (날짜가 가운데 오도록 공간을 아낀다) */
+@media (max-width: 760px) {
+  .un-long, .un-sum, .un-chip > svg { display: none; }
+  .un-chip { min-height: 36px; padding: 0 8px; gap: 6px; }
+  .un-chip b { font-size: 14px; }
+  .un-tag { font-size: 11.5px; padding: 2px 6px; }
+  .un-mark { right: 4px; font-size: 11px; padding: 1px 5px; }
+}
