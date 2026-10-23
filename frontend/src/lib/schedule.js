@@ -102,3 +102,26 @@ export function altStaff(r, staff, allResv, leaves, openMin, closeMin) {
       && x.startMin < end && r.startMin < x.startMin + x.durationMin);
   });
 }
+
+// ───── 담당자 미정 예약 ─────
+// 이 담당자가 담당자 미정 예약 r 을 맡을 수 있는지: 그날 근무 · 휴가 아님 · 근무시간 안 · 자기 다른 예약과 안 겹침
+export function canTake(s, r, list, leaves, dateStr, dow, open, close) {
+  if (!worksOn(s, dow)) return false;
+  const lv = leaveOn(leaves, s.id, dateStr);
+  if (lv.full || hitsLeave(lv, r.startMin, r.durationMin)) return false;
+  const [wo, wc] = workRange(s, open, close);
+  if (r.startMin < wo || endOf(r) > wc) return false;
+  return !list.some(x => x.staffId === s.id && x.startMin < endOf(r) && r.startMin < endOf(x));
+}
+
+// 같은 일행(같은 시각·길이·손님·메뉴)의 담당자 미정 예약을 한 묶음으로: { ...첫 예약, count, items }
+export function groupUnassigned(list) {
+  const m = new Map();
+  for (const r of list) {
+    if (r.staffId != null) continue;
+    const k = `${r.startMin}|${r.durationMin}|${r.title}|${r.subtitle}`;
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(r);
+  }
+  return [...m.values()].map(items => ({ ...items[0], count: items.length, items }));
+}

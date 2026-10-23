@@ -530,7 +530,7 @@ p.m-end { margin: -2px 0 14px; padding: 0; white-space: normal; }
 .rm-sec { margin-bottom: 20px; }
 .rm-sec h3 { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--sub); }
 .rm-sec h3 span { font-weight: 400; color: var(--muted); }
-.rm-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.rm-sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-height: 28px; } /* '일행 n명' 표시가 생겨도 아래 칸이 밀리지 않게 */
 .rm-sec-head h3 { margin: 0; flex: 1; }
 .rm-staff { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .rm-chip {
@@ -1382,3 +1382,41 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 }
 /* 폰: 상태 줄은 두 줄 자리를 늘 잡아 둔다 — 담당자를 바꿔 문구 길이가 달라져도 아래가 흔들리지 않게 */
 @media (max-width: 760px) { .rm-status { min-height: 60px; box-sizing: border-box; } }
+
+/* 담당자 미정 예약: 맡을 수 있는 사람 칸마다 흐린 카드 — 누르면 그 사람에게 */
+.resv.ghost {
+  z-index: 2; background: color-mix(in srgb, var(--leave-soft) 65%, var(--surface)); /* 뒤 빈 칸 글자가 비치지 않게 불투명 */
+  border: 2px dashed color-mix(in srgb, var(--leave) 55%, transparent); color: var(--leave);
+}
+.resv.ghost small { color: var(--leave); }
+.resv.ghost b { color: var(--leave); opacity: .85; }
+.resv.ghost span { color: color-mix(in srgb, var(--leave) 75%, var(--sub)); font-size: 13.5px; font-weight: 700; }
+.resv.ghost:hover { background: var(--leave-soft); border-style: solid; }
+.un-wrap { align-self: stretch; display: flex; align-items: center; }
+.un-none { color: var(--red) !important; font-weight: 700; }
+.board-toast { display: flex; align-items: center; gap: 14px; }
+.board-toast button {
+  pointer-events: auto; flex: none; min-height: 36px; padding: 0 12px; border: none; border-radius: 10px; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 800; color: #191f28; background: #ffd43b;
+}
+
+/* 담당자를 여러 명 고르면 머리글 옆 '일행 n명'·아래 요약이 길어진다 — 한 줄로 잘라 창이 흔들리지 않게 */
+.rm-sec-head h3 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm-summary span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rm-summary b { flex: none; white-space: nowrap; }
+
+/* 예약 창 '인원' 줄 (초이스 아래): 같은 시간에 오는 손님 수 — 담당자를 안 고른 만큼 미정 */
+.rm-party {
+  margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+}
+.rm-party > span:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rm-party > span:first-child b { font-size: 15px; }
+.rm-party > span:first-child small { font-size: 12px; color: var(--muted); }
+.rm-party-step { flex: none; display: flex; align-items: center; gap: 8px; }
+.rm-party-step button {
+  width: 40px; height: 40px; padding: 0; border: none; border-radius: 12px; cursor: pointer;
+  font: inherit; font-size: 20px; font-weight: 800; line-height: 1; color: var(--fg); background: var(--line);
+}
+.rm-party-step button:disabled { opacity: .35; cursor: default; }
+.rm-party-step b { min-width: 3em; text-align: center; font-size: 17px; }

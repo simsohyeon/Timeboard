@@ -87,26 +87,46 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   };
   const STATE_LABEL = { off: '휴무', leave: '휴가', out: '근무 외', clash: '겹침', ok: '가능' };
 
-  // 새 예약은 담당자를 여러 명 고를 수 있다 (같은 메뉴·같은 시간 일행). 수정은 한 명
-  const group = !form.id;
+  // 새 예약과 담당자 미정이던 예약은 담당자를 여러 명 고를 수 있다 (같은 메뉴·같은 시간 일행). 그 밖의 수정은 한 명
+  const group = !form.id || init.staffId == null;
   const [groupIds, setGroupIds] = useState(() => (form.staffId ? [Number(form.staffId)] : []));
-  // 담당자 미정: 지금은 비워 두고, 시간이 다가오면 날짜 옆 '담당자 미정'에서 이 창을 다시 열어 고른다
-  const [unassigned, setUnassigned] = useState(() => !!init.id && init.staffId == null);
+  // 담당자 미정: 지금은 비워 두고, 시간이 다가오면 보드의 흐린 카드(또는 목록)로 고른다
+  // 새 예약·미정이던 예약(group)은 '인원'(같은 시간에 오는 손님 수)을 정하고, 담당자를 고른 만큼 채운다.
+  // 인원 - 고른 담당자 = 미정 (예: 인원 3 + 하나·엠미 → 하나 1건 · 엠미 1건 · 미정 1건)
+  // 미정 일행(같은 시각·손님·메뉴의 미정 예약 여러 건)을 열면 인원 = 그 건수, 고른 담당자만큼 그 예약들에 채운다
+  const editingUn = !!init.id && init.staffId == null;
+  const [sibs] = useState(() => {
+    if (!editingUn) return [];
+    const same = list.filter(r => r.staffId == null && r.date === init.date && r.startMin === init.startMin
+      && r.durationMin === init.durationMin && r.title === init.title && r.subtitle === init.subtitle);
+    return [init, ...same.filter(r => r.id !== init.id).sort((a, b) => a.id - b.id)];
+  });
+  const [partyBase, setPartyBase] = useState(editingUn ? sibs.length : 1);
+  const [unOnly, setUnOnly] = useState(false); // 담당자가 있던 예약을 미정으로 돌릴 때 (group 아님)
+  // 미정을 직접 골랐는지 — 아무도 안 골랐을 때 저절로 미정이 되지 않게 (미정 칩을 누르거나, 담당자를 고른 뒤 인원을 늘렸을 때만)
+  const [unChosen, setUnChosen] = useState(editingUn);
+  const selIds = group ? groupIds : (form.staffId && !unOnly ? [Number(form.staffId)] : []);
+  const sels = selIds.map(id => staff.find(s => s.id === id)).filter(Boolean);
+  const party = group ? Math.max(partyBase, sels.length, 1) : 1;  // 이번에 저장할 예약 수
+  const unCount = group ? (sels.length || unChosen ? party - sels.length : 0) : (unOnly ? 1 : 0);  // 그중 담당자 미정
+  const unassigned = unCount > 0 && sels.length === 0;             // 담당자 없이 미정만
+  const total = sels.length + unCount;
+  const multi = total > 1;
+  // 미정 칩: 담당자 고른 걸 모두 비워 전원 미정으로 (인원은 그대로)
   const chooseUnassigned = () => {
-    setUnassigned(true);
+    if (!group) { setUnOnly(true); setForm(f => ({ ...f, staffId: null, choice: false })); return; }
+    setUnChosen(true);
+    setPartyBase(party);
     setGroupIds([]);
     setForm(f => ({ ...f, staffId: null, choice: false }));
   };
   const tapStaff = id => {
-    setUnassigned(false);
-    if (!group) return set('staffId', id);
+    if (!group) { setUnOnly(false); return set('staffId', id); }
     const next = groupIds.includes(id) ? groupIds.filter(x => x !== id) : [...groupIds, id];
     setGroupIds(next);
     set('staffId', next[0] ?? null);
   };
-  const selIds = group ? groupIds : (form.staffId ? [Number(form.staffId)] : []);
-  const sels = selIds.map(id => staff.find(s => s.id === id)).filter(Boolean);
-  const multi = sels.length > 1;
+  const stepParty = d => setPartyBase(Math.max(sels.length, 1, Math.min(10, party + d)));
 
   // 시간 고르기: [오전/오후/새벽 | 시 | 분(10분 단위)] 휠 세 줄. 아래 한 줄로 그 시각이 되는지 바로 알려 준다
   const sel = sels[0];
@@ -157,13 +177,13 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
     }).filter(Boolean);
     if (issues.length) return { kind: 'warn', text: issues.join(' · ') };
     if (isToday && start + 10 <= nowMin) return { kind: 'warn', text: '이미 지난 시각이에요' };
-    return { kind: 'ok', text: `${short(start)}–${short(endMin)} ${sels.length}명 모두 비어 있어요` };
+    return { kind: 'ok', text: `${short(start)}–${short(endMin)} ${sels.length > 1 ? `${sels.length}명 모두` : nim(sels[0].name)} 비어 있어요${unCount ? ` · 미정 ${unCount}명` : ''}` };
   };
   const status = (start < open || start >= close) ? { kind: 'block', text: `영업시간(${minLabel(open)}–${minLabel(close)}) 밖이라 보드에 보이지 않아요 — 시각을 바꿔 주세요` }
     : endMin > close ? { kind: 'block', text: `마감(${minLabel(close)})을 넘겨서 끝나요 — 더 일찍 시작하거나 짧은 코스로 바꿔 주세요` }
     : unassigned ? (isToday && start + 10 <= nowMin && moved
       ? { kind: 'warn', text: '이미 지난 시각이에요 — 담당자를 정해 주세요' }
-      : { kind: 'ok', text: `${short(start)}–${short(endMin)} 담당자 미정 · 나중에 골라요` })
+      : { kind: 'ok', text: `${short(start)}–${short(endMin)} 담당자 미정${unCount > 1 ? ` ${unCount}명` : ''} · 나중에 골라요` })
     : !sel ? { kind: 'warn', text: '담당자를 골라 주세요' }
     : multi ? groupStatus()
     : !worksOn(sel, date.getDay()) ? { kind: 'warn', text: `${nim(sel.name)}은 이 날 휴무예요` }
@@ -214,7 +234,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   // 저장·완료 처리 공통 검사 — 통과하면 true
   const checks = () => {
     if (!form.pick) { setErr('메뉴를 골라 주세요'); return false; }
-    if (!sels.length && !unassigned) { setErr('담당자를 골라 주세요'); return false; }
+    if (!total) { setErr('담당자를 골라 주세요'); return false; }
     if (status.kind === 'block') { setErr(status.text); return false; }
     if (hit && slotChanged && !window.confirm(multi
       ? `${names(sels.filter(s => clash(s.id, start, dur)))} 예약과 시간이 겹쳐요. 그래도 저장할까요?`
@@ -224,12 +244,23 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   const submit = e => {
     e.preventDefault();
     if (locked || !checks()) return;
-    if (multi) return act(async () => {
-      // 일행: 담당자마다 같은 내용으로 하나씩
-      const rs = await Promise.allSettled(sels.map(s => api.createReservation({ ...payload(), staffId: s.id })));
-      const bad = rs.filter(r => r.status === 'rejected');
-      if (bad.length) throw new Error(`${sels.length}건 중 ${bad.length}건을 저장하지 못했어요 (${bad[0].reason?.message || bad[0].reason}) — 보드를 확인해 주세요`);
-    });
+    if (group) {
+      // 일행: 담당자마다 하나씩 + 남은 인원은 담당자 없이. 미정 일행을 열었으면 그 예약들에 차례로 채운다
+      const targets = [...sels.map(x => ({ staffId: x.id })), ...Array.from({ length: unCount }, () => ({ staffId: null, choice: false }))];
+      const have = sibs.map(r => r.id);
+      const drop = have.slice(targets.length);
+      if (drop.length && !window.confirm(`인원을 ${have.length}명에서 ${targets.length}명으로 줄여서 미정 예약 ${drop.length}건이 지워져요. 저장할까요?`)) return;
+      return act(async () => {
+        const rs = await Promise.allSettled([
+          ...targets.map((t, i) => (i < have.length
+            ? api.updateReservation(have[i], { ...payload(), ...t })
+            : api.createReservation({ ...payload(), ...t }))),
+          ...drop.map(id => api.deleteReservation(id)),
+        ]);
+        const bad = rs.filter(r => r.status === 'rejected');
+        if (bad.length) throw new Error(`${rs.length}건 중 ${bad.length}건을 저장하지 못했어요 (${bad[0].reason?.message || bad[0].reason}) — 보드를 확인해 주세요`);
+      });
+    }
     act(() => (form.id ? api.updateReservation(form.id, payload()) : api.createReservation(payload())));
   };
   // 완료 처리: 고친 내용이 있으면 같이 저장하고 완료 표시 / 완료 취소: 상태만 되돌림
@@ -256,13 +287,14 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
             <section className="rm-sec">
               <div className="rm-sec-head">
                 <h3>1. 담당자{group && <span> (일행이면 여러 명)</span>}</h3>
-                {multi && <b className="rm-group-count">일행 {sels.length}명</b>}
+                {multi && <b className="rm-group-count">일행 {total}명</b>}
               </div>
               <div className="rm-staff" role="radiogroup" aria-label="담당자">
-                <button type="button" role="radio" aria-checked={unassigned}
-                  className={'rm-chip unassigned' + (unassigned ? ' on' : '')} onClick={chooseUnassigned}>
+                {/* 담당자 미정: 누르면 고른 담당자를 비우고 전원 미정. 미정이 몇 명인지는 칩 아랫줄에 */}
+                <button type="button" role="radio" aria-checked={unCount > 0}
+                  className={'rm-chip unassigned' + (unCount ? ' on' : '')} onClick={chooseUnassigned}>
                   <b><span className="rm-chip-name">담당자 미정</span></b>
-                  <small>나중에 고름</small>
+                  <small>{unCount ? `${unCount}명` : '나중에 고름'}</small>
                 </button>
                 {staff.map(s => {
                   const st = staffState(s);
@@ -282,9 +314,19 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                   담당자 미정이면 고를 수 없음 (줄은 그대로 두어 담당자를 바꿔도 창 높이가 변하지 않게) */}
               <button type="button" role="switch" aria-checked={!!form.choice} disabled={unassigned}
                 className={'rm-choice' + (form.choice ? ' on' : '')} onClick={() => set('choice', !form.choice)}>
-                <span><b>초이스</b><small>{unassigned ? '담당자를 정하면 고를 수 있어요' : multi ? `고른 ${sels.length}명 모두 손님이 직접 골랐어요` : `손님이 ${sel ? nim(sel.name) : '담당자'}을 직접 골랐어요`}</small></span>
+                <span><b>초이스</b><small>{unassigned ? '담당자를 정하면 고를 수 있어요' : sels.length > 1 ? `고른 ${sels.length}명 모두 손님이 직접 골랐어요` : `손님이 ${sel ? nim(sel.name) : '담당자'}을 직접 골랐어요`}</small></span>
                 <i className={'switch' + (form.choice ? ' on' : '')} aria-hidden="true"><i /></i>
               </button>
+              {group && (
+                <div className="rm-party">
+                  <span><b>인원</b><small>같은 시간에 오는 손님 수 — 담당자를 안 고른 만큼 미정</small></span>
+                  <span className="rm-party-step">
+                    <button type="button" aria-label="인원 한 명 빼기" disabled={party <= Math.max(1, sels.length)} onClick={() => stepParty(-1)}>−</button>
+                    <b>{party}명</b>
+                    <button type="button" aria-label="인원 한 명 더" disabled={party >= 10} onClick={() => stepParty(1)}>+</button>
+                  </span>
+                </div>
+              )}
             </section>
 
             <section className="rm-sec">
@@ -400,11 +442,11 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
         <div className="rm-foot">
           {err && <p className="m-err">{err}</p>}
           <div className="rm-summary">
-            <span>{unassigned ? '담당자 미정' : multi ? `${names(sels)} (${sels.length}명)` : (sel?.name ?? '담당자 미선택')}{form.choice && <em className="choice-tag">초이스</em>} · {minLabel(start)}–{short(endMin)}</span>
-            {!hidePrice && Number(form.price) > 0 && <b>{multi ? `1인 ${Number(form.price).toLocaleString()}원 × ${sels.length}명` : `${Number(form.price).toLocaleString()}원`}</b>}
+            <span>{(([names(sels), unCount ? `미정 ${unCount}명` : ''].filter(Boolean).join(' · ')) || '담당자 미선택') + (multi ? ` (${total}명)` : '')}{form.choice && <em className="choice-tag">초이스</em>} · {minLabel(start)}–{short(endMin)}</span>
+            {!hidePrice && Number(form.price) > 0 && <b>{multi ? `1인 ${Number(form.price).toLocaleString()}원 × ${total}명` : `${Number(form.price).toLocaleString()}원`}</b>}
           </div>
           {form.id && (
-            <Button className={'done-btn' + (form.done ? ' is-done' : '')} onClick={toggleDone} disabled={busy || (unassigned && !locked)}
+            <Button className={'done-btn' + (form.done ? ' is-done' : '')} onClick={toggleDone} disabled={busy || (!locked && (unassigned || multi))}
               title={unassigned && !locked ? '담당자를 정하면 완료할 수 있어요' : undefined}>
               {form.done ? '완료 취소' : '✓ 완료 처리'}
             </Button>
@@ -412,7 +454,7 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
           <div className="m-actions">
             {form.id && <Button variant="danger" onClick={() => window.confirm('이 예약을 삭제할까요?') && act(() => api.deleteReservation(form.id), init.date)} disabled={busy || locked}>삭제</Button>}
             <Button onClick={onClose} disabled={busy}>{locked ? '닫기' : '취소'}</Button>
-            <Button variant="primary" type="submit" disabled={busy || locked}>{form.id ? '저장' : multi ? `${sels.length}명 예약 저장` : '예약 저장'}</Button>
+            <Button variant="primary" type="submit" disabled={busy || locked}>{multi ? `${total}명 예약 저장` : form.id ? '저장' : '예약 저장'}</Button>
           </div>
         </div>
       </form>
