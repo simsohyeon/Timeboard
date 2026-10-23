@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fmtDate } from '../api';
 import { START_H, END_H, HOUR_PX, DAYS, hourLabel, worksOn, workRange } from '../lib/constants';
-import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel, canTake } from '../lib/schedule';
+import { freeGaps, durLabel, nowMinutes, bizToday, ceilTo, staffNow, leaveOn, leaveBlocks, hitsLeave, leaveLabel, canTake, groupUnassigned } from '../lib/schedule';
 
 // 예약 보드: 가로 = 담당자, 세로 = 시간.
 // 30분 이상 빈 시간은 점선 칸으로 보여 주고, 누르면 그 시각으로 바로 예약 등록.
@@ -163,7 +163,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
   };
   const dateStr = fmtDate(date);
   const isToday = dateStr === bizToday();
-  const unList = list.filter(r => r.staffId == null);
+  const unList = groupUnassigned(list); // 일행(여러 명)은 카드 하나로, 누를 때마다 한 명씩
   // 흐린 카드를 누르면 바로 그 담당자에게 — 잘못 눌렀으면 알림의 '되돌리기'
   const assign = (r, s) => Promise.resolve(onAssign(r, s.id)).then(ok => {
     if (ok === false) return;
@@ -303,9 +303,9 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                   style={{ top: top(r.startMin) + 1, height: h, ...laneStyle(gLanes[r.id]) }}
                   aria-label={`담당자 미정 ${short(r.startMin)} ${r.title} — ${s.name}에게 맡기기`}
                   onClick={e => { e.stopPropagation(); assign(r, s); }}>
-                  <small>미정 · {short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
+                  <small>미정{r.count > 1 ? ` ${r.count}명` : ''} · {short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
                   <b><i className="nm">{r.title}</i></b>
-                  {h >= 56 && <span>미정 · 눌러서 {s.name}에게</span>}
+                  {h >= 56 && <span>미정{r.count > 1 ? ` ${r.count}명` : ''} · 눌러서 {s.name}에게</span>}
                 </button>
               );
             })}

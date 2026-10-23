@@ -113,3 +113,15 @@ export function canTake(s, r, list, leaves, dateStr, dow, open, close) {
   if (r.startMin < wo || endOf(r) > wc) return false;
   return !list.some(x => x.staffId === s.id && x.startMin < endOf(r) && r.startMin < endOf(x));
 }
+
+// 같은 일행(같은 시각·길이·손님·메뉴)의 담당자 미정 예약을 한 묶음으로: { ...첫 예약, count, items }
+export function groupUnassigned(list) {
+  const m = new Map();
+  for (const r of list) {
+    if (r.staffId != null) continue;
+    const k = `${r.startMin}|${r.durationMin}|${r.title}|${r.subtitle}`;
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(r);
+  }
+  return [...m.values()].map(items => ({ ...items[0], count: items.length, items }));
+}

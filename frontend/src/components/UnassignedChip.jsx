@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { bizToday, nowMinutes } from '../lib/schedule';
+import { bizToday, nowMinutes, groupUnassigned } from '../lib/schedule';
 import { Chevron } from './ui';
 
 // 담당자 미정 예약 목록. 평소엔 보드의 흐린 카드(맡을 수 있는 사람 칸)로 정하고,
@@ -29,7 +29,8 @@ export default function UnassignedChip({ items, stuck = items, dateStr, open, on
 
   const isToday = dateStr === bizToday();
   const nowMin = nowMinutes();
-  const tags = items.map(r => urgencyOf(r, isToday, nowMin));
+  const groups = groupUnassigned(items); // 일행은 한 줄로 ('3명')
+  const tags = groups.map(r => urgencyOf(r, isToday, nowMin));
   const stuckTags = stuck.map(r => urgencyOf(r, isToday, nowMin));
   const urgent = stuckTags.find(t => t?.cls === 'late') ?? stuckTags.find(Boolean);
   const summary = stuck.slice(0, 2).map(r => `${short(r.startMin)} ${r.title}`).join(' · ')
@@ -50,10 +51,10 @@ export default function UnassignedChip({ items, stuck = items, dateStr, open, on
         <div className="un-scrim" onClick={onClose} />
         <div className="un-pop" role="dialog" aria-label="담당자 미정 예약">
           <div className="un-pop-h"><b>담당자 미정</b><small>{items.length}건 · 보드에서 비는 사람 칸의 흐린 카드를 눌러도 돼요</small></div>
-          {items.map((r, i) => (
+          {groups.map((r, i) => (
             <div key={r.id} className={'un-row' + (tags[i] ? ' ' + tags[i].cls : '')}>
               <span className="un-row-t">
-                <span><b>{short(r.startMin)} {r.title}</b>{tags[i] && <em className={'un-tag ' + tags[i].cls}>{tags[i].text}</em>}</span>
+                <span><b>{short(r.startMin)} {r.title}{r.count > 1 ? ` · ${r.count}명` : ''}</b>{tags[i] && <em className={'un-tag ' + tags[i].cls}>{tags[i].text}</em>}</span>
                 {isStuck(r) && <small className="un-none">그 시간에 비는 사람이 없어요</small>}
                 <small>{r.subtitle}</small>
               </span>

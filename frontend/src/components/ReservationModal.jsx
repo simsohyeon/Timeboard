@@ -91,31 +91,42 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   const group = !form.id || init.staffId == null;
   const [groupIds, setGroupIds] = useState(() => (form.staffId ? [Number(form.staffId)] : []));
   // 담당자 미정: 지금은 비워 두고, 시간이 다가오면 보드의 흐린 카드(또는 목록)로 고른다
-  // 새 예약·미정이던 예약(group)은 미정을 '인원 수'로 정하고, 정해진 담당자와 섞어 고를 수 있다
-  // (하나 + 엠미 + 미정 1 → 3건). 그 밖의 수정은 미정이냐 한 명이냐 둘 중 하나
+  // 새 예약·미정이던 예약(group)은 '인원'(같은 시간에 오는 손님 수)을 정하고, 담당자를 고른 만큼 채운다.
+  // 인원 - 고른 담당자 = 미정 (예: 인원 3 + 하나·엠미 → 하나 1건 · 엠미 1건 · 미정 1건)
+  // 미정 일행(같은 시각·손님·메뉴의 미정 예약 여러 건)을 열면 인원 = 그 건수, 고른 담당자만큼 그 예약들에 채운다
   const editingUn = !!init.id && init.staffId == null;
-  const [unCount, setUnCount] = useState(editingUn ? 1 : 0);
-  const [unTouched, setUnTouched] = useState(false); // 미정 칩을 직접 눌렀는지
+  const [sibs] = useState(() => {
+    if (!editingUn) return [];
+    const same = list.filter(r => r.staffId == null && r.date === init.date && r.startMin === init.startMin
+      && r.durationMin === init.durationMin && r.title === init.title && r.subtitle === init.subtitle);
+    return [init, ...same.filter(r => r.id !== init.id).sort((a, b) => a.id - b.id)];
+  });
+  const [partyBase, setPartyBase] = useState(editingUn ? sibs.length : 1);
+  const [unOnly, setUnOnly] = useState(false); // 담당자가 있던 예약을 미정으로 돌릴 때 (group 아님)
+  // 미정을 직접 골랐는지 — 아무도 안 골랐을 때 저절로 미정이 되지 않게 (미정 칩을 누르거나, 담당자를 고른 뒤 인원을 늘렸을 때만)
+  const [unChosen, setUnChosen] = useState(editingUn);
+  const selIds = group ? groupIds : (form.staffId && !unOnly ? [Number(form.staffId)] : []);
+  const sels = selIds.map(id => staff.find(s => s.id === id)).filter(Boolean);
+  const party = group ? Math.max(partyBase, sels.length, 1) : 1;  // 이번에 저장할 예약 수
+  const unCount = group ? (sels.length || unChosen ? party - sels.length : 0) : (unOnly ? 1 : 0);  // 그중 담당자 미정
+  const unassigned = unCount > 0 && sels.length === 0;             // 담당자 없이 미정만
+  const total = sels.length + unCount;
+  const multi = total > 1;
+  // 미정 칩: 담당자 고른 걸 모두 비워 전원 미정으로 (인원은 그대로)
   const chooseUnassigned = () => {
-    setUnTouched(true);
-    if (!group) { setUnCount(1); setForm(f => ({ ...f, staffId: null, choice: false })); return; }
-    setUnCount(n => (n ? 0 : 1));
+    if (!group) { setUnOnly(true); setForm(f => ({ ...f, staffId: null, choice: false })); return; }
+    setUnChosen(true);
+    setPartyBase(party);
+    setGroupIds([]);
+    setForm(f => ({ ...f, staffId: null, choice: false }));
   };
-  const stepUn = d => { setUnTouched(true); setUnCount(n => Math.max(0, Math.min(10, n + d))); };
   const tapStaff = id => {
-    if (!group) { setUnCount(0); return set('staffId', id); }
-    const adding = !groupIds.includes(id);
-    // 미정 예약 하나를 열어 담당자를 고르면 그 미정 자리가 그 사람으로 바뀐다 (미정 칩을 직접 건드리지 않았을 때)
-    if (adding && editingUn && !unTouched && groupIds.length === 0 && unCount === 1) setUnCount(0);
-    const next = adding ? [...groupIds, id] : groupIds.filter(x => x !== id);
+    if (!group) { setUnOnly(false); return set('staffId', id); }
+    const next = groupIds.includes(id) ? groupIds.filter(x => x !== id) : [...groupIds, id];
     setGroupIds(next);
     set('staffId', next[0] ?? null);
   };
-  const selIds = group ? groupIds : (form.staffId ? [Number(form.staffId)] : []);
-  const sels = selIds.map(id => staff.find(s => s.id === id)).filter(Boolean);
-  const unassigned = unCount > 0 && sels.length === 0; // 담당자 없이 미정만
-  const total = sels.length + unCount;                   // 이번에 저장할 예약 수
-  const multi = total > 1;
+  const stepParty = d => setPartyBase(Math.max(sels.length, 1, Math.min(10, party + d)));
 
   // 시간 고르기: [오전/오후/새벽 | 시 | 분(10분 단위)] 휠 세 줄. 아래 한 줄로 그 시각이 되는지 바로 알려 준다
   const sel = sels[0];
@@ -233,15 +244,23 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
   const submit = e => {
     e.preventDefault();
     if (locked || !checks()) return;
-    if (group) return act(async () => {
-      // 일행: 담당자마다 하나씩 + 미정 인원만큼 담당자 없이. 미정이던 예약을 열었으면 그 예약이 첫 자리
+    if (group) {
+      // 일행: 담당자마다 하나씩 + 남은 인원은 담당자 없이. 미정 일행을 열었으면 그 예약들에 차례로 채운다
       const targets = [...sels.map(x => ({ staffId: x.id })), ...Array.from({ length: unCount }, () => ({ staffId: null, choice: false }))];
-      const rs = await Promise.allSettled(targets.map((t, i) => (form.id && i === 0
-        ? api.updateReservation(form.id, { ...payload(), ...t })
-        : api.createReservation({ ...payload(), ...t }))));
-      const bad = rs.filter(r => r.status === 'rejected');
-      if (bad.length) throw new Error(`${targets.length}건 중 ${bad.length}건을 저장하지 못했어요 (${bad[0].reason?.message || bad[0].reason}) — 보드를 확인해 주세요`);
-    });
+      const have = sibs.map(r => r.id);
+      const drop = have.slice(targets.length);
+      if (drop.length && !window.confirm(`인원을 ${have.length}명에서 ${targets.length}명으로 줄여서 미정 예약 ${drop.length}건이 지워져요. 저장할까요?`)) return;
+      return act(async () => {
+        const rs = await Promise.allSettled([
+          ...targets.map((t, i) => (i < have.length
+            ? api.updateReservation(have[i], { ...payload(), ...t })
+            : api.createReservation({ ...payload(), ...t }))),
+          ...drop.map(id => api.deleteReservation(id)),
+        ]);
+        const bad = rs.filter(r => r.status === 'rejected');
+        if (bad.length) throw new Error(`${rs.length}건 중 ${bad.length}건을 저장하지 못했어요 (${bad[0].reason?.message || bad[0].reason}) — 보드를 확인해 주세요`);
+      });
+    }
     act(() => (form.id ? api.updateReservation(form.id, payload()) : api.createReservation(payload())));
   };
   // 완료 처리: 고친 내용이 있으면 같이 저장하고 완료 표시 / 완료 취소: 상태만 되돌림
@@ -271,20 +290,12 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                 {multi && <b className="rm-group-count">일행 {total}명</b>}
               </div>
               <div className="rm-staff" role="radiogroup" aria-label="담당자">
-                {/* 담당자 미정: 고르면 아랫줄이 인원 수(− n명 +)로 바뀐다 — 칸 크기는 그대로 */}
-                <div className={'rm-chip unassigned' + (unCount ? ' on' : '')} role="group" aria-label="담당자 미정">
-                  <button type="button" className="rm-un-main" aria-pressed={!!unCount} onClick={chooseUnassigned}>
-                    <b><span className="rm-chip-name"><span className="un-pre">담당자 </span>미정</span></b>
-                    {!(group && unCount) && <small>나중에 고름</small>}
-                  </button>
-                  {group && unCount > 0 && (
-                    <span className="rm-un-step">
-                      <button type="button" aria-label="미정 한 명 빼기" onClick={() => stepUn(-1)}>−</button>
-                      <b>{unCount}명</b>
-                      <button type="button" aria-label="미정 한 명 더" onClick={() => stepUn(1)}>+</button>
-                    </span>
-                  )}
-                </div>
+                {/* 담당자 미정: 누르면 고른 담당자를 비우고 전원 미정. 미정이 몇 명인지는 칩 아랫줄에 */}
+                <button type="button" role="radio" aria-checked={unCount > 0}
+                  className={'rm-chip unassigned' + (unCount ? ' on' : '')} onClick={chooseUnassigned}>
+                  <b><span className="rm-chip-name">담당자 미정</span></b>
+                  <small>{unCount ? `${unCount}명` : '나중에 고름'}</small>
+                </button>
                 {staff.map(s => {
                   const st = staffState(s);
                   const on = selIds.includes(s.id);
@@ -306,6 +317,16 @@ export default function ReservationModal({ init, staff: allStaff, list = [], lea
                 <span><b>초이스</b><small>{unassigned ? '담당자를 정하면 고를 수 있어요' : sels.length > 1 ? `고른 ${sels.length}명 모두 손님이 직접 골랐어요` : `손님이 ${sel ? nim(sel.name) : '담당자'}을 직접 골랐어요`}</small></span>
                 <i className={'switch' + (form.choice ? ' on' : '')} aria-hidden="true"><i /></i>
               </button>
+              {group && (
+                <div className="rm-party">
+                  <span><b>인원</b><small>같은 시간에 오는 손님 수 — 담당자를 안 고른 만큼 미정</small></span>
+                  <span className="rm-party-step">
+                    <button type="button" aria-label="인원 한 명 빼기" disabled={party <= Math.max(1, sels.length)} onClick={() => stepParty(-1)}>−</button>
+                    <b>{party}명</b>
+                    <button type="button" aria-label="인원 한 명 더" disabled={party >= 10} onClick={() => stepParty(1)}>+</button>
+                  </span>
+                </div>
+              )}
             </section>
 
             <section className="rm-sec">
