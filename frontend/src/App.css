@@ -1433,11 +1433,12 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 .gh-row:hover { background: color-mix(in srgb, var(--leave) 22%, var(--surface)); }
 .gh-nm { flex: 1; min-width: 0; font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gh-row em { flex: none; font-style: normal; font-size: 11.5px; font-weight: 800; color: #fff; background: var(--leave); border-radius: 99px; padding: 1px 6px; }
+.resv.ghost .gh-row em span { color: inherit; font-size: inherit; } /* '명'이 카드 글자색(보라)에 묻혀 안 보이던 것 */
 .gh-row small { flex: none; font-size: 11.5px; font-weight: 700; opacity: .8; }
 .gh-row.more { justify-content: center; background: none; font-size: 12.5px; text-decoration: underline; text-underline-offset: 2px; }
-@media (max-width: 760px) {   /* 폰: 칸이 좁아 이름이 먼저 — 시각은 빼고 인원은 숫자만 */
+@media (max-width: 760px) {   /* 폰: 칸이 좁아 이름이 먼저 — 시각은 뺀다 (인원 'n명'은 미정 건수로 오해하지 않게 그대로) */
   .resv.ghost.cluster { padding: 3px; }
   .gh-row { padding: 0 5px; gap: 3px; font-size: 13px; }
-  .gh-row small, .gh-u { display: none; }
+  .gh-row small { display: none; }
   .gh-row em { padding: 1px 5px; }
 }
