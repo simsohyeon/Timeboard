@@ -1206,12 +1206,12 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 .rm-group-count { margin-left: auto; font-size: 13px; font-weight: 700; color: #fff; background: var(--blue); border-radius: 99px; padding: 5px 12px; white-space: nowrap; }
 
 /* ───── 큰 글씨 (어르신도 한눈에): 담당자 이름 · 시간축 · 예약 · 상단 · 지금 탭 ───── */
-:root { --timecol: clamp(100px, 9vw, 112px); }        /* '오전 11:00' 16px 이 들어가게 */
+:root { --timecol: clamp(124px, 11vw, 132px); }       /* '오후 12:00' 21px(손님 이름 크기)이 들어가게 */
 .col-head { padding: 12px 10px; }
 .col-head .avatar { width: 38px; height: 38px; font-size: 17px; }
 .ch-text b { font-size: 19px; }
 .ch-text small { font-size: 13.5px; }
-.time-label { font-size: 16px; font-weight: 600; color: var(--fg); right: 10px; }
+.time-label { font-size: 21px; font-weight: 700; color: var(--fg); right: 10px; letter-spacing: -.02em; } /* 손님 이름(21px)과 같은 크기 */
 .now-pill { font-size: 14px; padding: 3px 9px; }
 .resv small { font-size: 13px; }
 .resv b { font-size: 21px; }
@@ -1235,8 +1235,8 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 /* 초이스(손님이 담당자를 고름): 빨간 바탕 흰 글씨로 눈에 띄게 */
 .choice-tag { font-size: 13px; padding: 2px 7px; color: #fff; background: var(--red); }
 @media (max-width: 760px) {
-  :root { --timecol: 80px; }
-  .time-label { font-size: 13.5px; right: 5px; }
+  :root { --timecol: 96px; }
+  .time-label { font-size: 17px; right: 6px; }  /* 폰 손님 이름(18px) 크기에 맞춤 */
   .ch-text b { font-size: 16.5px; }
   .ch-text small { font-size: 12px; }
   .tb-tabs button { font-size: 15px; }
@@ -1420,3 +1420,30 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 }
 .rm-party-step button:disabled { opacity: .35; cursor: default; }
 .rm-party-step b { min-width: 3em; text-align: center; font-size: 17px; }
+
+/* 같은 시간 미정 예약 여러 팀: 카드 한 장 안에 손님마다 작은 카드를 가로로 나란히 (이름은 줄바꿈해 다 보이게) */
+.resv.ghost.cluster { cursor: default; gap: 3px; padding: 4px; justify-content: flex-start; }
+.resv.ghost.cluster > small { padding: 0 3px; }
+.gh-tiles { flex: 1; min-height: 0; display: flex; gap: 3px; }
+.gh-row {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  padding: 4px 5px; overflow: hidden; border: none; border-radius: 7px; cursor: pointer; text-align: left;
+  font: inherit; font-size: 14px; font-weight: 800; line-height: 1.2; color: var(--leave);
+  background: color-mix(in srgb, var(--leave) 12%, var(--surface));
+}
+.gh-row:hover { background: color-mix(in srgb, var(--leave) 22%, var(--surface)); }
+.gh-nm {
+  flex: none; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+  font-style: normal; word-break: keep-all; overflow-wrap: anywhere;
+}
+.gh-row em { flex: none; white-space: nowrap; font-style: normal; font-size: 11.5px; font-weight: 800; color: #fff; background: var(--leave); border-radius: 99px; padding: 1px 6px; }
+.resv.ghost .gh-row em span { color: inherit; font-size: inherit; } /* '명'이 카드 글자색(보라)에 묻혀 안 보이던 것 */
+.gh-row small { flex: none; font-size: 11.5px; font-weight: 700; opacity: .8; }
+.gh-row.more { flex: 0 0 auto; align-items: center; justify-content: center; padding: 0 6px; font-size: 13px; }
+@media (max-width: 760px) {   /* 폰: 칸이 좁아 이름이 먼저 — 시각은 뺀다 (인원 'n명'은 미정 건수로 오해하지 않게 그대로) */
+  .resv.ghost.cluster { padding: 3px; }
+  .gh-tiles { gap: 2px; }
+  .gh-row { padding: 3px; font-size: 12.5px; }
+  .gh-row small { display: none; }
+  .gh-row em { padding: 1px 3px; font-size: 10.5px; }
+}
