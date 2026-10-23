@@ -254,7 +254,14 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
           const gaps = off ? [] : freeGaps([...mine, ...leaveBlocks(lv.parts)], [wo, wc], from).filter(([a, b]) => b - a >= 30);
           // 담당자 미정 예약 중 이 사람이 맡을 수 있는 것: 이 칸에 흐린 카드로, 누르면 이 사람에게 배정
           const ghosts = onAssign ? unList.filter(r => canTake(s, r, list, leaves, dateStr, date.getDay(), open, close)) : [];
-          const gLanes = lanesOf(ghosts);
+          // 시간이 겹치는 미정 예약끼리는 한 덩어리 — 칸을 나란히 쪼개면 이름이 '최…'처럼 잘려서,
+          // 덩어리 하나에 카드 한 장, 그 안에 손님마다 한 줄 (줄을 누르면 그 손님을 이 담당자에게)
+          const clusters = [];
+          for (const r of [...ghosts].sort((a, b) => a.startMin - b.startMin)) {
+            const c = clusters[clusters.length - 1];
+            if (c && r.startMin < c.end) { c.items.push(r); c.end = Math.max(c.end, r.startMin + r.durationMin); }
+            else clusters.push({ start: r.startMin, end: r.startMin + r.durationMin, items: [r] });
+          }
           return (
           <div className={'col' + (off ? ' off' : '') + (drag?.id === s.id ? ' dragging' : '') + (moved === s.id ? ' moved' : '')} key={s.id} data-sid={s.id} style={{ minHeight: (endH - startH) * hourPx }}
             onClick={e => {
@@ -295,12 +302,42 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                 </button>
               );
             })}
-            {ghosts.map(r => {
+            {clusters.map(c => {
+              const h = (c.end - c.start) / 60 * hourPx - 3;
+              if (c.items.length === 1) return null;
+              const space = h - 8;                                        // 위아래 여백 뺀 높이, 한 줄 = 26px
+              const head = c.items.length * 26 + 19 <= space;              // 줄이 다 들어가고도 남으면 위에 '미정 n팀 · 시각'
+              const cap = Math.max(1, Math.floor(space / 26));
+              const shown = c.items.length > cap ? c.items.slice(0, cap - 1) : c.items;
+              const more = c.items.length - shown.length;
+              return (
+                <div key={'gc' + c.start} className="resv ghost cluster" role="group"
+                  aria-label={`담당자 미정 ${c.items.length}팀 ${short(c.start)}–${short(c.end)}`}
+                  style={{ top: top(c.start) + 1, height: h }} onClick={e => e.stopPropagation()}>
+                  {head && <small>미정 {c.items.length}팀 · {short(c.start)}–{short(c.end)}</small>}
+                  {shown.map(r => (
+                    <button type="button" key={r.id} className="gh-row"
+                      aria-label={`${short(r.startMin)} ${r.title} — ${s.name}에게 맡기기`}
+                      onClick={e => { e.stopPropagation(); assign(r, s); }}>
+                      <i className="gh-nm">{r.title}</i>
+                      {r.count > 1 && <em>{r.count}<span className="gh-u">명</span></em>}
+                      {r.startMin !== c.start && <small>{short(r.startMin)}</small>}
+                    </button>
+                  ))}
+                  {more > 0 && (
+                    <button type="button" className="gh-row more" onClick={e => { e.stopPropagation(); onUnassigned?.(); }}>
+                      {shown.length ? `+${more}건 더보기` : `미정 ${more}팀 보기`}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {clusters.filter(c => c.items.length === 1).map(({ items: [r] }) => {
               const h = r.durationMin / 60 * hourPx - 3;
               return (
                 <button type="button" key={'g' + r.id}
                   className={'resv ghost' + (h < 56 ? ' short' : h < 80 ? ' compact' : '')}
-                  style={{ top: top(r.startMin) + 1, height: h, ...laneStyle(gLanes[r.id]) }}
+                  style={{ top: top(r.startMin) + 1, height: h }}
                   aria-label={`담당자 미정 ${short(r.startMin)} ${r.title} — ${s.name}에게 맡기기`}
                   onClick={e => { e.stopPropagation(); assign(r, s); }}>
                   <small>미정{r.count > 1 ? ` ${r.count}명` : ''} · {short(r.startMin)}–{short(r.startMin + r.durationMin)}</small>
