@@ -236,7 +236,7 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             const urgent = isToday && rs.some(r => r.startMin - nowMin <= 30);
             return (
               <button key={h} type="button" className={'un-mark' + (urgent ? ' soon' : '')}
-                style={{ top: top(Math.max(open, h * 60)) + 10 }} onClick={onUnassigned}
+                style={{ top: top(Math.max(open, h * 60)) + 16 }} onClick={onUnassigned}
                 aria-label={`${short(h * 60)}시대 담당자 미정 예약 ${rs.length}건`}>미정 {rs.length}</button>
             );
           })}
