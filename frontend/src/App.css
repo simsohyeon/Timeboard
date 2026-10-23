@@ -1421,24 +1421,29 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 .rm-party-step button:disabled { opacity: .35; cursor: default; }
 .rm-party-step b { min-width: 3em; text-align: center; font-size: 17px; }
 
-/* 같은 시간 미정 예약 여러 팀: 카드 한 장 + 손님마다 한 줄 (칸을 쪼개지 않아 이름이 잘리지 않게) */
-.resv.ghost.cluster { cursor: default; gap: 3px; padding: 4px 5px; justify-content: flex-start; }
+/* 같은 시간 미정 예약 여러 팀: 카드 한 장 안에 손님마다 작은 카드를 가로로 나란히 (이름은 줄바꿈해 다 보이게) */
+.resv.ghost.cluster { cursor: default; gap: 3px; padding: 4px; justify-content: flex-start; }
 .resv.ghost.cluster > small { padding: 0 3px; }
+.gh-tiles { flex: 1; min-height: 0; display: flex; gap: 3px; }
 .gh-row {
-  display: flex; align-items: center; gap: 5px; min-height: 23px; flex: none; padding: 0 7px;
-  border: none; border-radius: 7px; cursor: pointer; text-align: left; min-width: 0;
-  font: inherit; font-size: 14px; font-weight: 800; color: var(--leave);
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  padding: 4px 5px; overflow: hidden; border: none; border-radius: 7px; cursor: pointer; text-align: left;
+  font: inherit; font-size: 14px; font-weight: 800; line-height: 1.2; color: var(--leave);
   background: color-mix(in srgb, var(--leave) 12%, var(--surface));
 }
 .gh-row:hover { background: color-mix(in srgb, var(--leave) 22%, var(--surface)); }
-.gh-nm { flex: 1; min-width: 0; font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gh-row em { flex: none; font-style: normal; font-size: 11.5px; font-weight: 800; color: #fff; background: var(--leave); border-radius: 99px; padding: 1px 6px; }
+.gh-nm {
+  flex: none; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+  font-style: normal; word-break: keep-all; overflow-wrap: anywhere;
+}
+.gh-row em { flex: none; white-space: nowrap; font-style: normal; font-size: 11.5px; font-weight: 800; color: #fff; background: var(--leave); border-radius: 99px; padding: 1px 6px; }
 .resv.ghost .gh-row em span { color: inherit; font-size: inherit; } /* '명'이 카드 글자색(보라)에 묻혀 안 보이던 것 */
 .gh-row small { flex: none; font-size: 11.5px; font-weight: 700; opacity: .8; }
-.gh-row.more { justify-content: center; background: none; font-size: 12.5px; text-decoration: underline; text-underline-offset: 2px; }
+.gh-row.more { flex: 0 0 auto; align-items: center; justify-content: center; padding: 0 6px; font-size: 13px; }
 @media (max-width: 760px) {   /* 폰: 칸이 좁아 이름이 먼저 — 시각은 뺀다 (인원 'n명'은 미정 건수로 오해하지 않게 그대로) */
   .resv.ghost.cluster { padding: 3px; }
-  .gh-row { padding: 0 5px; gap: 3px; font-size: 13px; }
+  .gh-tiles { gap: 2px; }
+  .gh-row { padding: 3px; font-size: 12.5px; }
   .gh-row small { display: none; }
-  .gh-row em { padding: 1px 5px; }
+  .gh-row em { padding: 1px 3px; font-size: 10.5px; }
 }

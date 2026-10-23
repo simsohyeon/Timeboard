@@ -305,9 +305,10 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
             {clusters.map(c => {
               const h = (c.end - c.start) / 60 * hourPx - 3;
               if (c.items.length === 1) return null;
-              const space = h - 8;                                        // 위아래 여백 뺀 높이, 한 줄 = 26px
-              const head = c.items.length * 26 + 19 <= space;              // 줄이 다 들어가고도 남으면 위에 '미정 n팀 · 시각'
-              const cap = Math.max(1, Math.floor(space / 26));
+              const head = h >= 100;                                      // 높이가 되면 위에 '미정 n팀 · 시각'
+              // 칸 폭에 작은 카드 4장(폰 3장)까지, 넘치면 하나 줄여 '+n'
+              // ponytail: 폭은 화면 폭으로만 판단 — 회전 직후엔 다음 렌더까지 예전 값
+              const cap = window.innerWidth <= 760 ? 3 : 4;
               const shown = c.items.length > cap ? c.items.slice(0, cap - 1) : c.items;
               const more = c.items.length - shown.length;
               return (
@@ -315,20 +316,23 @@ export default function Board({ staff, list, date, startH = START_H, endH = END_
                   aria-label={`담당자 미정 ${c.items.length}팀 ${short(c.start)}–${short(c.end)}`}
                   style={{ top: top(c.start) + 1, height: h }} onClick={e => e.stopPropagation()}>
                   {head && <small>미정 {c.items.length}팀 · {short(c.start)}–{short(c.end)}</small>}
+                  <div className="gh-tiles">
                   {shown.map(r => (
                     <button type="button" key={r.id} className="gh-row"
                       aria-label={`${short(r.startMin)} ${r.title} — ${s.name}에게 맡기기`}
                       onClick={e => { e.stopPropagation(); assign(r, s); }}>
-                      <i className="gh-nm">{r.title}</i>
+                      {/* 이름은 남는 높이에 들어가는 줄 수까지만 (줄 ≈17px, 인원 배지·시각 자리 빼고) — 반쯤 잘린 줄 대신 … */}
+                      <i className="gh-nm" style={{ WebkitLineClamp: Math.max(1, Math.floor((h - 16 - (head ? 19 : 0)
+                        - (r.count > 1 ? 21 : 0) - (r.startMin !== c.start ? 17 : 0)) / 17)) }}>{r.title}</i>
                       {r.count > 1 && <em>{r.count}<span className="gh-u">명</span></em>}
                       {r.startMin !== c.start && <small>{short(r.startMin)}</small>}
                     </button>
                   ))}
                   {more > 0 && (
-                    <button type="button" className="gh-row more" onClick={e => { e.stopPropagation(); onUnassigned?.(); }}>
-                      {shown.length ? `+${more}건 더보기` : `미정 ${more}팀 보기`}
-                    </button>
+                    <button type="button" className="gh-row more" aria-label={`미정 ${more}팀 더보기`}
+                      onClick={e => { e.stopPropagation(); onUnassigned?.(); }}>+{more}</button>
                   )}
+                  </div>
                 </div>
               );
             })}
