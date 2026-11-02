@@ -116,7 +116,8 @@ export const auth = {
   // 비밀번호 찾기: 메일 링크를 누르면 이 사이트로 돌아와 '새 비밀번호' 화면이 뜬다
   sendReset: async email => authed(await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin })),
   setPassword: async password => authed(await supabase.auth.updateUser({ password })),
-  signOut: async () => { shopId = null; await supabase.auth.signOut(); },
+  // 이 기기만 로그아웃 (기본값 global 은 같은 계정의 다른 기기 — 매장 태블릿·사장님 폰 — 까지 끊는다)
+  signOut: async () => { shopId = null; await supabase.auth.signOut({ scope: 'local' }); },
 };
 
 export const api = {

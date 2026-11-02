@@ -1,0 +1,18 @@
+# 의존성 업데이트 PR 을 매주 만든다 (보안 업데이트 PR 은 저장소 Settings 에서 'Dependabot security updates' 를 켜면 별도로 온다)
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
