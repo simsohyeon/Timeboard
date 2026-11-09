@@ -18,6 +18,24 @@ export function toSheet(rows, staffName) {
   ];
 }
 
+// 두 번째 시트: 이 파일로 내보낸 예약번호 목록 — 올릴 때 '엑셀에서 지운 예약'을 찾는 데 쓴다
+// (받은 뒤 태블릿에서 새로 들어온 예약은 이 목록에 없으니 절대 삭제 후보가 되지 않는다)
+export const INFO_SHEET = '내보낸 정보';
+export function infoSheet(ids, from, to) {
+  return [
+    ['이 시트는 지우거나 고치지 마세요 — 엑셀에서 지운 예약을 찾는 데 써요'],
+    ['기간', from, to],
+    ['예약번호'],
+    ...ids.map(id => [id]),
+  ];
+}
+export function readInfo(rows) {
+  const i = (rows || []).findIndex(r => String(r?.[0] ?? '').trim() === '예약번호');
+  if (i < 0) return null;
+  const ids = rows.slice(i + 1).map(r => Number(r?.[0])).filter(n => Number.isInteger(n) && n > 0);
+  return { ids };
+}
+
 // ───── 읽기: 엑셀 칸 값 → 우리 값 ─────
 const ymd = d => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 const EXCEL_EPOCH = Date.UTC(1899, 11, 30);
@@ -59,7 +77,7 @@ const text = v => (v == null ? '' : String(v).trim());
 
 // ───── 올린 표 → 바뀔 내용 ─────
 // 반환: [{ line, kind: 'update'|'create'|'same'|'error', row(새 값), before(기존 예약), changes:[{field,from,to}], problems:[], warnings:[] }]
-export function planImport(sheet, { existing, staff, leaves, openMin, closeMin, dayList }) {
+export function planImport(sheet, { existing, staff, leaves, openMin, closeMin, dayList, exportedIds = null }) {
   const head = (sheet[0] || []).map(text);
   const col = name => head.indexOf(name);
   const missing = HEADERS.filter(h => !['예약번호', '초이스', '완료', '금액', '메뉴', '손님'].includes(h) && col(h) < 0);
@@ -140,6 +158,17 @@ export function planImport(sheet, { existing, staff, leaves, openMin, closeMin, 
     const hit = after.find(o => o.line !== p.line && o.staffId === p.row.staffId && o.date === p.row.date
       && p.row.startMin < o.startMin + o.durationMin && o.startMin < p.row.startMin + p.row.durationMin);
     if (hit) p.warnings.push(`${hhmm(hit.startMin)} ${hit.title || ''} 예약과 겹쳐요${hit.line ? ` (${hit.line}번째 줄)` : ''}`);
+  }
+
+  // 엑셀에서 지운 예약: 내보냈던 예약 중 파일에 없는 것 (지금도 DB 에 남아 있는 것만)
+  if (exportedIds) {
+    const inFile = new Set(plans.map(p => p.id).filter(id => id != null));
+    for (const id of exportedIds) {
+      const before = byId.get(id);
+      if (!before || inFile.has(id) || seenIds.has(id)) continue;
+      plans.push({ line: null, kind: 'delete', id, row: before, before, changes: [], problems: [],
+        warnings: before.done ? ['완료된 예약이에요 (정산에서 빠져요)'] : [] });
+    }
   }
   return plans;
 }

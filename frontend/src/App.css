@@ -1481,3 +1481,11 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
 .xl-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 .xl-actions .btn { flex: none; min-width: 110px; }
 @media (max-width: 600px) { .xl-what { white-space: normal; } .xl-row .btn { margin-left: 0; width: 100%; } }
+.xl-sum .del { background: var(--red-soft); color: var(--red); }
+.xl-tag.del { background: var(--red); color: #fff; }
+.xl-table tr.del.off { opacity: .55; }
+.xl-del { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--red-soft); cursor: pointer; }
+.xl-del input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--red); flex: none; }
+.xl-del span { display: flex; flex-direction: column; gap: 3px; color: var(--red); font-size: 14px; }
+.xl-del small { color: var(--sub); font-size: 12.5px; line-height: 1.5; }
+.xl-note { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
