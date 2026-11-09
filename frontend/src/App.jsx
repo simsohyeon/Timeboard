@@ -184,14 +184,24 @@ export default function App({ shop, email, onShopChanged }) {
   };
   useEffect(reload, [date]);
   // 현황판은 다른 기기에서 바뀐 예약도 보이게 1분마다 새로 불러온다
-  // 영업일이 바뀌면(밤새 켜 둔 태블릿) 오늘로 넘긴다
+  // 영업일이 바뀌면(밤새 켜 둔 태블릿) 오늘로 넘긴다 — '오늘'을 보고 있던 화면만 (일부러 다른 날을 보는 중이면 그대로)
+  // 지금 탭은 늘 오늘. 1분마다 + 화면으로 돌아올 때 확인
+  const seenToday = useRef(bizToday()); // 마지막으로 확인한 영업일
+  const followToday = useRef(true);     // 보고 있는 날이 그때의 오늘이었는지
+  useEffect(() => { followToday.current = fmtDate(date) === seenToday.current; }, [date]);
   useEffect(() => {
-    if (tab !== 'now') return;
-    const t = setInterval(() => {
-      const today = bizNow().date;
-      if (fmtDate(today) !== fmtDate(date)) setDate(today); else reload();
-    }, 60000);
-    return () => clearInterval(t);
+    const check = () => {
+      const today = bizToday();
+      const rolled = today !== seenToday.current;
+      seenToday.current = today;
+      if ((tab === 'now' || followToday.current) && today !== fmtDate(date)) { setDate(bizNow().date); return; }
+      if (tab === 'now' && !rolled) reload(); // 지금 탭은 다른 기기에서 바뀐 예약도 보이게
+    };
+    const t = setInterval(check, 60000);
+    const onVisible = () => document.visibilityState === 'visible' && check();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', check);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible); window.removeEventListener('focus', check); };
   }, [tab, date]);
 
   const startH = settings ? Math.floor(settings.openMin / 60) : START_H;
