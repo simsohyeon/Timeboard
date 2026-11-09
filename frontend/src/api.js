@@ -1,6 +1,7 @@
 // 데이터 접근은 전부 이 파일을 거친다 — Supabase 직결 (TraderNote 방식)
 // frontend/.env 에 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY 필요 (.env.example 참고)
 import { createClient } from '@supabase/supabase-js';
+import { mockFetch } from './dev/mockSupabase';
 
 // 메일 링크(가입 인증·비밀번호 재설정)로 열리면 주소 # 뒤에 결과가 붙는다.
 // supabase 가 읽고 지우기 전에 남겨 둔다 (만료된 링크 안내, 비밀번호 새로 정하기 화면)
@@ -13,10 +14,12 @@ export const authLink = {
 // 오류 링크는 supabase 가 주소를 안 지워서, 새로고침할 때마다 같은 안내가 다시 뜬다 → 읽었으니 지움
 if (authLink.error) window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// 개발용 가짜 DB (npm run dev:mock): 실제 Supabase 대신 브라우저 안의 샘플 데이터 — 배포 빌드에서는 이 분기가 통째로 빠짐
+const MOCK = import.meta.env.DEV && import.meta.env.VITE_MOCK === '1';
+const url = MOCK ? 'https://mock.supabase.co' : import.meta.env.VITE_SUPABASE_URL;
+const key = MOCK ? 'mock-anon-key' : import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = url && key ? createClient(url, key) : null;
+export const supabase = url && key ? createClient(url, key, MOCK ? { global: { fetch: mockFetch } } : undefined) : null;
 export const configured = !!supabase;
 if (!supabase) console.warn('Supabase 미설정: frontend/.env 를 채우세요 (.env.example 참고)');
 
