@@ -1447,3 +1447,37 @@ body { word-break: keep-all; overflow-wrap: anywhere; }
   .gh-row small { display: none; }
   .gh-row em { padding: 1px 3px; font-size: 10.5px; }
 }
+
+/* ───── 설정 > 엑셀 ───── */
+.excel { display: flex; flex-direction: column; gap: 22px; }
+.xl-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.xl-row .datepick { width: 170px; }
+.xl-row .btn { flex: none; margin-left: auto; }
+.xl-help { margin: 0 0 14px; padding-left: 18px; font-size: 13.5px; color: var(--sub); line-height: 1.7; }
+.xl-file { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.xl-file.disabled { opacity: .5; pointer-events: none; }
+.xl-msg { margin: 0; padding: 10px 14px; border-radius: 12px; font-size: 14px; }
+.xl-msg.ok { background: var(--green-soft); color: var(--green); }
+.xl-msg.bad { background: var(--red-soft); color: var(--red); }
+.xl-sum { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.xl-sum span { font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 99px; background: var(--line); color: var(--sub); }
+.xl-sum .up { background: var(--blue-soft); color: var(--blue-dark); }
+.xl-sum .new { background: var(--green-soft); color: var(--green); }
+.xl-sum .err { background: var(--red-soft); color: var(--red); }
+.xl-table-wrap { max-height: 50vh; overflow: auto; border: 1px solid var(--line-strong); border-radius: 12px; }
+.xl-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.xl-table th { position: sticky; top: 0; background: var(--hover); text-align: left; font-size: 12px; color: var(--muted); padding: 8px 10px; }
+.xl-table td { padding: 8px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+.xl-table td:first-child { color: var(--muted); width: 3em; }
+.xl-table tr.err { background: color-mix(in srgb, var(--red-soft) 50%, transparent); }
+.xl-tag { font-size: 12px; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.xl-tag.up { background: var(--blue-soft); color: var(--blue-dark); }
+.xl-tag.new { background: var(--green-soft); color: var(--green); }
+.xl-tag.err { background: var(--red-soft); color: var(--red); }
+.xl-what { white-space: nowrap; }
+.xl-prob { color: var(--red); }
+.xl-warn { color: var(--amber); }
+.xl-table s { color: var(--muted); }
+.xl-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.xl-actions .btn { flex: none; min-width: 110px; }
+@media (max-width: 600px) { .xl-what { white-space: normal; } .xl-row .btn { margin-left: 0; width: 100%; } }
