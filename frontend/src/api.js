@@ -207,6 +207,12 @@ export const api = {
     return rows(res);
   },
 
+  // 예약번호로 찾기 (엑셀 올리기 — 다른 매장 번호는 DB 규칙상 안 보임)
+  reservationsByIds: async ids => {
+    if (!supabase || !ids.length) return [];
+    return selectResv(cols => supabase.from('reservation').select(cols).in('id', ids));
+  },
+
   // 기간 안의 예약 전부 (휴가 등록 시 겹치는 예약 찾기)
   reservationsRange: async (from, to) => {
     if (!supabase) return [];

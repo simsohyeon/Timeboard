@@ -4,6 +4,7 @@ import { DAYS, DUR_OPTIONS, PALETTE, minLabel } from '../lib/constants';
 import { BASE_FONT, FONT_SIZES, DENSITIES, loadDisplay, saveDisplay } from '../lib/display';
 import DatePicker from './DatePicker';
 import LeavePanel from './LeavePanel';
+import ExcelPanel from './ExcelPanel';
 import { bizToday } from '../lib/schedule';
 import {
   FormBar, GripIcon, IconButton, Select, TrashIcon, allSaved, countChanges, useDraft, useDragSort, useSaver,
@@ -13,6 +14,7 @@ const SECTIONS = [
   ['staff', '담당자', '담당자 한 명이 예약 보드의 세로 칸 하나예요.'],
   ['store', '매장 운영', ''], // 설명 없이 바로 운영 시간·메뉴 카드부터
   ['display', '화면', '이 기기에서만 적용돼요. 고르면 바로 바뀌고, 저장해야 유지돼요.'],
+  ['excel', '엑셀', '예약을 엑셀로 받아서 고친 뒤 다시 올려 한꺼번에 바꿔요. 올리면 바뀔 내용을 먼저 보여 드려요.'],
   ['account', '계정', '이 계정의 매장 데이터는 다른 계정과 따로 저장돼요.'],
 ];
 const LEAVE_MSG = '저장하지 않은 변경이 있어요. 저장하지 않고 이동할까요?';
@@ -38,7 +40,7 @@ const daysLabel = d => {
 // 설정: 섹션마다 초안을 편집하고 [저장]으로 한 번에 반영, [되돌리기]로 원래대로
 export default function SettingsPage({
   staff, menus, settings, display, onDisplay, leaves = [], leaveErr = '', onLeavesChanged,
-  onStaffChanged, onMenusChanged, onSettingsChanged, onDirtyChange, account,
+  onStaffChanged, onMenusChanged, onSettingsChanged, onDirtyChange, account, onReservationsChanged,
 }) {
   const sections = SECTIONS.filter(([k]) => k !== 'account' || account);
   const [sec, setSec] = useState('staff');
@@ -73,6 +75,7 @@ export default function SettingsPage({
         {sec === 'store' && <StoreSection menus={menus} openMin={openMin} closeMin={closeMin}
           onMenusSaved={onMenusChanged} onHoursSaved={onSettingsChanged} onDirty={setDirty} />}
         {sec === 'display' && <DisplaySection display={display} onDisplay={onDisplay} onDirty={setDirty} />}
+        {sec === 'excel' && <ExcelPanel staff={staff} leaves={leaves} openMin={openMin} closeMin={closeMin} onChanged={onReservationsChanged} />}
         {sec === 'account' && account && <AccountSection {...account} />}
       </div>
     </div>

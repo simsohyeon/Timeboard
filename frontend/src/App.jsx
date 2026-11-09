@@ -294,6 +294,7 @@ export default function App({ shop, email, onShopChanged }) {
               onStaffChanged={() => { loadStaff(); reload(); }}
               onMenusChanged={loadMenus}
               onSettingsChanged={loadSettings}
+              onReservationsChanged={reload}
               account={shop ? { shop, email, onShopChanged } : null} />
           )}
         </main>
